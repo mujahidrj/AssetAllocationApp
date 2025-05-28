@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 
 function RothIRACalculator() {
   const [amount, setAmount] = useState("");
@@ -66,7 +67,7 @@ function RothIRACalculator() {
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
         <h1 className="text-2xl font-bold mb-6 text-center font-roboto">
-          Roth IRA Asset Allocation Calculator
+          Asset Allocation Calculator
         </h1>
 
         <div className="space-y-4">
@@ -97,8 +98,9 @@ function RothIRACalculator() {
               <button
                 onClick={addStock}
                 className="p-2 md:px-3 md:py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                aria-label="Add stock"
               >
-                <FontAwesomeIcon icon="plus" />
+                <FontAwesomeIcon icon={faPlus} />
                 <span className="hidden md:inline md:ml-1">Add</span>
               </button>
             </div>
@@ -123,8 +125,9 @@ function RothIRACalculator() {
                     <button
                       onClick={() => removeStock(index)}
                       className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                      aria-label="Remove stock"
                     >
-                      <FontAwesomeIcon icon="trash" />
+                      <FontAwesomeIcon icon={faTrash} />
                     </button>
                   </div>
                 </div>
