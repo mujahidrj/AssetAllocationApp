@@ -17,20 +17,18 @@ export interface Stock {
 
 export function useStocks() {
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
-    async function loadStocks() {
-      if (!user) {
-        setStocks([
-          { name: "VTSAX", percentage: 60 },
-          { name: "VOO", percentage: 40 },
-        ]);
-        setLoading(false);
-        return;
-      }
+    if (!user) {
+      setStocks([]);
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
+    async function loadStocks() {
       try {
         const stocksRef = doc(db, 'userStocks', user.uid);
         const docSnap = await getDoc(stocksRef);
@@ -44,22 +42,11 @@ export function useStocks() {
             { name: "VOO", percentage: 40 },
           ];
           setStocks(defaultStocks);
-          try {
-            await setDoc(stocksRef, { stocks: defaultStocks });
-          } catch (error) {
-            const firestoreError = error as FirestoreError;
-            console.error('Error creating initial stocks:', firestoreError);
-            if (firestoreError.code === 'permission-denied') {
-              alert('Please enable Firestore in your Firebase Console and set up security rules');
-            }
-          }
+          await setDoc(stocksRef, { stocks: defaultStocks });
         }
       } catch (error) {
-        const firestoreError = error as FirestoreError;
-        console.error('Error loading stocks:', firestoreError);
-        if (firestoreError.code === 'permission-denied') {
-          alert('Please enable Firestore in your Firebase Console and set up security rules');
-        }
+        console.error('Error loading stocks:', error);
+        setStocks([]);
       } finally {
         setLoading(false);
       }
@@ -68,18 +55,23 @@ export function useStocks() {
     loadStocks();
   }, [user]);
 
-  const saveStocks = async (newStocks: Stock[]) => {
-    setStocks(newStocks);
-    
-    if (user) {
-      try {
-        const stocksRef = doc(db, 'userStocks', user.uid);
-        await setDoc(stocksRef, { stocks: newStocks });
-      } catch (error) {
-        console.error('Error saving stocks:', error);
-      }
+  const setStocksWithSync = async (newStocks: Stock[]) => {
+    if (!user) {
+      return;
+    }
+
+    try {
+      const stocksRef = doc(db, 'userStocks', user.uid);
+      await setDoc(stocksRef, { stocks: newStocks });
+      setStocks(newStocks);
+    } catch (error) {
+      console.error('Error updating stocks:', error);
     }
   };
 
-  return { stocks, setStocks: saveStocks, loading };
+  return {
+    stocks,
+    setStocks: setStocksWithSync,
+    loading
+  };
 }
