@@ -45,7 +45,8 @@
 }
 
 .label {
-  display: block;
+  display: flex;
+  justify-content: center;
   font-size: 0.875rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
@@ -54,14 +55,15 @@
 
 .inputWrapper {
   position: relative;
-  flex: 1;
-  max-width: 300px;  /* limit the width */
+  display: flex;
+  width: 100%;  /* take full width of container */
 }
 
 .input {
   width: 100%;
-  padding: 0.75rem 0.75rem 0.75rem 2rem;
-  border: 2px solid #4a4a4a;
+  padding: 0.75rem;
+  padding-left: 1.5rem;
+  border: 0.125rem solid #4a4a4a;
   border-radius: 0.5rem;
   transition: border-color 0.2s;
   background: #1f1f1f;
@@ -80,10 +82,11 @@
 
 .dollarSign {
   position: absolute;
-  left: 0.75rem;
+  left: 0.625rem;
   top: 50%;
   transform: translateY(-50%);
   color: #9ca3af;
+  pointer-events: none;
 }
 
 .error {
@@ -98,28 +101,32 @@
 
 .addStockSection {
   display: flex;
-  align-items: flex-end;  /* align with input bottom */
-  gap: 1rem;  /* increased gap between input and button */
+  align-items: center;
+  gap: 1.25rem;  /* increased gap between input and button */
   margin-bottom: 1.5rem;
+  width: 100%;
 }
 
 .newStockInput {
+  display: flex;
   flex: 1;
-  max-width: 300px;  /* match the amount input width */
+  min-width: 0;
+  width: 100%;
 }
 
 .addButton {
-  padding: 0.5rem 1rem;  /* reduced vertical padding */
-  height: 2.5rem;  /* match input height */
+  padding: 0 1rem;
+  height: 2.75rem;  /* match input height (includes border) */
   background-color: #2d2d2d;
   color: #e5e7eb;
-  border: 1px solid #4a4a4a;
+  border: 0.125rem solid #4a4a4a;  /* match input border */
   border-radius: 0.5rem;
   font-weight: 500;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .addButton:hover {
@@ -137,15 +144,21 @@
 .stockItem {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
-  padding: 0.5rem;
+  gap: 0.875rem;
+  padding: 0.625rem 0.875rem;
   background: #1f1f1f;
   border-radius: 0.5rem;
 }
 
+.allocationControls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
 .stockSymbol {
-  width: 6rem;
+  width: 4.5rem;
   flex-shrink: 0;
   font-weight: 500;
   color: #e5e7eb;
@@ -160,7 +173,7 @@
   width: 100%;
   padding: 0.75rem;
   padding-right: 2rem;
-  border: 2px solid #e5e7eb;
+  border: 0.125rem solid #e5e7eb;
   border-radius: 0.5rem;
   transition: border-color 0.2s;
 }
@@ -171,27 +184,45 @@
 }
 
 .percentageInputWrapper {
+  display: flex;
   position: relative;
-  width: 5rem;
+  width: 4.5rem;
+  flex-shrink: 0;
 }
 
 .percentageInput {
   width: 100%;
-  padding: 0.5rem 1.75rem 0.5rem 0.5rem;
-  border: 2px solid #4a4a4a;
+  padding: 0.375rem 1.25rem 0.375rem 0.375rem;
+  border: 0.125rem solid #4a4a4a;
   border-radius: 0.375rem;
   text-align: right;
   background: #1f1f1f;
   color: #ffffff;
+  appearance: textfield;
+  -moz-appearance: textfield;
+  font-size: 0.875rem;
+}
+
+.percentageInput::-webkit-outer-spin-button,
+.percentageInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .percentSymbol {
   position: absolute;
-  right: 0.5rem;
+  right: 0.375rem;
   top: 50%;
   transform: translateY(-50%);
   color: #9ca3af;
   pointer-events: none;
+  user-select: none;
+}
+
+.buttonWrapper {
+  margin-left: 0.5rem;
+  display: flex;
+  align-items: center;
 }
 
 .removeButton {
@@ -208,16 +239,64 @@
 }
 
 .deleteButton {
-  padding: 0.5rem;
-  color: #ef4444;
-  background: none;
+  padding: 0.375rem 0.625rem;
+  color: #ffffff;
+  background-color: #dc2626;
   border: none;
+  border-radius: 0.375rem;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .deleteButton:hover {
-  color: #f87171;
+  background-color: #ef4444;
+  transform: scale(1.05);
+}
+
+.percentageSlider {
+  flex: 1;
+  height: 0.375rem;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #4a4a4a;
+  border-radius: 0.25rem;
+  outline: none;
+  opacity: 0.9;
+  transition: opacity 0.2s;
+}
+
+.percentageSlider:hover {
+  opacity: 1;
+}
+
+.percentageSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  background: #60a5fa;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.percentageSlider::-moz-range-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  background: #60a5fa;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s;
+}
+
+.percentageSlider::-webkit-slider-thumb:hover,
+.percentageSlider::-moz-range-thumb:hover {
+  transform: scale(1.1);
 }
 
 .results {
