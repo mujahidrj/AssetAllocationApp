@@ -1,0 +1,299 @@
+/* RothIRACalculator.module.css */
+
+.container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, #1a1a1a, #2d2d2d);
+  padding: 1rem;
+  color: #e5e7eb;
+}
+
+.wrapper {
+  max-width: 768px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.heading {
+  font-size: 1.75rem;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.card {
+  background: #2d2d2d;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.formSection {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #363636;
+  border-radius: 0.75rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #e5e7eb;
+}
+
+.inputWrapper {
+  position: relative;
+  flex: 1;
+  max-width: 300px;  /* limit the width */
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 0.75rem 0.75rem 2rem;
+  border: 2px solid #4a4a4a;
+  border-radius: 0.5rem;
+  transition: border-color 0.2s;
+  background: #1f1f1f;
+  color: #ffffff;
+}
+
+.input:focus {
+  border-color: #60a5fa;
+  outline: none;
+}
+
+.inputError {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.dollarSign {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+}
+
+.error {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #ef4444;
+  padding: 0.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 0.375rem;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.addStockSection {
+  display: flex;
+  align-items: flex-end;  /* align with input bottom */
+  gap: 1rem;  /* increased gap between input and button */
+  margin-bottom: 1.5rem;
+}
+
+.newStockInput {
+  flex: 1;
+  max-width: 300px;  /* match the amount input width */
+}
+
+.addButton {
+  padding: 0.5rem 1rem;  /* reduced vertical padding */
+  height: 2.5rem;  /* match input height */
+  background-color: #2d2d2d;
+  color: #e5e7eb;
+  border: 1px solid #4a4a4a;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.addButton:hover {
+  background-color: #363636;
+  border-color: #60a5fa;
+}
+
+.stockList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.stockItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background: #1f1f1f;
+  border-radius: 0.5rem;
+}
+
+.stockSymbol {
+  width: 6rem;
+  flex-shrink: 0;
+  font-weight: 500;
+  color: #e5e7eb;
+}
+
+.stockInputWrapper {
+  position: relative;
+  flex: 1;
+}
+
+.stockInput {
+  width: 100%;
+  padding: 0.75rem;
+  padding-right: 2rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.5rem;
+  transition: border-color 0.2s;
+}
+
+.stockInput:focus {
+  border-color: #60a5fa;
+  outline: none;
+}
+
+.percentageInputWrapper {
+  position: relative;
+  width: 5rem;
+}
+
+.percentageInput {
+  width: 100%;
+  padding: 0.5rem 1.75rem 0.5rem 0.5rem;
+  border: 2px solid #4a4a4a;
+  border-radius: 0.375rem;
+  text-align: right;
+  background: #1f1f1f;
+  color: #ffffff;
+}
+
+.percentSymbol {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.removeButton {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.removeButton:hover {
+  color: #dc2626;
+}
+
+.deleteButton {
+  padding: 0.5rem;
+  color: #ef4444;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.deleteButton:hover {
+  color: #f87171;
+}
+
+.results {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #1f1f1f;
+  border-radius: 1rem;
+  border: 1px solid #4a4a4a;
+}
+
+.resultsSection {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #1f1f1f;
+  border-radius: 0.75rem;
+  border: 1px solid #4a4a4a;
+}
+
+.resultItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem;
+  border-bottom: 1px solid #4a4a4a;
+  color: #e5e7eb;
+}
+
+.resultItem:last-child {
+  border-bottom: none;
+}
+
+.resultItem span {
+  color: #e5e7eb;
+}
+
+.resultItem span:last-child {
+  color: #10b981;  /* green color for the amount */
+  font-weight: 500;
+}
+
+.total {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #4a4a4a;
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #10b981;
+}
+
+.signInPrompt {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(79, 70, 229, 0.1);
+  border: 1px solid #4f46e5;
+  border-radius: 0.5rem;
+  color: #e5e7eb;
+  text-align: center;
+}
+
+.loadingSection {
+  padding: 2rem;
+  text-align: center;
+  color: #e5e7eb;
+  font-size: 1.125rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.emptyState {
+  padding: 2rem;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 1.125rem;
+  background: #1f1f1f;
+  border-radius: 0.5rem;
+  border: 1px dashed #4a4a4a;
+}

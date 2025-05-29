@@ -4,168 +4,238 @@ import { faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useStocks } from '../lib/useStocks';
 import { useAuth } from '../lib/auth';
 import { LoginButton } from './LoginButton';
+import styles from './RothIRACalculator.module.css';
+
+interface ValidationErrors {
+  [key: string]: string | undefined;
+}
+
+interface Stock {
+  name: string;
+  percentage: number;
+}
 
 function RothIRACalculator() {
   const [amount, setAmount] = useState("");
-  const { stocks, setStocks, loading } = useStocks();
   const { user } = useAuth();
-  const [error, setError] = useState("");
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [newStockName, setNewStockName] = useState("");
+  const [localStocks, setLocalStocks] = useState<Stock[]>([]);
+  
+  // Always call the hook, but only use its values when user is signed in
+  const { stocks = [], setStocks, loading } = useStocks();
 
-  const addStock = () => {
+  // Memoize currentStocks to prevent unnecessary recalculations
+  const currentStocks = useMemo(() => {
+    if (!user) return localStocks;
+    return stocks;
+  }, [user, stocks, localStocks]);
+
+  const validateAmount = useCallback((value: string) => {
+    const num = parseFloat(value);
+    if (!value) {
+      return "Amount is required";
+    }
+    if (isNaN(num) || num <= 0) {
+      return "Please enter a valid positive number";
+    }
+    return undefined;
+  }, []);
+
+  const validatePercentages = useCallback(() => {
+    if (currentStocks.length === 0) return undefined;
+    
+    const total = currentStocks.reduce((sum, stock) => sum + stock.percentage, 0);
+    if (total !== 100) {
+      return `Total percentage is ${total}%. Please adjust to equal 100%`;
+    }
+    return undefined;
+  }, [currentStocks]);
+
+  const addStock = useCallback(() => {
     if (!newStockName.trim()) {
-      setError("Please enter a stock name");
+      setValidationErrors(prev => ({ ...prev, newStock: "Please enter a stock name" }));
       return;
     }
-    setStocks([...stocks, { name: newStockName.toUpperCase(), percentage: 0 }]);
+    const newStock = { name: newStockName.toUpperCase(), percentage: 0 };
+    if (user && setStocks) {
+      setStocks([...stocks, newStock]);
+    } else {
+      setLocalStocks(prev => [...prev, newStock]);
+    }
     setNewStockName("");
-    setError("");
-  };
+    setValidationErrors({});
+  }, [newStockName, user, stocks, setStocks]);
 
-  const removeStock = (index: number) => {
-    setStocks(stocks.filter((_, i) => i !== index));
-  };
+  const removeStock = useCallback((index: number) => {
+    if (user && setStocks) {
+      setStocks(stocks.filter((_, i) => i !== index));
+    } else {
+      setLocalStocks(prev => prev.filter((_, i) => i !== index));
+    }
+    setValidationErrors({});
+  }, [user, stocks, setStocks]);
 
-  const updateStockPercentage = (index: number, newPercentage: string) => {
-    const updatedStocks = [...stocks];
-    updatedStocks[index] = {
-      ...updatedStocks[index],
-      percentage: parseInt(newPercentage) || 0,
+  const updateStockPercentage = useCallback((index: number, newPercentage: string) => {
+    const parsedValue = parseInt(newPercentage) || 0;
+    
+    if (parsedValue < 0 || parsedValue > 100) {
+      setValidationErrors(prev => ({ 
+        ...prev, 
+        [`stock-${index}`]: "Percentage must be between 0 and 100" 
+      }));
+      return;
+    }
+
+    const updateStockAtIndex = (stockList: Stock[]) => {
+      const updated = [...stockList];
+      if (index >= 0 && index < updated.length) {
+        updated[index] = {
+          ...updated[index],
+          percentage: parsedValue,
+        };
+      }
+      return updated;
     };
-    setStocks(updatedStocks);
-  };
+
+    if (user && setStocks) {
+      setStocks(updateStockAtIndex(stocks));
+    } else {
+      setLocalStocks(prev => updateStockAtIndex(prev));
+    }
+    
+    // Clear individual stock error
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[`stock-${index}`];
+      return newErrors;
+    });
+  }, [user, stocks, setStocks]);
 
   const calculateAllocations = useCallback(() => {
+    if (!amount) return null;
+    
+    const amountError = validateAmount(amount);
+    if (amountError) {
+      setValidationErrors(prev => ({ ...prev, amount: amountError }));
+      return null;
+    }
+
+    const percentageError = validatePercentages();
+    if (percentageError) {
+      setValidationErrors(prev => ({ ...prev, percentages: percentageError }));
+      return null;
+    }
+    
+    // Only clear validation errors if both validations pass
+    setValidationErrors({});
     const totalAmount = parseFloat(amount);
-    if (isNaN(totalAmount) || totalAmount <= 0) {
-      setError("Please enter a valid positive number");
-      return null;
-    }
-
-    const totalPercentage = stocks.reduce(
-      (sum, stock) => sum + stock.percentage,
-      0
-    );
-    if (totalPercentage !== 100) {
-      setError("Percentages must add up to 100%");
-      return null;
-    }
-
-    setError("");
-    return stocks.map((stock) => ({
+    return currentStocks.map((stock) => ({
       name: stock.name,
       percentage: stock.percentage,
       amount: (totalAmount * (stock.percentage / 100)).toFixed(2),
     }));
-  }, [amount, stocks, setError]);
+  }, [amount, currentStocks, validateAmount, validatePercentages]);
 
-  const allocations = useMemo(() => {
-    if (!amount) return null;
-    return calculateAllocations();
-  }, [amount, calculateAllocations]);
-
-  if (loading) {
-    return <div className="min-h-screen bg-gray-100 p-8 flex items-center justify-center">
-      <div className="text-xl">Loading...</div>
-    </div>;
-  }
+  // Calculate results outside of render to handle validation properly
+  const allocations = useMemo(() => calculateAllocations(), [calculateAllocations]);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
-      <div className="max-w-md mx-auto">
-        <div className="mb-6 flex justify-between items-center">
-          <h1 className="text-2xl font-bold font-roboto">
-            Asset Allocation Calculator
-          </h1>
+    <div className={styles.container}>
+      <div className={styles.wrapper}>
+        <div className={styles.header}>
+          <h1 className={styles.heading}>Asset Allocation Calculator</h1>
           <LoginButton />
         </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Total Amount ($)
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                placeholder="Enter amount (e.g. 1000)"
-                name="amount"
-              />
-            </div>
 
-            <div className="border-t pt-4">
-              <div className="flex items-center gap-2 mb-4">
-                <input
-                  type="text"
-                  value={newStockName}
-                  onChange={(e) => setNewStockName(e.target.value)}
-                  className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter stock symbol"
-                  name="newStock"
-                />
-                <button
-                  onClick={addStock}
-                  className="p-2 md:px-3 md:py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  aria-label="Add stock"
-                >
-                  <FontAwesomeIcon icon={faPlus} />
-                  <span className="hidden md:inline md:ml-1">Add</span>
-                </button>
+        <div className={styles.card}>
+          {!user && (
+            <div className={styles.signInPrompt}>
+              <p>You're using the calculator in guest mode. Sign in to save your allocations.</p>
+            </div>
+          )}
+
+          {user && loading ? (
+            <div className={styles.loadingSection}>Loading your saved allocations...</div>
+          ) : (
+            <>
+              <div className={styles.formSection}>
+                <label className={styles.label}>Total Investment Amount</label>
+                <div className={styles.inputWrapper}>
+                  <span className={styles.dollarSign}>$</span>
+                  <input
+                    type="text"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className={`${styles.input} ${validationErrors.amount ? styles.inputError : ''}`}
+                    placeholder="Enter amount"
+                  />
+                </div>
+                {validationErrors.amount && (
+                  <div className={styles.error}>{validationErrors.amount}</div>
+                )}
               </div>
 
-              {stocks.map((stock, index) => (
-                <div key={index} className="flex items-center gap-2 mb-3">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {stock.name} Percentage
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        value={stock.percentage}
-                        onChange={(e) =>
-                          updateStockPercentage(index, e.target.value)
-                        }
-                        className="flex-1 p-2 border rounded focus:ring-2 focus:ring-blue-500"
-                        placeholder="Enter percentage"
-                        name={`stock-${index}-percentage`}
-                      />
-                      <button
-                        onClick={() => removeStock(index)}
-                        className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                        aria-label="Remove stock"
-                      >
+              <div className={styles.formSection}>
+                <div className={styles.addStockSection}>
+                  <div className={styles.newStockInput}>
+                    <label className={styles.label}>Add New Stock</label>
+                    <input
+                      type="text"
+                      value={newStockName}
+                      onChange={(e) => setNewStockName(e.target.value)}
+                      className={`${styles.input} ${validationErrors.newStock ? styles.inputError : ''}`}
+                      placeholder="Enter stock symbol"
+                    />
+                  </div>
+                  <button onClick={addStock} className={styles.addButton}>
+                    <FontAwesomeIcon icon={faPlus} />
+                    <span>Add</span>
+                  </button>
+                </div>
+
+                <div className={styles.stockList}>
+                  {currentStocks.map((stock, index) => (
+                    <div key={index} className={styles.stockItem}>
+                      <div className={styles.stockSymbol}>{stock.name}</div>
+                      <div className={styles.percentageInputWrapper}>
+                        <input
+                          type="number"
+                          value={stock.percentage}
+                          onChange={(e) => updateStockPercentage(index, e.target.value)}
+                          className={`${styles.percentageInput} ${validationErrors[`stock-${index}`] ? styles.inputError : ''}`}
+                          min="0"
+                          max="100"
+                        />
+                        <span className={styles.percentSymbol}>%</span>
+                      </div>
+                      <button onClick={() => removeStock(index)} className={styles.deleteButton}>
                         <FontAwesomeIcon icon={faTrash} />
                       </button>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {error && <div className="text-red-500 text-sm">{error}</div>}
-
-            {allocations && (
-              <div className="mt-6 p-4 bg-gray-50 rounded">
-                <h2 className="text-lg font-semibold mb-3">
-                  Allocation Results:
-                </h2>
-                <div className="space-y-2">
-                  {allocations.map((allocation, index) => (
-                    <div key={index} className="flex justify-between">
-                      <span>
-                        {allocation.name} ({allocation.percentage}%):
-                      </span>
-                      <span className="font-medium">${allocation.amount}</span>
-                    </div>
                   ))}
+                  {validationErrors.percentages && (
+                    <div className={styles.error}>{validationErrors.percentages}</div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
+
+              <div className={styles.resultsSection}>
+                {currentStocks.length === 0 ? (
+                  <div className={styles.emptyState}>Add some stocks to see allocations</div>
+                ) : validationErrors.percentages ? (
+                  <div className={styles.error}>{validationErrors.percentages}</div>
+                ) : allocations ? (
+                  allocations.map((allocation) => (
+                    <div key={allocation.name} className={styles.resultItem}>
+                      <span>{allocation.name} ({allocation.percentage}%)</span>
+                      <span>${allocation.amount}</span>
+                    </div>
+                  ))
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
