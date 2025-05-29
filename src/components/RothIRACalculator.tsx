@@ -20,7 +20,10 @@ function RothIRACalculator() {
   const { user } = useAuth();
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [newStockName, setNewStockName] = useState("");
-  const [localStocks, setLocalStocks] = useState<Stock[]>([]);
+  const [localStocks, setLocalStocks] = useState<Stock[]>([
+    { name: "FZROX", percentage: 80 },
+    { name: "FZILX", percentage: 20 }
+  ]);
   
   // Always call the hook, but only use its values when user is signed in
   const { stocks = [], setStocks, loading } = useStocks();
