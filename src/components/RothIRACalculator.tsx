@@ -160,7 +160,7 @@ function RothIRACalculator() {
           ) : (
             <>
               <div className={styles.formSection}>
-                <label className={styles.label}>Total Investment Amount</label>
+                <label className={styles.label}>Total Amount for Deposit or Withdrawal</label>
                 <div className={styles.inputWrapper}>
                   <span className={styles.dollarSign}>$</span>
                   <input
@@ -168,7 +168,7 @@ function RothIRACalculator() {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     className={`${styles.input} ${validationErrors.amount ? styles.inputError : ''}`}
-                    placeholder="Enter amount"
+                    placeholder="Enter amount (e.g. 10000)"
                   />
                 </div>
                 {validationErrors.amount && (
@@ -177,9 +177,9 @@ function RothIRACalculator() {
               </div>
 
               <div className={styles.formSection}>
+                <label className={styles.label}>Add New Stock</label>
                 <div className={styles.addStockSection}>
                   <div className={styles.newStockInput}>
-                    <label className={styles.label}>Add New Stock</label>
                     <input
                       type="text"
                       value={newStockName}
@@ -194,46 +194,58 @@ function RothIRACalculator() {
                   </button>
                 </div>
 
-                <div className={styles.stockList}>
-                  {currentStocks.map((stock, index) => (
-                    <div key={index} className={styles.stockItem}>
-                      <div className={styles.stockSymbol}>{stock.name}</div>
-                      <div className={styles.percentageInputWrapper}>
-                        <input
-                          type="number"
-                          value={stock.percentage}
-                          onChange={(e) => updateStockPercentage(index, e.target.value)}
-                          className={`${styles.percentageInput} ${validationErrors[`stock-${index}`] ? styles.inputError : ''}`}
-                          min="0"
-                          max="100"
-                        />
-                        <span className={styles.percentSymbol}>%</span>
+                {currentStocks.length > 0 && (
+                  <div className={styles.stockList}>
+                    {currentStocks.map((stock, index) => (
+                      <div key={index} className={styles.stockItem}>
+                        <div className={styles.stockSymbol}>{stock.name}</div>
+                        <div className={styles.allocationControls}>
+                          <input
+                            type="range"
+                            value={stock.percentage}
+                            onChange={(e) => updateStockPercentage(index, e.target.value)}
+                            className={styles.percentageSlider}
+                            min="0"
+                            max="100"
+                            step="1"
+                          />
+                          <div className={styles.percentageInputWrapper}>
+                            <input
+                              type="number"
+                              value={stock.percentage}
+                              onChange={(e) => updateStockPercentage(index, e.target.value)}
+                              className={`${styles.percentageInput} ${validationErrors[`stock-${index}`] ? styles.inputError : ''}`}
+                              min="0"
+                              max="100"
+                            />
+                            <span className={styles.percentSymbol}>%</span>
+                          </div>
+                        </div>
+                        <div className={styles.buttonWrapper}>
+                          <button onClick={() => removeStock(index)} className={styles.deleteButton} aria-label="Delete stock">
+                            <FontAwesomeIcon icon={faTrash} />
+                          </button>
+                        </div>
                       </div>
-                      <button onClick={() => removeStock(index)} className={styles.deleteButton}>
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
-                    </div>
-                  ))}
-                  {validationErrors.percentages && (
-                    <div className={styles.error}>{validationErrors.percentages}</div>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className={styles.resultsSection}>
-                {currentStocks.length === 0 ? (
-                  <div className={styles.emptyState}>Add some stocks to see allocations</div>
-                ) : validationErrors.percentages ? (
-                  <div className={styles.error}>{validationErrors.percentages}</div>
-                ) : allocations ? (
-                  allocations.map((allocation) => (
-                    <div key={allocation.name} className={styles.resultItem}>
-                      <span>{allocation.name} ({allocation.percentage}%)</span>
-                      <span>${allocation.amount}</span>
-                    </div>
-                  ))
-                ) : null}
-              </div>
+              {currentStocks.length > 0 && amount && (
+                <div className={styles.resultsSection}>
+                  {validationErrors.percentages ? (
+                    <div className={styles.error}>{validationErrors.percentages}</div>
+                  ) : allocations ? (
+                    allocations.map((allocation) => (
+                      <div key={allocation.name} className={styles.resultItem}>
+                        <span>{allocation.name} ({allocation.percentage}%)</span>
+                        <span>${allocation.amount}</span>
+                      </div>
+                    ))
+                  ) : null}
+                </div>
+              )}
             </>
           )}
         </div>
