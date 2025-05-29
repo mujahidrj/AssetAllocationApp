@@ -15,6 +15,37 @@ interface Stock {
   percentage: number;
 }
 
+interface SamplePortfolio {
+  name: string;
+  stocks: Stock[];
+}
+
+const samplePortfolios: SamplePortfolio[] = [
+  {
+    name: "Fidelity 2-Fund Portfolio",
+    stocks: [
+      { name: "FZROX", percentage: 80 },
+      { name: "FZILX", percentage: 20 }
+    ]
+  },
+  {
+    name: "Vanguard 3-Fund Portfolio",
+    stocks: [
+      { name: "VTI", percentage: 60 },
+      { name: "VXUS", percentage: 30 },
+      { name: "BND", percentage: 10 }
+    ]
+  },
+  {
+    name: "Schwab 3-Fund Portfolio",
+    stocks: [
+      { name: "SCHB", percentage: 60 },
+      { name: "SCHF", percentage: 30 },
+      { name: "SCHZ", percentage: 10 }
+    ]
+  }
+];
+
 function RothIRACalculator() {
   const [amount, setAmount] = useState("");
   const { user } = useAuth();
@@ -24,6 +55,13 @@ function RothIRACalculator() {
     { name: "FZROX", percentage: 80 },
     { name: "FZILX", percentage: 20 }
   ]);
+
+  const handleSamplePortfolioChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedPortfolio = samplePortfolios.find(p => p.name === e.target.value);
+    if (selectedPortfolio) {
+      setLocalStocks(selectedPortfolio.stocks);
+    }
+  }, []);
   
   // Always call the hook, but only use its values when user is signed in
   const { stocks = [], setStocks, loading } = useStocks();
@@ -155,6 +193,21 @@ function RothIRACalculator() {
           {!user && (
             <div className={styles.signInPrompt}>
               <p>You're using the calculator in guest mode. Sign in to save your allocations.</p>
+              <div className={styles.samplePortfolioSection}>
+                <label htmlFor="samplePortfolio" className={styles.label}>Choose a sample portfolio:</label>
+                <select 
+                  id="samplePortfolio"
+                  className={styles.select}
+                  onChange={handleSamplePortfolioChange}
+                  defaultValue={samplePortfolios[0].name}
+                >
+                  {samplePortfolios.map(portfolio => (
+                    <option key={portfolio.name} value={portfolio.name}>
+                      {portfolio.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
@@ -234,7 +287,6 @@ function RothIRACalculator() {
                   </div>
                 )}
               </div>
-
               {currentStocks.length > 0 && amount && (
                 <div className={styles.resultsSection}>
                   {validationErrors.percentages ? (
