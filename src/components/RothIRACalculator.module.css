@@ -159,10 +159,25 @@
 }
 
 .stockSymbol {
-  width: 4.5rem;
-  flex-shrink: 0;
-  font-weight: 500;
-  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 120px;
+}
+
+.stockSymbol span:first-child {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.companyName {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .stockInputWrapper {
