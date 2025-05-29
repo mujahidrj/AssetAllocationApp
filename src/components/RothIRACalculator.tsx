@@ -13,6 +13,7 @@ interface ValidationErrors {
 interface Stock {
   name: string;
   percentage: number;
+  companyName?: string;
 }
 
 interface SamplePortfolio {
@@ -20,28 +21,43 @@ interface SamplePortfolio {
   stocks: Stock[];
 }
 
+// Helper function to fetch stock info
+const fetchStockInfo = async (symbol: string) => {
+  try {
+    const response = await fetch(`https://finnhub.io/api/v1/search?q=${symbol}&token=d0semnhr01qkkplur0lgd0semnhr01qkkplur0m0`);
+    const data = await response.json();
+    if (data.result && data.result.length > 0) {
+      return data.result[0].description;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching stock info:', error);
+    return null;
+  }
+};
+
 const samplePortfolios: SamplePortfolio[] = [
   {
     name: "Fidelity 2-Fund Portfolio",
     stocks: [
-      { name: "FZROX", percentage: 80 },
-      { name: "FZILX", percentage: 20 }
+      { name: "FZROX", percentage: 80, companyName: "Fidelity ZERO Total Market Index Fund" },
+      { name: "FZILX", percentage: 20, companyName: "Fidelity ZERO International Index Fund" }
     ]
   },
   {
     name: "Vanguard 3-Fund Portfolio",
     stocks: [
-      { name: "VTI", percentage: 60 },
-      { name: "VXUS", percentage: 30 },
-      { name: "BND", percentage: 10 }
+      { name: "VTI", percentage: 60, companyName: "Vanguard Total Stock Market ETF" },
+      { name: "VXUS", percentage: 30, companyName: "Vanguard Total International Stock ETF" },
+      { name: "BND", percentage: 10, companyName: "Vanguard Total Bond Market ETF" }
     ]
   },
   {
     name: "Schwab 3-Fund Portfolio",
     stocks: [
-      { name: "SCHB", percentage: 60 },
-      { name: "SCHF", percentage: 30 },
-      { name: "SCHZ", percentage: 10 }
+      { name: "SCHB", percentage: 60, companyName: "Schwab U.S. Broad Market ETF" },
+      { name: "SCHF", percentage: 30, companyName: "Schwab International Equity ETF" },
+      { name: "SCHZ", percentage: 10, companyName: "Schwab U.S. Aggregate Bond ETF" }
     ]
   }
 ];
@@ -93,12 +109,19 @@ function RothIRACalculator() {
     return undefined;
   }, [currentStocks]);
 
-  const addStock = useCallback(() => {
+  const addStock = useCallback(async () => {
     if (!newStockName.trim()) {
       setValidationErrors(prev => ({ ...prev, newStock: "Please enter a stock name" }));
       return;
     }
-    const newStock = { name: newStockName.toUpperCase(), percentage: 0 };
+    const symbol = newStockName.toUpperCase();
+    const companyName = await fetchStockInfo(symbol);
+    const newStock = { 
+      name: symbol, 
+      percentage: 0,
+      companyName: companyName || undefined
+    };
+    
     if (user && setStocks) {
       setStocks([...stocks, newStock]);
     } else {
@@ -254,7 +277,12 @@ function RothIRACalculator() {
                   <div className={styles.stockList}>
                     {currentStocks.map((stock, index) => (
                       <div key={index} className={styles.stockItem}>
-                        <div className={styles.stockSymbol}>{stock.name}</div>
+                        <div className={styles.stockSymbol}>
+                          <span>{stock.name}</span>
+                          {stock.companyName && (
+                            <span className={styles.companyName}>{stock.companyName}</span>
+                          )}
+                        </div>
                         <div className={styles.allocationControls}>
                           <input
                             type="range"
