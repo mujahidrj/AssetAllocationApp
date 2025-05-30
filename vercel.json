@@ -10,8 +10,8 @@
   ],
   "functions": {
     "api/stock.ts": {
-      "memory": "1024",
-      "maxDuration": "10"
+      "memory": 1024,
+      "maxDuration": 10
     }
   }
 }
