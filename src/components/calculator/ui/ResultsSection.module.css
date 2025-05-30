@@ -1,15 +1,14 @@
 .resultsSection {
-  margin-top: clamp(1rem, 5vh, 2rem);
-  padding: clamp(0.75rem, 3vw, 1rem);
+  margin-top: 2rem;
+  padding: 1rem;
   background: #1f1f1f;
   border-radius: 0.75rem;
   border: 1px solid #4a4a4a;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 .resultItem {
-  display: grid;
+  display: flex;
+  justify-content: space-between;
   grid-template-columns: 1fr;
   gap: 0.5rem;
   padding: 0.75rem;
@@ -22,60 +21,67 @@
 
 .stockInfo {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 0;
+  gap: 0.5rem;
+  align-items: baseline;
 }
 
 .stockSymbol {
   font-weight: 600;
-  font-size: clamp(0.875rem, 2.5vw, 1rem);
+  font-size: 1rem;
 }
 
 .companyName {
-  font-size: clamp(0.75rem, 2vw, 0.875rem);
+  font-size: 0.875rem;
   color: #9ca3af;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.percentageAndAmount {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
 }
 
 .percentage {
   color: #9ca3af;
-  font-size: clamp(0.875rem, 2.5vw, 1rem);
 }
 
 .amountGroup {
   display: flex;
   gap: 0.5rem;
   align-items: baseline;
-  justify-content: flex-end;
 }
 
 .amount {
   color: #10b981;
-  font-size: clamp(0.875rem, 2.5vw, 1rem);
+  font-size: 1rem;
   font-weight: 500;
 }
 
 .shares {
   color: #9ca3af;
-  font-size: clamp(0.75rem, 2vw, 0.875rem);
+  font-size: 0.875rem;
 }
 
 @media (min-width: 640px) {
   .resultItem {
-    grid-template-columns: 2fr 0.5fr 1fr;
+    grid-template-columns: minmax(0, 2fr) auto auto;
     align-items: center;
     gap: 1rem;
   }
 
   .stockInfo {
-    flex-direction: row;
-    align-items: center;
+    min-width: 0;
   }
 
   .companyName {
-    margin-left: 0.5rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .amountGroup {
+    justify-self: end;
   }
 }

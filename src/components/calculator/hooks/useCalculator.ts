@@ -4,7 +4,7 @@ import type { Stock, ValidationErrors, CalculatorState, CalculatorActions, Alloc
 import { samplePortfolios } from '../data/samplePortfolios';
 
 // Replace with your Firebase config
-const finnhubApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const finnhubApiKey = import.meta.env.VITE_FINNHUB_API_KEY;
 
 interface UseCalculatorProps {
   user: User | null;

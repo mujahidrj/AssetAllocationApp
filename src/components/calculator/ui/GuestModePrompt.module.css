@@ -26,13 +26,16 @@
 
 .select {
   width: 100%;
-  padding: 0.75rem;
+  padding: clamp(0.75rem, 3vw, 1rem);
   border: 2px solid #4a4a4a;
   border-radius: 0.5rem;
   background: #1f1f1f;
   color: #ffffff;
   cursor: pointer;
   transition: border-color 0.2s;
+  font-size: 16px; /* prevents iOS zoom on focus */
+  min-height: 44px; /* minimum touch target size */
+  touch-action: manipulation;
 }
 
 .select:hover {
