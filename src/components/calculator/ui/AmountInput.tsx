@@ -1,4 +1,3 @@
-import type { ValidationErrors } from '../types';
 import styles from './AmountInput.module.css';
 
 interface AmountInputProps {
