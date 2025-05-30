@@ -4,16 +4,9 @@ import { useAuth } from './auth';
 import { 
   doc, 
   setDoc, 
-  getDoc, 
-  collection,
-  DocumentReference,
-  FirestoreError
+  getDoc,
 } from 'firebase/firestore';
-
-export interface Stock {
-  name: string;
-  percentage: number;
-}
+import type { Stock } from '../components/calculator/types';
 
 export function useStocks() {
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -21,18 +14,27 @@ export function useStocks() {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (!user) {
-      setStocks([]);
-      setLoading(false);
-      return;
-    }
+    let mounted = true;
 
-    setLoading(true);
     async function loadStocks() {
+      if (!user) {
+        if (mounted) {
+          setStocks([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (mounted) {
+        setLoading(true);
+      }
+
       try {
         const stocksRef = doc(db, 'userStocks', user.uid);
         const docSnap = await getDoc(stocksRef);
         
+        if (!mounted) return;
+
         if (docSnap.exists()) {
           setStocks(docSnap.data().stocks);
         } else {
@@ -46,13 +48,21 @@ export function useStocks() {
         }
       } catch (error) {
         console.error('Error loading stocks:', error);
-        setStocks([]);
+        if (mounted) {
+          setStocks([]);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
-    loadStocks();
+    void loadStocks();
+
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
   const setStocksWithSync = async (newStocks: Stock[]) => {
