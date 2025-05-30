@@ -1,5 +1,6 @@
 {
   "name": "assetallocation",
+  "homepage": "https://mujahidrj.github.io/AssetAllocationApp",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -8,6 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -19,6 +22,7 @@
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@types/firebase": "^2.4.32",
     "firebase": "^11.8.1",
+    "gh-pages": "^6.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-firebase-hooks": "^5.1.1"
