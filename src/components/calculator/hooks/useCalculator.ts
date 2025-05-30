@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { User } from 'firebase/auth';
-import type { Stock, ValidationErrors, CalculatorState, CalculatorActions } from '../types';
+import type { Stock, ValidationErrors, CalculatorState, CalculatorActions, AllocationResult } from '../types';
 import { samplePortfolios } from '../data/samplePortfolios';
 
 interface UseCalculatorProps {
@@ -34,6 +34,33 @@ const fetchStockInfo = async (symbol: string, signal: AbortSignal) => {
   }
 };
 
+// Helper function to fetch stock price with abort controller
+const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
+  try {
+    const encodedUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`);
+    const response = await fetch(
+      `https://api.allorigins.win/get?url=${encodedUrl}`,
+      { signal }
+    );
+    if (!response.ok) {
+      console.warn(`API error (${response.status}) for symbol ${symbol}. Stock prices will not be available.`);
+      return null;
+    }
+    const { contents } = await response.json();
+    const data = JSON.parse(contents);
+    if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+      return data.chart.result[0].meta.regularMarketPrice;
+    }
+    return null;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return null;
+    }
+    console.warn('Error fetching stock price:', error);
+    return null;
+  }
+};
+
 export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   const [amount, setAmount] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
@@ -44,6 +71,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     { name: "FZROX", percentage: 80, companyName: "Fidelity ZERO Total Market Index Fund" },
     { name: "FZILX", percentage: 20, companyName: "Fidelity ZERO International Index Fund" }
   ]);
+  const [allocations, setAllocations] = useState<AllocationResult[] | null>(null);
 
   // Cleanup function for ongoing fetches
   useEffect(() => {
@@ -203,7 +231,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     });
   }, [user, stocks, setStocks, localStocks]);
 
-  const calculateAllocations = useCallback(() => {
+  const calculateAllocations = useCallback(async () => {
     if (!amount) return null;
     
     const amountError = validateAmount(amount);
@@ -226,13 +254,48 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     });
 
     const totalAmount = parseFloat(amount);
-    return currentStocks.map(stock => ({
-      ...stock,
-      amount: (totalAmount * (stock.percentage / 100)).toFixed(2),
-    }));
+
+    // Fetch current prices for all stocks
+    const pricePromises = currentStocks.map(stock => 
+      fetchStockPrice(stock.name, abortControllerRef.current?.signal || new AbortController().signal)
+    );
+    const prices = await Promise.all(pricePromises);
+
+    return currentStocks.map((stock, index) => {
+      const allocationAmount = totalAmount * (stock.percentage / 100);
+      const currentPrice = prices[index];
+      const shares = currentPrice ? allocationAmount / currentPrice : undefined;
+
+      return {
+        ...stock,
+        amount: allocationAmount.toFixed(2),
+        currentPrice,
+        shares
+      };
+    });
   }, [amount, currentStocks, validateAmount, validatePercentages]);
 
-  const allocations = useMemo(() => calculateAllocations(), [calculateAllocations]);
+  // Update allocations whenever calculation changes
+  useEffect(() => {
+    let mounted = true;
+    const updateAllocations = async () => {
+      try {
+        const result = await calculateAllocations();
+        if (mounted) {
+          setAllocations(result);
+        }
+      } catch (error) {
+        console.warn('Error calculating allocations:', error);
+        if (mounted) {
+          setAllocations(null);
+        }
+      }
+    };
+    updateAllocations();
+    return () => {
+      mounted = false;
+    };
+  }, [calculateAllocations]);
 
   // Actions object for components
   const actions: CalculatorActions = {

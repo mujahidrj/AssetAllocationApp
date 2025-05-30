@@ -15,6 +15,8 @@ export interface SamplePortfolio {
 
 export interface AllocationResult extends Stock {
   amount: string;
+  currentPrice?: number;
+  shares?: number;
 }
 
 export interface CalculatorState {
