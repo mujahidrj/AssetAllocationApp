@@ -1,16 +1,18 @@
 .resultsSection {
-  margin-top: 2rem;
-  padding: 1rem;
+  margin-top: clamp(1rem, 5vh, 2rem);
+  padding: clamp(0.75rem, 3vw, 1rem);
   background: #1f1f1f;
   border-radius: 0.75rem;
   border: 1px solid #4a4a4a;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .resultItem {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 0.5rem;
-  padding: 1rem;
+  padding: 0.75rem;
   border-bottom: 1px solid #4a4a4a;
 }
 
@@ -25,28 +27,13 @@
   min-width: 0;
 }
 
-@media (min-width: 640px) {
-  .resultItem {
-    flex-direction: row;
-    align-items: center;
-    padding: 0.75rem;
-    gap: 1rem;
-  }
-
-  .stockInfo {
-    flex-direction: row;
-    align-items: center;
-    flex: 1;
-  }
-}
-
 .stockSymbol {
   font-weight: 600;
-  white-space: nowrap;
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
 }
 
 .companyName {
-  font-size: 0.875rem;
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
   color: #9ca3af;
   white-space: nowrap;
   overflow: hidden;
@@ -55,24 +42,40 @@
 
 .percentage {
   color: #9ca3af;
-  white-space: nowrap;
-  min-width: 3rem;
-  text-align: right;
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
 }
 
 .amountGroup {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
-  white-space: nowrap;
+  align-items: baseline;
+  justify-content: flex-end;
 }
 
 .amount {
   color: #10b981;
-  white-space: nowrap;
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+  font-weight: 500;
 }
 
 .shares {
   color: #9ca3af;
-  font-size: 0.875rem;
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+}
+
+@media (min-width: 640px) {
+  .resultItem {
+    grid-template-columns: 2fr 0.5fr 1fr;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .stockInfo {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .companyName {
+    margin-left: 0.5rem;
+  }
 }
