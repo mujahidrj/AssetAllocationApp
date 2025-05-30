@@ -8,10 +8,10 @@
 
 .resultItem {
   display: flex;
-  align-items: center;
-  padding: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
   border-bottom: 1px solid #4a4a4a;
-  gap: 1rem;
 }
 
 .resultItem:last-child {
@@ -20,11 +20,24 @@
 
 .stockInfo {
   display: flex;
-  flex-direction: row;
-  align-items: center;
+  flex-direction: column;
   gap: 0.25rem;
-  flex: 1;
   min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .resultItem {
+    flex-direction: row;
+    align-items: center;
+    padding: 0.75rem;
+    gap: 1rem;
+  }
+
+  .stockInfo {
+    flex-direction: row;
+    align-items: center;
+    flex: 1;
+  }
 }
 
 .stockSymbol {

@@ -16,8 +16,8 @@
 
 .addStockSection {
   display: flex;
-  align-items: center;
-  gap: 1.25rem;
+  flex-direction: column;
+  gap: 0.75rem;
   margin-bottom: 1.5rem;
   width: 100%;
 }
@@ -37,6 +37,14 @@
   transition: border-color 0.2s;
   background: #1f1f1f;
   color: #ffffff;
+}
+
+@media (min-width: 640px) {
+  .addStockSection {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.25rem;
+  }
 }
 
 .input:focus {
