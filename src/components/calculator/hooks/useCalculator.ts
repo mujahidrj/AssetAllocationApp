@@ -40,13 +40,19 @@ const fetchStockInfo = async (symbol: string, signal: AbortSignal) => {
 
 // Helper function to fetch stock price with abort controller
 const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
-  try {      const apiUrl = import.meta.env.VITE_API_URL || window.location.origin;
+  try {
+      // In production, use the deployed API URL, in development use the local server
+      const isDevelopment = import.meta.env.DEV;
+      const apiUrl = isDevelopment ? import.meta.env.VITE_API_URL : window.location.origin;
+      
       const response = await fetch(
         `${apiUrl}/api/stock/${encodeURIComponent(symbol)}`,
         { 
           signal,
+          credentials: 'same-origin',
           headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           }
         }
       );
