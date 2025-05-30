@@ -1,0 +1,64 @@
+.resultsSection {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #1f1f1f;
+  border-radius: 0.75rem;
+  border: 1px solid #4a4a4a;
+}
+
+.resultItem {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid #4a4a4a;
+  gap: 1rem;
+}
+
+.resultItem:last-child {
+  border-bottom: none;
+}
+
+.stockInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.stockSymbol {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.companyName {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  line-height: 1.2;
+}
+
+.percentage {
+  color: #9ca3af;
+  white-space: nowrap;
+  min-width: 3rem;
+  text-align: right;
+}
+
+.amount {
+  color: #10b981;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 5rem;
+  text-align: right;
+}
+
+.error {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #ef4444;
+  padding: 0.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 0.375rem;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
