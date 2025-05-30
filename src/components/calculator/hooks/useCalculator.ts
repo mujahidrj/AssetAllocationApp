@@ -3,6 +3,9 @@ import type { User } from 'firebase/auth';
 import type { Stock, ValidationErrors, CalculatorState, CalculatorActions, AllocationResult } from '../types';
 import { samplePortfolios } from '../data/samplePortfolios';
 
+// Replace with your Firebase config
+const finnhubApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+
 interface UseCalculatorProps {
   user: User | null;
   stocks: Stock[];
@@ -13,9 +16,10 @@ interface UseCalculatorProps {
 const fetchStockInfo = async (symbol: string, signal: AbortSignal) => {
   try {
     const response = await fetch(
-      `https://finnhub.io/api/v1/search?q=${symbol}&token=d0semnhr01qkkplur0lgd0semnhr01qkkplur0m0`,
+      `https://finnhub.io/api/v1/search?q=${symbol}&token=${finnhubApiKey}`,
       { signal }
     );
+    
     if (!response.ok) {
       throw new Error('Failed to fetch stock info');
     }
