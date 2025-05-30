@@ -1,18 +1,21 @@
 {
   "name": "assetallocation",
-  "homepage": "https://mujahidrj.github.io/AssetAllocationApp",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
-    "dev": "vite",
+    "dev:frontend": "vite",
+    "dev:server": "node server/server.js",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:frontend\"",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview --port 8080",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "start": "node server/server.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.4.2",
@@ -21,8 +24,12 @@
     "@fortawesome/free-solid-svg-icons": "^6.4.2",
     "@fortawesome/react-fontawesome": "^0.2.0",
     "@types/firebase": "^3.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
     "firebase": "^10.7.0",
     "gh-pages": "^6.1.0",
+    "node-fetch": "^3.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-firebase-hooks": "^5.1.1"
@@ -37,6 +44,7 @@
     "@typescript-eslint/parser": "^6.10.0",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.16",
+    "concurrently": "^9.1.2",
     "eslint": "^8.53.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.4",

@@ -40,18 +40,22 @@ const fetchStockInfo = async (symbol: string, signal: AbortSignal) => {
 
 // Helper function to fetch stock price with abort controller
 const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
-  try {
-    const encodedUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`);
-    const response = await fetch(
-      `https://api.allorigins.win/get?url=${encodedUrl}`,
-      { signal }
-    );
-    if (!response.ok) {
-      console.warn(`API error (${response.status}) for symbol ${symbol}. Stock prices will not be available.`);
-      return null;
-    }
-    const { contents } = await response.json();
-    const data = JSON.parse(contents);
+  try {      const apiUrl = import.meta.env.VITE_API_URL || window.location.origin;
+      const response = await fetch(
+        `${apiUrl}/api/stock/${encodeURIComponent(symbol)}`,
+        { 
+          signal,
+          headers: {
+            'Accept': 'application/json'
+          }
+        }
+      );
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.warn(`API error (${response.status}) for symbol ${symbol}: ${errorData.error}`);
+        return null;
+      }
+      const data = await response.json();
     if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
       return data.chart.result[0].meta.regularMarketPrice;
     }
