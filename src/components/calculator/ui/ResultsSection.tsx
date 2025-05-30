@@ -7,7 +7,7 @@ interface ResultsSectionProps {
 }
 
 export function ResultsSection({ allocations, error }: ResultsSectionProps) {
-  if (!allocations) return null;
+  if (!allocations || !Array.isArray(allocations)) return null;
 
   return (
     <div className={styles.resultsSection}>
@@ -25,7 +25,12 @@ export function ResultsSection({ allocations, error }: ResultsSectionProps) {
               )}
             </div>
             <span className={styles.percentage}>{allocation.percentage}%</span>
-            <span className={styles.amount}>${allocation.amount}</span>
+            <div className={styles.amountGroup}>
+              <span className={styles.amount}>${allocation.amount}</span>
+              {typeof allocation.shares === 'number' && (
+                <span className={styles.shares}>({allocation.shares.toFixed(4)} shares)</span>
+              )}
+            </div>
           </div>
         ))
       )}
