@@ -7,7 +7,17 @@ export default defineConfig({
   plugins: [react()],
   base: "/AssetAllocationApp/",
   server: {
-    open: true, // 👈 This opens the browser automatically
+    open: true,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+    modulePreload: {
+      polyfill: true,
+    },
   },
   test: {
     globals: true,
