@@ -10,7 +10,7 @@
 }
 
 .wrapper {
-  max-width: 768px;
+  max-width: min(768px, 95%);
   margin: 0 auto;
   width: 100%;
 }
