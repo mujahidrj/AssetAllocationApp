@@ -51,16 +51,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`Yahoo Finance API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Yahoo Finance API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
+      return res.status(response.status).json({ 
+        error: `Failed to fetch data from Yahoo Finance: ${response.statusText}` 
+      });
     }
 
-    const data = await response.json() as { chart?: { result?: Array<{ meta?: unknown }> } };
+    const data = await response.json() as { 
+      chart?: { 
+        result?: Array<{ 
+          meta?: { 
+            regularMarketPrice?: number;
+            symbol?: string;
+          } 
+        }> 
+      } 
+    };
 
-    if (!data?.chart?.result?.[0]?.meta) {
-      throw new Error('Invalid data format received from Yahoo Finance');
+    if (!data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+      console.error('Invalid Yahoo Finance API response:', {
+        symbol,
+        response: data
+      });
+      return res.status(500).json({ 
+        error: `No price data available for symbol ${symbol}` 
+      });
     }
 
-    return res.json(data);
+    // Return only the necessary data
+    return res.json({
+      symbol: data.chart.result[0].meta.symbol,
+      price: data.chart.result[0].meta.regularMarketPrice
+    });
   } catch (error) {
     console.error('Error fetching stock data:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to fetch stock data';

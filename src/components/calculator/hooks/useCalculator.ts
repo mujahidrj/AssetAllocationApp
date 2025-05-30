@@ -57,15 +57,26 @@ const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
         }
       );
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.warn(`API error (${response.status}) for symbol ${symbol}: ${errorData.error}`);
+        const errorText = await response.text();
+        let errorMessage: string;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || `API error (${response.status})`;
+        } catch {
+          errorMessage = errorText || `API error (${response.status})`;
+        }
+        
+        console.warn(`Error fetching stock ${symbol}:`, errorMessage);
         return null;
       }
+      
       const data = await response.json();
-    if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
-      return data.chart.result[0].meta.regularMarketPrice;
-    }
-    return null;
+      if (data?.price) {
+        return data.price;
+      }
+      console.warn(`No price data available for ${symbol}`);
+      return null;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       return null;
