@@ -48,14 +48,15 @@
 
 .allocationControls {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 0.75rem;
   width: 100%;
-  align-items: stretch;
+  align-items: center;
 }
 
 .percentageSlider {
-  width: 100%;
+  flex: 1;
+  min-width: 100px;
   height: 0.375rem;
   -webkit-appearance: none;
   appearance: none;
@@ -135,12 +136,15 @@
 
 .buttonWrapper {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 0.5rem;
+  justify-content: center;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
 }
 
 .deleteButton {
-  padding: 0.375rem 0.625rem;
+  padding: 0.375rem;
+  width: 2rem;
+  height: 2rem;
   color: #ffffff;
   background-color: #dc2626;
   border: none;
@@ -150,7 +154,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
 .deleteButton:hover {
@@ -185,22 +188,20 @@
   }
 
   .allocationControls {
-    flex-direction: row;
-    align-items: center;
-    justify-content: stretch;
     gap: 1rem;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .buttonWrapper {
-    margin-top: 0;
-    margin-left: 0.5rem;
   }
 
   .percentageSlider {
-    flex: 1;
-    min-width: 100px;
-    max-width: none;
+    min-width: 150px;
+  }
+
+  .buttonWrapper {
+    margin-left: 0.75rem;
+  }
+
+  .deleteButton {
+    padding: 0.375rem 0.625rem;
+    width: auto;
+    height: auto;
   }
 }
