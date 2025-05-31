@@ -54,15 +54,15 @@ export function StockList({
               />
               <span className={styles.percentSymbol}>%</span>
             </div>
-          </div>
-          <div className={styles.buttonWrapper}>
-            <button 
-              onClick={() => onRemoveStock(index)} 
-              className={styles.deleteButton} 
-              aria-label="Delete stock"
-            >
-              <FontAwesomeIcon icon={faTrash} />
-            </button>
+            <div className={styles.buttonWrapper}>
+              <button 
+                onClick={() => onRemoveStock(index)} 
+                className={styles.deleteButton} 
+                aria-label="Delete stock"
+                >
+                <FontAwesomeIcon icon={faTrash} />
+              </button>
+            </div>
           </div>
         </div>
       ))}
