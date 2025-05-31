@@ -19,17 +19,19 @@ export function ResultsSection({ allocations, error }: ResultsSectionProps) {
             <div className={styles.stockInfo}>
               <span className={styles.stockSymbol}>{allocation.name}</span>
               {allocation.companyName && (
-                <span className={styles.companyName}>
-                  • {allocation.companyName}
-                </span>
+                <span className={styles.companyName}>{allocation.companyName}</span>
               )}
             </div>
-            <span className={styles.percentage}>{allocation.percentage}%</span>
-            <div className={styles.amountGroup}>
-              <span className={styles.amount}>${allocation.amount}</span>
-              {typeof allocation.shares === 'number' && (
-                <span className={styles.shares}>({allocation.shares.toFixed(4)} shares)</span>
-              )}
+            <div className={styles.percentageAndAmount}>
+              <span className={styles.percentage}>{allocation.percentage}%</span>
+              <div className={styles.amountGroup}>
+                <span className={styles.amount}>
+                  ${Number(allocation.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                {typeof allocation.shares === 'number' && (
+                  <span className={styles.shares}>({allocation.shares.toFixed(4)} shares)</span>
+                )}
+              </div>
             </div>
           </div>
         ))

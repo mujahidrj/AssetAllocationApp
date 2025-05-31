@@ -4,7 +4,7 @@ import type { Stock, ValidationErrors, CalculatorState, CalculatorActions, Alloc
 import { samplePortfolios } from '../data/samplePortfolios';
 
 // Replace with your Firebase config
-const finnhubApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+const finnhubApiKey = import.meta.env.VITE_FINNHUB_API_KEY;
 
 interface UseCalculatorProps {
   user: User | null;
@@ -97,6 +97,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     { name: "FZILX", percentage: 20, companyName: "Fidelity ZERO International Index Fund" }
   ]);
   const [allocations, setAllocations] = useState<AllocationResult[] | null>(null);
+  const [stockPrices, setStockPrices] = useState<Record<string, number | null>>({});
 
   // Cleanup function for ongoing fetches
   useEffect(() => {
@@ -110,6 +111,42 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   const currentStocks = useMemo(() => {
     return user ? stocks : localStocks;
   }, [user, stocks, localStocks]);
+
+  // Function to fetch prices for new stocks
+  const fetchMissingPrices = useCallback(async (stockSymbols: string[]) => {
+    const missingSymbols = stockSymbols.filter(symbol => stockPrices[symbol] === undefined);
+    if (missingSymbols.length === 0) return;
+
+    // Abort any ongoing fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+    
+    try {
+      const pricePromises = missingSymbols.map(symbol => 
+        fetchStockPrice(symbol, abortControllerRef.current!.signal)
+      );
+      const prices = await Promise.all(pricePromises);
+
+      setStockPrices(prev => {
+        const newPrices = { ...prev };
+        missingSymbols.forEach((symbol, index) => {
+          newPrices[symbol] = prices[index];
+        });
+        return newPrices;
+      });
+    } catch (error) {
+      console.warn('Error fetching stock prices:', error);
+    }
+  }, [stockPrices]);
+
+  // Fetch prices for any new stocks
+  useEffect(() => {
+    const stockSymbols = currentStocks.map(stock => stock.name);
+    void fetchMissingPrices(stockSymbols);
+  }, [currentStocks, fetchMissingPrices]);
 
   const validateAmount = useCallback((value: string) => {
     const num = parseFloat(value);
@@ -256,7 +293,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     });
   }, [user, stocks, setStocks, localStocks]);
 
-  const calculateAllocations = useCallback(async () => {
+  const calculateAllocations = useCallback(() => {
     if (!amount) return null;
     
     const amountError = validateAmount(amount);
@@ -280,15 +317,9 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     const totalAmount = parseFloat(amount);
 
-    // Fetch current prices for all stocks
-    const pricePromises = currentStocks.map(stock => 
-      fetchStockPrice(stock.name, abortControllerRef.current?.signal || new AbortController().signal)
-    );
-    const prices = await Promise.all(pricePromises);
-
-    return currentStocks.map((stock, index) => {
+    return currentStocks.map((stock) => {
       const allocationAmount = totalAmount * (stock.percentage / 100);
-      const currentPrice = prices[index];
+      const currentPrice = stockPrices[stock.name];
       const shares = currentPrice ? allocationAmount / currentPrice : undefined;
 
       return {
@@ -298,28 +329,12 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         shares
       };
     });
-  }, [amount, currentStocks, validateAmount, validatePercentages]);
+  }, [amount, currentStocks, validateAmount, validatePercentages, stockPrices]);
 
-  // Update allocations whenever calculation changes
+  // Update allocations whenever necessary values change
   useEffect(() => {
-    let mounted = true;
-    const updateAllocations = async () => {
-      try {
-        const result = await calculateAllocations();
-        if (mounted) {
-          setAllocations(result);
-        }
-      } catch (error) {
-        console.warn('Error calculating allocations:', error);
-        if (mounted) {
-          setAllocations(null);
-        }
-      }
-    };
-    updateAllocations();
-    return () => {
-      mounted = false;
-    };
+    const result = calculateAllocations();
+    setAllocations(result);
   }, [calculateAllocations]);
 
   // Actions object for components

@@ -3,13 +3,22 @@
 .container {
   min-height: 100vh;
   background: linear-gradient(to bottom right, #1a1a1a, #2d2d2d);
-  padding: 1rem;
+  padding: 0.5rem;
   color: #e5e7eb;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .wrapper {
-  max-width: 768px;
+  max-width: min(768px, 95%);
   margin: 0 auto;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
 }
 
 .header {
@@ -34,8 +43,10 @@
 .card {
   background: #2d2d2d;
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: clamp(1rem, 4vw, 1.5rem);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  max-width: 768px;
+  margin: 0 auto;
 }
 
 .formSection {

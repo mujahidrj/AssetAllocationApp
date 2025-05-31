@@ -5,8 +5,8 @@
 }
 
 .userPhoto {
-  width: 2rem;
-  height: 2rem;
+  width: clamp(2rem, 5vw, 2.5rem);
+  height: clamp(2rem, 5vw, 2.5rem);
   border-radius: 9999px;
 }
 
