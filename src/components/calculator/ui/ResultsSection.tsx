@@ -19,7 +19,7 @@ export function ResultsSection({ allocations, error }: ResultsSectionProps) {
             <div className={styles.stockInfo}>
               <span className={styles.stockSymbol}>{allocation.name}</span>
               {allocation.companyName && (
-                <span className={styles.companyName}>• {allocation.companyName}</span>
+                <span className={styles.companyName}>{allocation.companyName}</span>
               )}
             </div>
             <div className={styles.percentageAndAmount}>

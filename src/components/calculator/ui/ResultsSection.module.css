@@ -4,15 +4,18 @@
   background: #1f1f1f;
   border-radius: 0.75rem;
   border: 1px solid #4a4a4a;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .resultItem {
   display: flex;
-  justify-content: space-between;
-  grid-template-columns: 1fr;
+  flex-direction: column;
+  width: 100%;
   gap: 0.5rem;
   padding: 0.75rem;
   border-bottom: 1px solid #4a4a4a;
+  box-sizing: border-box;
 }
 
 .resultItem:last-child {
@@ -23,6 +26,8 @@
   display: flex;
   gap: 0.5rem;
   align-items: baseline;
+  width: 100%;
+  flex-wrap: wrap;
 }
 
 .stockSymbol {
@@ -36,49 +41,64 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .percentageAndAmount {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+  width: 100%;
+  flex-wrap: nowrap;
 }
 
 .percentage {
   color: #9ca3af;
+  flex-shrink: 0;
 }
 
 .amountGroup {
   display: flex;
   gap: 0.5rem;
   align-items: baseline;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  text-align: right;
+  flex: 1;
+  min-width: 0;
 }
 
 .amount {
   color: #10b981;
   font-size: 1rem;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .shares {
   color: #9ca3af;
   font-size: 0.875rem;
+  white-space: nowrap;
 }
 
 @media (min-width: 640px) {
   .resultItem {
-    grid-template-columns: minmax(0, 2fr) auto auto;
+    flex-direction: row;
     align-items: center;
     gap: 1rem;
   }
 
   .stockInfo {
+    flex: 2;
     min-width: 0;
   }
 
-  .companyName {
-    min-width: 0;
+  .percentageAndAmount {
     flex: 1;
+    width: auto;
   }
 
   .amountGroup {
