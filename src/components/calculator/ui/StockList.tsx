@@ -20,8 +20,10 @@ export function StockList({
 
   return (
     <div className={styles.stockList}>
-      {validationErrors.percentages && (
-        <div className={styles.error}>{validationErrors.percentages}</div>
+      {(validationErrors.percentages || validationErrors.rebalancePercentages) && (
+        <div className={styles.error}>
+          {validationErrors.rebalancePercentages || validationErrors.percentages}
+        </div>
       )}
       {stocks.map((stock, index) => (
         <div key={index} className={styles.stockItem}>
