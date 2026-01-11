@@ -1,9 +1,10 @@
 .resultsSection {
-  margin-top: 2rem;
-  padding: 1rem;
-  background: #1f1f1f;
-  border-radius: 0.75rem;
-  border: 1px solid #4a4a4a;
+  margin-top: var(--spacing-2xl);
+  padding: var(--spacing-xl);
+  background: var(--color-bg-input);
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--color-primary);
+  box-shadow: var(--shadow-md);
   width: 100%;
   box-sizing: border-box;
 }
@@ -12,14 +13,10 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border-bottom: 1px solid #4a4a4a;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
   box-sizing: border-box;
-}
-
-.resultItem:last-child {
-  border-bottom: none;
 }
 
 .stockInfo {
@@ -37,7 +34,7 @@
 
 .companyName {
   font-size: 0.875rem;
-  color: #9ca3af;
+  color: var(--color-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -56,13 +53,13 @@
 }
 
 .percentage {
-  color: #9ca3af;
+  color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
 
 .amountGroup {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-sm);
   align-items: baseline;
   flex-wrap: nowrap;
   justify-content: flex-end;
@@ -72,23 +69,34 @@
 }
 
 .amount {
-  color: #10b981;
+  color: var(--color-success);
   font-size: 1rem;
   font-weight: 500;
   white-space: nowrap;
 }
 
 .shares {
-  color: #9ca3af;
+  color: var(--color-text-tertiary);
   font-size: 0.875rem;
   white-space: nowrap;
+}
+
+.error {
+  margin-bottom: var(--spacing-lg);
+  font-size: 0.875rem;
+  color: var(--color-error);
+  padding: var(--spacing-md);
+  background: var(--color-error-bg);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-error-border);
+  text-align: center;
 }
 
 @media (min-width: 640px) {
   .resultItem {
     flex-direction: row;
     align-items: center;
-    gap: 1rem;
+    gap: var(--spacing-lg);
   }
 
   .stockInfo {
