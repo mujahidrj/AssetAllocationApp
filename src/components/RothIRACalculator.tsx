@@ -8,6 +8,8 @@ import { AddStockForm } from './calculator/ui/AddStockForm';
 import { StockList } from './calculator/ui/StockList';
 import { ResultsSection } from './calculator/ui/ResultsSection';
 import { samplePortfolios } from './calculator/data/samplePortfolios';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSpinner, faChartLine } from '@fortawesome/free-solid-svg-icons';
 import styles from './RothIRACalculator.module.css';
 
 function RothIRACalculator() {
@@ -29,7 +31,10 @@ function RothIRACalculator() {
           )}
 
           {user && loading ? (
-            <div className={styles.loadingSection}>Loading your saved allocations...</div>
+            <div className={styles.loadingSection}>
+              <FontAwesomeIcon icon={faSpinner} spin size="2x" />
+              <p>Loading your saved allocations...</p>
+            </div>
           ) : (
             <>
               <AmountInput
@@ -46,7 +51,13 @@ function RothIRACalculator() {
                 loading={loading || state.loading}
               />
 
-              {state.currentStocks.length > 0 && (
+              {state.currentStocks.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <FontAwesomeIcon icon={faChartLine} size="3x" />
+                  <h3>No stocks added yet</h3>
+                  <p>Add your first stock using the form above to get started.</p>
+                </div>
+              ) : (
                 <StockList
                   stocks={state.currentStocks}
                   onUpdatePercentage={actions.updateStockPercentage}
