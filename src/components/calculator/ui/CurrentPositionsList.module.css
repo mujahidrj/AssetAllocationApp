@@ -1,0 +1,215 @@
+.positionsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  margin: var(--spacing-lg) auto;
+  width: 100%;
+}
+
+.positionItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-input);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  box-sizing: border-box;
+  width: 100%;
+  align-items: stretch;
+  transition: all 0.2s;
+}
+
+.positionItem:hover {
+  background: var(--color-bg-elevated);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.positionSymbol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+}
+
+.positionSymbol span:first-child {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.companyName {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(200px, 100%);
+  cursor: help;
+  transition: color 0.2s;
+}
+
+.companyName:hover {
+  color: var(--color-primary);
+}
+
+.positionControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.inputTypeSelector {
+  display: flex;
+  gap: var(--spacing-xs);
+  background: var(--color-bg-secondary);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  width: fit-content;
+}
+
+.typeButton {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.typeButton:hover {
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.typeButton.active {
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.typeButton:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.inputWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex: 1;
+}
+
+.valueInputWrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.dollarSign {
+  position: absolute;
+  left: var(--spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  padding: var(--spacing-md);
+  padding-left: var(--spacing-xl);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.calculatedInfo {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary);
+}
+
+.calculatedValue {
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.calculatedShares {
+  color: var(--color-text-secondary);
+}
+
+.deleteButton {
+  padding: var(--spacing-xs);
+  width: 2rem;
+  height: 2rem;
+  color: var(--color-text-primary);
+  background-color: var(--color-error);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+}
+
+.deleteButton:hover {
+  background-color: var(--color-error-hover);
+  transform: scale(1.05);
+}
+
+.deleteButton:focus {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+@media (min-width: 640px) {
+  .positionItem {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-lg);
+  }
+
+  .positionSymbol {
+    flex: 0 0 200px;
+    width: 200px;
+  }
+
+  .positionControls {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--spacing-lg);
+    flex: 1;
+  }
+
+  .inputWrapper {
+    flex: 1;
+    max-width: 200px;
+  }
+
+  .calculatedInfo {
+    min-width: 120px;
+  }
+
+  .deleteButton {
+    padding: var(--spacing-xs) var(--spacing-md);
+    width: auto;
+    height: auto;
+  }
+}
