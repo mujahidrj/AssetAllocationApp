@@ -1324,4 +1324,220 @@ describe('useCalculator - Rebalance Mode', () => {
       });
     });
   });
+
+  describe('handleSamplePortfolioChange', () => {
+    it('should update stocks when valid portfolio is selected', () => {
+      const { result } = renderHook(() => useCalculator({
+        user: null,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
+      }));
+
+      act(() => {
+        result.current.actions.handleSamplePortfolioChange('Vanguard 3-Fund Portfolio');
+      });
+
+      // Should update stocks to Vanguard portfolio
+      expect(result.current.state.currentStocks.length).toBeGreaterThan(0);
+      expect(result.current.state.currentStocks.some(s => s.name === 'VTI')).toBe(true);
+    });
+
+    it('should clear validation errors when portfolio is selected', () => {
+      const { result } = renderHook(() => useCalculator({
+        user: null,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
+      }));
+
+      // Set a validation error first
+      act(() => {
+        result.current.actions.updateStockPercentage(0, '150'); // Invalid percentage
+      });
+
+      act(() => {
+        result.current.actions.handleSamplePortfolioChange('Vanguard 3-Fund Portfolio');
+      });
+
+      // Validation errors should be cleared
+      expect(Object.keys(result.current.state.validationErrors).length).toBe(0);
+    });
+
+    it('should not update stocks when portfolio is not found', () => {
+      const { result } = renderHook(() => useCalculator({
+        user: null,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
+      }));
+
+      const initialStocks = [...result.current.state.currentStocks];
+
+      act(() => {
+        result.current.actions.handleSamplePortfolioChange('Non-existent Portfolio');
+      });
+
+      // Stocks should remain unchanged
+      expect(result.current.state.currentStocks).toEqual(initialStocks);
+    });
+  });
+
+  describe('Cash handling in totalPortfolioValue', () => {
+    it('should calculate total portfolio value with cash position (value input)', async () => {
+      const { result } = renderHook(() => useCalculator({
+        user: null,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
+      }));
+
+      act(() => {
+        result.current.actions.setMode('rebalance');
+      });
+
+      // Use addCurrentPosition action to add cash properly
+      await act(async () => {
+        await result.current.actions.addCurrentPosition('CASH');
+      });
+
+      // Update the position to have a value
+      act(() => {
+        const cashIndex = result.current.state.currentPositions.findIndex(p => p.symbol === 'CASH');
+        if (cashIndex !== -1) {
+          result.current.actions.updateCurrentPosition(cashIndex, {
+            inputType: 'value',
+            value: 1000
+          });
+        }
+      });
+
+      // Wait for state to update
+      await waitFor(() => {
+        const totalValue = result.current.state.totalPortfolioValue;
+        expect(totalValue).toBeGreaterThanOrEqual(1000);
+      }, { timeout: 2000 });
+    });
+
+    it('should calculate total portfolio value with cash position (shares input)', async () => {
+      const { result } = renderHook(() => useCalculator({
+        user: null,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
+      }));
+
+      act(() => {
+        result.current.actions.setMode('rebalance');
+      });
+
+      // Use addCurrentPosition action to add cash properly
+      await act(async () => {
+        await result.current.actions.addCurrentPosition('CASH');
+      });
+
+      // Update the position to have shares
+      act(() => {
+        const cashIndex = result.current.state.currentPositions.findIndex(p => p.symbol === 'CASH');
+        if (cashIndex !== -1) {
+          result.current.actions.updateCurrentPosition(cashIndex, {
+            inputType: 'shares',
+            shares: 500
+          });
+        }
+      });
+
+      // Wait for state to update
+      await waitFor(() => {
+        const totalValue = result.current.state.totalPortfolioValue;
+        expect(totalValue).toBeGreaterThanOrEqual(500);
+      }, { timeout: 2000 });
+    });
+
+    it('should handle cash with zero value', async () => {
+      const { result } = renderHook(() => useCalculator({
+        user: null,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
+      }));
+
+      act(() => {
+        result.current.actions.setMode('rebalance');
+      });
+
+      // Use addCurrentPosition action to add cash properly
+      await act(async () => {
+        await result.current.actions.addCurrentPosition('CASH');
+      });
+
+      // Update the position to have zero value
+      act(() => {
+        const cashIndex = result.current.state.currentPositions.findIndex(p => p.symbol === 'CASH');
+        if (cashIndex !== -1) {
+          result.current.actions.updateCurrentPosition(cashIndex, {
+            inputType: 'value',
+            value: 0
+          });
+        }
+      });
+
+      await waitFor(() => {
+        const totalValue = result.current.state.totalPortfolioValue;
+        expect(totalValue).toBeGreaterThanOrEqual(0);
+      }, { timeout: 2000 });
+    });
+  });
+
+  describe('addCashToBoth', () => {
+    it('should add cash to both positions and rebalance stocks', () => {
+      const { result } = renderHook(() => useCalculator({
+        user: null,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
+      }));
+
+      act(() => {
+        result.current.actions.setMode('rebalance');
+      });
+
+      act(() => {
+        result.current.actions.addCashToBoth();
+      });
+
+      // Should add cash to positions
+      const cashPosition = result.current.state.currentPositions.find(p => p.symbol === 'CASH');
+      expect(cashPosition).toBeDefined();
+      expect(cashPosition?.companyName).toBe('Cash USD');
+
+      // Should add cash to rebalance stocks
+      const cashStock = result.current.state.rebalanceStocks.find(s => s.name === 'CASH');
+      expect(cashStock).toBeDefined();
+      expect(cashStock?.companyName).toBe('Cash USD');
+
+      // Price should be set to 1.00
+      expect(result.current.state.stockPrices['CASH']).toBe(1.00);
+    });
+
+    it('should not add cash if already present in positions', () => {
+      const { result } = renderHook(() => useCalculator({
+        user: null,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
+      }));
+
+      act(() => {
+        result.current.actions.setMode('rebalance');
+      });
+
+      act(() => {
+        result.current.actions.addCashToBoth();
+      });
+
+      const initialPositionCount = result.current.state.currentPositions.length;
+      const initialStockCount = result.current.state.rebalanceStocks.length;
+
+      act(() => {
+        result.current.actions.addCashToBoth();
+      });
+
+      // Should not add duplicate cash
+      expect(result.current.state.currentPositions.length).toBe(initialPositionCount);
+      expect(result.current.state.rebalanceStocks.length).toBe(initialStockCount);
+    });
+  });
 });

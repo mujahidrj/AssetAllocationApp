@@ -8,6 +8,11 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 // Replace with your Firebase config
 const finnhubApiKey = import.meta.env.VITE_FINNHUB_API_KEY;
 
+// Helper function to check if a symbol represents cash
+const isCash = (symbol: string): boolean => {
+  return symbol.toUpperCase() === 'CASH' || symbol.toUpperCase() === 'USD';
+};
+
 interface UseCalculatorProps {
   user: User | null;
   stocks: Stock[];
@@ -193,9 +198,16 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   useEffect(() => {
     if (!user) return;
 
-    // Save rebalance stocks (including empty array) to persist deletions
+    // Firestore rejects undefined - omit optional fields when they're undefined
+    const cleanedStocks = rebalanceStocks.map(({ name, percentage, companyName }) => {
+      const stock: Stock = { name, percentage };
+      if (companyName != null) {
+        stock.companyName = companyName;
+      }
+      return stock;
+    });
     const percentagesRef = doc(db, 'userRebalancePercentages', user.uid);
-    setDoc(percentagesRef, { stocks: rebalanceStocks }).catch(error => {
+    setDoc(percentagesRef, { stocks: cleanedStocks }).catch(error => {
       console.error('Error saving rebalance percentages:', error);
     });
   }, [user, rebalanceStocks]);
@@ -220,6 +232,24 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     const missingSymbols = stockSymbols.filter(symbol => stockPrices[symbol] === undefined);
     if (missingSymbols.length === 0) return;
 
+    // Separate cash from regular stocks
+    const cashSymbols = missingSymbols.filter(symbol => isCash(symbol));
+    const regularSymbols = missingSymbols.filter(symbol => !isCash(symbol));
+
+    // Set cash prices to 1.00 immediately
+    if (cashSymbols.length > 0) {
+      setStockPrices(prev => {
+        const newPrices = { ...prev };
+        cashSymbols.forEach(symbol => {
+          newPrices[symbol] = 1.00;
+        });
+        return newPrices;
+      });
+    }
+
+    // If no regular symbols to fetch, return early
+    if (regularSymbols.length === 0) return;
+
     // Abort any ongoing fetch
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -228,14 +258,14 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     abortControllerRef.current = new AbortController();
 
     try {
-      const pricePromises = missingSymbols.map(symbol =>
+      const pricePromises = regularSymbols.map(symbol =>
         fetchStockPrice(symbol, abortControllerRef.current!.signal)
       );
       const prices = await Promise.all(pricePromises);
 
       setStockPrices(prev => {
         const newPrices = { ...prev };
-        missingSymbols.forEach((symbol, index) => {
+        regularSymbols.forEach((symbol, index) => {
           // Store the price (could be a number or null if fetch failed)
           newPrices[symbol] = prices[index];
         });
@@ -246,7 +276,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       // On error, mark symbols as null (fetch failed) so we don't retry indefinitely
       setStockPrices(prev => {
         const newPrices = { ...prev };
-        missingSymbols.forEach(symbol => {
+        regularSymbols.forEach(symbol => {
           if (newPrices[symbol] === undefined) {
             newPrices[symbol] = null;
           }
@@ -313,6 +343,29 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return;
     }
 
+    // Handle cash specially - skip price fetching
+    if (isCash(trimmedSymbol)) {
+      setStockPrices(prev => ({ ...prev, [trimmedSymbol]: 1.00 }));
+      const newStock = {
+        name: trimmedSymbol,
+        percentage: 0,
+        companyName: 'Cash USD'
+      };
+
+      if (user && setStocks) {
+        await setStocks([...stocks, newStock]);
+      } else {
+        setLocalStocks(prev => [...prev, newStock]);
+      }
+      setNewStockName("");
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.newStock;
+        return newErrors;
+      });
+      return;
+    }
+
     // Abort any ongoing fetch
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -324,6 +377,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     try {
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      if (companyName === null) {
+        setValidationErrors(prev => ({ ...prev, newStock: `Couldn't find ${trimmedSymbol}` }));
+        return;
+      }
       const newStock = {
         name: trimmedSymbol,
         percentage: 0,
@@ -350,6 +407,37 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       setFetchingStock(false);
       abortControllerRef.current = null;
     }
+  }, [user, stocks, setStocks, currentStocks]);
+
+  const addCash = useCallback(() => {
+    const cashSymbol = 'CASH';
+
+    // Check if cash already exists
+    if (currentStocks.some(stock => stock.name === cashSymbol)) {
+      setValidationErrors(prev => ({ ...prev, newStock: "Cash already exists in your portfolio" }));
+      return;
+    }
+
+    const newStock: Stock = {
+      name: cashSymbol,
+      percentage: 0,
+      companyName: 'Cash USD'
+    };
+
+    // Set cash price to 1.00 immediately
+    setStockPrices(prev => ({ ...prev, [cashSymbol]: 1.00 }));
+
+    if (user && setStocks) {
+      void setStocks([...stocks, newStock]);
+    } else {
+      setLocalStocks(prev => [...prev, newStock]);
+    }
+
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.newStock;
+      return newErrors;
+    });
   }, [user, stocks, setStocks, currentStocks]);
 
   const removeStock = useCallback((index: number) => {
@@ -436,6 +524,25 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return;
     }
 
+    // Handle cash specially - skip price fetching
+    if (isCash(trimmedSymbol)) {
+      setStockPrices(prev => ({ ...prev, [trimmedSymbol]: 1.00 }));
+      const newPosition: CurrentPosition = {
+        symbol: trimmedSymbol,
+        inputType: 'value',
+        value: 0,
+        companyName: 'Cash USD'
+      };
+      setCurrentPositions(prev => [...prev, newPosition]);
+      setNewStockName("");
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.newPosition;
+        return newErrors;
+      });
+      return;
+    }
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -445,6 +552,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     try {
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      if (companyName === null) {
+        setValidationErrors(prev => ({ ...prev, newPosition: `Couldn't find ${trimmedSymbol}` }));
+        return;
+      }
       const newPosition: CurrentPosition = {
         symbol: trimmedSymbol,
         inputType: 'value',
@@ -506,6 +617,51 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return;
     }
 
+    // Handle cash specially - skip price fetching
+    if (isCash(trimmedSymbol)) {
+      const positionExists = currentPositions.some(pos => pos.symbol === trimmedSymbol);
+      const targetExists = rebalanceStocks.some(stock => stock.name === trimmedSymbol);
+
+      if (positionExists && targetExists) {
+        setValidationErrors(prev => ({
+          ...prev,
+          newPosition: "Cash already exists",
+          newRebalanceStock: "Cash already exists"
+        }));
+        return;
+      }
+
+      setStockPrices(prev => ({ ...prev, [trimmedSymbol]: 1.00 }));
+
+      if (!positionExists) {
+        const newPosition: CurrentPosition = {
+          symbol: trimmedSymbol,
+          inputType: 'value',
+          value: 0,
+          companyName: 'Cash USD'
+        };
+        setCurrentPositions(prev => [...prev, newPosition]);
+      }
+
+      if (!targetExists) {
+        const newStock: Stock = {
+          name: trimmedSymbol,
+          percentage: 0,
+          companyName: 'Cash USD'
+        };
+        setRebalanceStocks(prev => [...prev, newStock]);
+      }
+
+      setNewStockName("");
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.newPosition;
+        delete newErrors.newRebalanceStock;
+        return newErrors;
+      });
+      return;
+    }
+
     // Check if already exists
     const positionExists = currentPositions.some(pos => pos.symbol === trimmedSymbol);
     const targetExists = rebalanceStocks.some(stock => stock.name === trimmedSymbol);
@@ -527,8 +683,16 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     setFetchingStock(true);
 
     try {
-      // Fetch company name once
+      // Fetch company name once - validates ticker exists
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      if (companyName === null) {
+        setValidationErrors(prev => ({
+          ...prev,
+          newPosition: `Couldn't find ${trimmedSymbol}`,
+          newRebalanceStock: `Couldn't find ${trimmedSymbol}`
+        }));
+        return;
+      }
 
       // Add to positions if not exists
       if (!positionExists) {
@@ -571,6 +735,55 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     }
   }, [currentPositions, rebalanceStocks]);
 
+  const addCashToBoth = useCallback(() => {
+    const cashSymbol = 'CASH';
+
+    // Check if already exists
+    const positionExists = currentPositions.some(pos => pos.symbol === cashSymbol);
+    const targetExists = rebalanceStocks.some(stock => stock.name === cashSymbol);
+
+    if (positionExists && targetExists) {
+      setValidationErrors(prev => ({
+        ...prev,
+        newPosition: "Cash already exists",
+        newRebalanceStock: "Cash already exists"
+      }));
+      return;
+    }
+
+    // Set cash price to 1.00 immediately
+    setStockPrices(prev => ({ ...prev, [cashSymbol]: 1.00 }));
+
+    // Add to positions if not exists
+    if (!positionExists) {
+      const newPosition: CurrentPosition = {
+        symbol: cashSymbol,
+        inputType: 'value',
+        value: 0,
+        companyName: 'Cash USD'
+      };
+      setCurrentPositions(prev => [...prev, newPosition]);
+    }
+
+    // Add to targets if not exists
+    if (!targetExists) {
+      const newStock: Stock = {
+        name: cashSymbol,
+        percentage: 0,
+        companyName: 'Cash USD'
+      };
+      setRebalanceStocks(prev => [...prev, newStock]);
+    }
+
+    setNewStockName("");
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors.newPosition;
+      delete newErrors.newRebalanceStock;
+      return newErrors;
+    });
+  }, [currentPositions, rebalanceStocks]);
+
   const addRebalanceStock = useCallback(async (symbol: string) => {
     const trimmedSymbol = symbol.trim().toUpperCase();
     if (!trimmedSymbol) {
@@ -583,6 +796,24 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return;
     }
 
+    // Handle cash specially - skip price fetching
+    if (isCash(trimmedSymbol)) {
+      setStockPrices(prev => ({ ...prev, [trimmedSymbol]: 1.00 }));
+      const newStock: Stock = {
+        name: trimmedSymbol,
+        percentage: 0,
+        companyName: 'Cash USD'
+      };
+      setRebalanceStocks(prev => [...prev, newStock]);
+      setNewStockName("");
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.newRebalanceStock;
+        return newErrors;
+      });
+      return;
+    }
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -592,6 +823,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     try {
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      if (companyName === null) {
+        setValidationErrors(prev => ({ ...prev, newRebalanceStock: `Couldn't find ${trimmedSymbol}` }));
+        return;
+      }
       const newStock: Stock = {
         name: trimmedSymbol,
         percentage: 0,
@@ -682,6 +917,14 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     // Calculate current portfolio value
     const positionValues = currentPositions.map(pos => {
+      // Handle cash specially - price is always 1.00
+      if (isCash(pos.symbol)) {
+        if (pos.inputType === 'shares') {
+          return (pos.shares || 0) * 1.00;
+        } else {
+          return pos.value || 0;
+        }
+      }
       const price = stockPrices[pos.symbol] || 0;
       if (pos.inputType === 'shares') {
         return (pos.shares || 0) * price;
@@ -719,6 +962,22 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     const currentSharesMap = new Map<string, number>();
 
     currentPositions.forEach(pos => {
+      // Handle cash specially - price is always 1.00
+      if (isCash(pos.symbol)) {
+        let currentValue: number;
+        let currentShares: number;
+        if (pos.inputType === 'shares') {
+          currentShares = pos.shares || 0;
+          currentValue = currentShares * 1.00;
+        } else {
+          currentValue = pos.value || 0;
+          currentShares = currentValue / 1.00;
+        }
+        currentValuesMap.set(pos.symbol, currentValue);
+        currentSharesMap.set(pos.symbol, currentShares);
+        return;
+      }
+
       const price = stockPrices[pos.symbol] ?? null; // null means fetch failed, undefined means not fetched
       let currentValue: number;
       let currentShares: number;
@@ -750,12 +1009,21 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       const currentPercentage = totalPortfolioValue > 0 ? (currentValue / totalPortfolioValue) * 100 : 0;
       const targetValue = totalPortfolioValue * (stock.percentage / 100);
       const difference = targetValue - currentValue;
-      // Get price - check for null explicitly since null means fetch failed, undefined means not fetched yet
-      const price = stockPrices[stock.name] ?? null;
-      // Calculate shares to trade - only if we have a valid price (not null, not 0, not undefined)
-      const sharesToTrade = price != null && price > 0 && Math.abs(difference) > 0.01
-        ? Math.abs(difference) / price
-        : 0;
+
+      // Handle cash specially - price is always 1.00
+      let price: number | null;
+      let sharesToTrade: number;
+      if (isCash(stock.name)) {
+        price = 1.00;
+        sharesToTrade = Math.abs(difference) > 0.01 ? Math.abs(difference) / 1.00 : 0;
+      } else {
+        // Get price - check for null explicitly since null means fetch failed, undefined means not fetched yet
+        price = stockPrices[stock.name] ?? null;
+        // Calculate shares to trade - only if we have a valid price (not null, not 0, not undefined)
+        sharesToTrade = price != null && price > 0 && Math.abs(difference) > 0.01
+          ? Math.abs(difference) / price
+          : 0;
+      }
 
       let action: 'buy' | 'sell' | 'hold' = 'hold';
       if (Math.abs(difference) > 0.01) {
@@ -784,19 +1052,27 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         const currentValue = currentValuesMap.get(pos.symbol) || 0;
         const currentShares = currentSharesMap.get(pos.symbol) || 0;
         const currentPercentage = (currentValue / totalPortfolioValue) * 100;
-        const price = stockPrices[pos.symbol] ?? null;
 
-        // These positions should be sold completely
-        // Use price-based calculation if price is available, otherwise use current shares
-        const sharesToSell = price != null && price > 0 && currentValue > 0
-          ? currentValue / price
-          : currentShares;
+        // Handle cash specially - price is always 1.00
+        let price: number | null;
+        let sharesToSell: number;
+        if (isCash(pos.symbol)) {
+          price = 1.00;
+          sharesToSell = currentValue / 1.00;
+        } else {
+          price = stockPrices[pos.symbol] ?? null;
+          // These positions should be sold completely
+          // Use price-based calculation if price is available, otherwise use current shares
+          sharesToSell = price != null && price > 0 && currentValue > 0
+            ? currentValue / price
+            : currentShares;
+        }
         return {
           name: pos.symbol,
           percentage: 0, // Not in target allocation
           companyName: pos.companyName,
           amount: '0.00',
-          currentPrice: price || null,
+          currentPrice: price,
           shares: undefined,
           currentValue,
           currentPercentage,
@@ -861,6 +1137,17 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     return currentStocks.map((stock) => {
       const allocationAmount = totalAmount * (stock.percentage / 100);
+
+      // Handle cash specially - price is always 1.00, shares = amount
+      if (isCash(stock.name)) {
+        return {
+          ...stock,
+          amount: allocationAmount.toFixed(2),
+          currentPrice: 1.00,
+          shares: allocationAmount
+        };
+      }
+
       const currentPrice = stockPrices[stock.name];
       const shares = currentPrice ? allocationAmount / currentPrice : undefined;
 
@@ -890,6 +1177,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       });
     },
     addStock,
+    addCash,
     removeStock,
     updateStockPercentage,
     handleSamplePortfolioChange: (portfolioName: string) => {
@@ -916,7 +1204,8 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     addRebalanceStock,
     removeRebalanceStock,
     updateRebalancePercentage,
-    addAssetToBoth
+    addAssetToBoth,
+    addCashToBoth
   };
 
   // Calculate total portfolio value for rebalance mode
@@ -926,6 +1215,14 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     }
 
     return currentPositions.reduce((sum, pos) => {
+      // Handle cash specially - price is always 1.00
+      if (isCash(pos.symbol)) {
+        if (pos.inputType === 'shares') {
+          return sum + ((pos.shares || 0) * 1.00);
+        } else {
+          return sum + (pos.value || 0);
+        }
+      }
       const price = stockPrices[pos.symbol] || 0;
       if (pos.inputType === 'shares') {
         return sum + ((pos.shares || 0) * price);

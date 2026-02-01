@@ -5,7 +5,6 @@
 
   color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #1a1a1a;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -23,43 +22,55 @@
   --color-error-bg: rgba(239, 68, 68, 0.1);
   --color-error-border: rgba(239, 68, 68, 0.2);
   --color-warning: #f59e0b;
-  
+
   /* Background Colors */
   --color-bg-primary: #1a1a1a;
   --color-bg-secondary: #2d2d2d;
   --color-bg-elevated: #363636;
   --color-bg-input: #1f1f1f;
   --color-bg-overlay: rgba(0, 0, 0, 0.3);
-  
+
   /* Text Colors */
   --color-text-primary: #ffffff;
   --color-text-secondary: #e5e7eb;
   --color-text-tertiary: #9ca3af;
-  
+
   /* Border Colors */
   --color-border: #4a4a4a;
   --color-border-light: rgba(255, 255, 255, 0.1);
-  
+
   /* Spacing Scale (base: 0.25rem = 4px) */
-  --spacing-xs: 0.25rem;  /* 4px */
-  --spacing-sm: 0.5rem;   /* 8px */
-  --spacing-md: 0.75rem;  /* 12px */
-  --spacing-lg: 1rem;     /* 16px */
-  --spacing-xl: 1.5rem;   /* 24px */
-  --spacing-2xl: 2rem;    /* 32px */
-  --spacing-3xl: 3rem;    /* 48px */
-  
+  --spacing-xs: 0.25rem;
+  /* 4px */
+  --spacing-sm: 0.5rem;
+  /* 8px */
+  --spacing-md: 0.75rem;
+  /* 12px */
+  --spacing-lg: 1rem;
+  /* 16px */
+  --spacing-xl: 1.5rem;
+  /* 24px */
+  --spacing-2xl: 2rem;
+  /* 32px */
+  --spacing-3xl: 3rem;
+  /* 48px */
+
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.3);
-  
+
   /* Border Radius */
-  --radius-xs: 0.25rem;   /* 4px */
-  --radius-sm: 0.375rem;  /* 6px */
-  --radius-md: 0.5rem;    /* 8px */
-  --radius-lg: 0.75rem;   /* 12px */
-  --radius-xl: 1rem;      /* 16px */
+  --radius-xs: 0.25rem;
+  /* 4px */
+  --radius-sm: 0.375rem;
+  /* 6px */
+  --radius-md: 0.5rem;
+  /* 8px */
+  --radius-lg: 0.75rem;
+  /* 12px */
+  --radius-xl: 1rem;
+  /* 16px */
 }
 
 a {
@@ -67,6 +78,7 @@ a {
   color: var(--color-primary);
   text-decoration: inherit;
 }
+
 a:hover {
   color: var(--color-primary-hover);
 }
@@ -78,6 +90,8 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  background: linear-gradient(to bottom right, var(--color-bg-primary), var(--color-bg-secondary));
+  background-attachment: fixed;
 }
 
 h1 {
@@ -95,12 +109,15 @@ button {
   background-color: #1a1a1a;
   cursor: pointer;
   transition: border-color 0.25s;
-  min-height: 44px; /* minimum touch target size */
+  min-height: 44px;
+  /* minimum touch target size */
   touch-action: manipulation;
 }
+
 button:hover {
   border-color: #646cff;
 }
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;

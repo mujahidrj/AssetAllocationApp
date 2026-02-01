@@ -58,6 +58,7 @@ export interface CalculatorState {
 export interface CalculatorActions {
   setAmount: (amount: string) => void;
   addStock: (symbol: string) => Promise<void>;
+  addCash: () => void;
   removeStock: (index: number) => void;
   updateStockPercentage: (index: number, percentage: string) => void;
   handleSamplePortfolioChange: (portfolioName: string) => void;
@@ -70,4 +71,5 @@ export interface CalculatorActions {
   removeRebalanceStock: (index: number) => void;
   updateRebalancePercentage: (index: number, percentage: string) => void;
   addAssetToBoth: (symbol: string) => Promise<void>;
+  addCashToBoth: () => void;
 }

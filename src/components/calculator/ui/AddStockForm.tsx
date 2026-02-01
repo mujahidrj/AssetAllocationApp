@@ -21,12 +21,12 @@ export function AddStockForm({ value, onChange, onAdd, error, loading }: AddStoc
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className={`${styles.input} ${error ? styles.inputError : ''}`}
-            placeholder="Enter stock symbol"
+            placeholder="Enter stock symbol (e.g. VOO)"
             disabled={loading}
           />
         </div>
-        <button 
-          onClick={onAdd} 
+        <button
+          onClick={onAdd}
           className={`${styles.addButton} ${loading ? styles.loading : ''}`}
           disabled={loading}
         >

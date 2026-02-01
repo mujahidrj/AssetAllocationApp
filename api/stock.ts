@@ -3,10 +3,10 @@ import fetch from 'node-fetch';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Allow requests from any origin in development, specific origin in production
-  const origin = process.env.NODE_ENV === 'production' 
+  const origin = process.env.NODE_ENV === 'production'
     ? 'https://asset-allocation-app-nine.vercel.app'
     : '*';
-  
+
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', origin);
@@ -56,20 +56,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         statusText: response.statusText,
         body: errorText
       });
-      return res.status(response.status).json({ 
-        error: `Failed to fetch data from Yahoo Finance: ${response.statusText}` 
+      return res.status(response.status).json({
+        error: `Failed to fetch data from Yahoo Finance: ${response.statusText}`
       });
     }
 
-    const data = await response.json() as { 
-      chart?: { 
-        result?: Array<{ 
-          meta?: { 
+    const data = await response.json() as {
+      chart?: {
+        result?: Array<{
+          meta?: {
             regularMarketPrice?: number;
             symbol?: string;
-          } 
-        }> 
-      } 
+          }
+        }>
+      }
     };
 
     if (!data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
@@ -77,8 +77,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         symbol,
         response: data
       });
-      return res.status(500).json({ 
-        error: `No price data available for symbol ${symbol}` 
+      return res.status(500).json({
+        error: `No price data available for symbol ${symbol}`
       });
     }
 

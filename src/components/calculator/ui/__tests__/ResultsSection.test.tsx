@@ -1,9 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '../../../../test/utils';
 import { ResultsSection } from '../ResultsSection';
 import type { AllocationResult } from '../../types';
 
+vi.mock('../../../../lib/useMediaQuery', () => ({
+  useMediaQuery: vi.fn(() => false),
+}));
+
+import { useMediaQuery } from '../../../../lib/useMediaQuery';
+
 describe('ResultsSection', () => {
+  beforeEach(() => {
+    vi.mocked(useMediaQuery).mockReturnValue(false);
+  });
+
   it('should return null when allocations is null', () => {
     const { container } = render(<ResultsSection allocations={null} />);
 
@@ -127,16 +137,21 @@ describe('ResultsSection', () => {
     ];
     render(<ResultsSection allocations={allocations} />);
 
-    expect(screen.getByText('(33.3333 shares)')).toBeInTheDocument();
+    expect(screen.getByText('33.3333 shares')).toBeInTheDocument();
   });
 
   it('should not display shares when not provided', () => {
     const allocations: AllocationResult[] = [
       { name: 'AAPL', percentage: 50, amount: '5000.00' }
     ];
-    render(<ResultsSection allocations={allocations} />);
+    const { container } = render(<ResultsSection allocations={allocations} />);
 
-    expect(screen.queryByText(/shares/i)).not.toBeInTheDocument();
+    // Shares column shows placeholder when no shares data (em dash)
+    // Check that shares label exists and placeholder is rendered
+    expect(screen.getByText('Shares')).toBeInTheDocument();
+    // The placeholder should be in the table/card
+    expect(container.textContent).toContain('AAPL');
+    expect(container.textContent).not.toContain('shares'); // No shares text when undefined
   });
 
   it('should format shares to 4 decimal places', () => {
@@ -150,10 +165,10 @@ describe('ResultsSection', () => {
     ];
     render(<ResultsSection allocations={allocations} />);
 
-    expect(screen.getByText('(33.1235 shares)')).toBeInTheDocument();
+    expect(screen.getByText('33.1235 shares')).toBeInTheDocument();
   });
 
-  it('should not display shares when shares is 0', () => {
+  it('should display shares when shares is 0', () => {
     const allocations: AllocationResult[] = [
       {
         name: 'AAPL',
@@ -165,7 +180,7 @@ describe('ResultsSection', () => {
     render(<ResultsSection allocations={allocations} />);
 
     // shares: 0 should still display (0 is a number)
-    expect(screen.getByText('(0.0000 shares)')).toBeInTheDocument();
+    expect(screen.getByText('0.0000 shares')).toBeInTheDocument();
   });
 
   it('should handle amount as string', () => {
@@ -194,7 +209,7 @@ describe('ResultsSection', () => {
     render(<ResultsSection allocations={allocations} />);
 
     expect(screen.getByText('$0.01')).toBeInTheDocument();
-    expect(screen.getByText('(0.0001 shares)')).toBeInTheDocument();
+    expect(screen.getByText('0.0001 shares')).toBeInTheDocument();
   });
 
   it('should handle multiple allocations', () => {
@@ -226,7 +241,7 @@ describe('ResultsSection', () => {
       render(<ResultsSection allocations={allocations} />);
 
       // 0 is a number, so shares should display
-      expect(screen.getByText('(0.0000 shares)')).toBeInTheDocument();
+      expect(screen.getByText('0.0000 shares')).toBeInTheDocument();
     });
 
     it('should handle allocation with shares as undefined', () => {
@@ -238,10 +253,12 @@ describe('ResultsSection', () => {
           shares: undefined
         }
       ];
-      render(<ResultsSection allocations={allocations} />);
+      const { container } = render(<ResultsSection allocations={allocations} />);
 
-      // Undefined shares should not display
-      expect(screen.queryByText(/shares/i)).not.toBeInTheDocument();
+      // Undefined shares should show placeholder (em dash)
+      expect(screen.getByText('Shares')).toBeInTheDocument();
+      expect(container.textContent).toContain('AAPL');
+      expect(container.textContent).not.toContain('shares'); // No shares text when undefined
     });
 
     it('should handle allocation with shares as null', () => {
@@ -253,11 +270,12 @@ describe('ResultsSection', () => {
           shares: undefined
         }
       ];
-      render(<ResultsSection allocations={allocations} />);
+      const { container } = render(<ResultsSection allocations={allocations} />);
 
-      // Null shares should not display (typeof null !== 'number' is false, but null is not a number)
-      // Actually typeof null is 'object', so it won't match 'number'
-      expect(screen.queryByText(/shares/i)).not.toBeInTheDocument();
+      // Null/undefined shares should show placeholder (em dash)
+      expect(screen.getByText('Shares')).toBeInTheDocument();
+      expect(container.textContent).toContain('AAPL');
+      expect(container.textContent).not.toContain('shares'); // No shares text when null/undefined
     });
 
     it('should handle allocation with empty string company name', () => {
@@ -345,7 +363,7 @@ describe('ResultsSection', () => {
       render(<ResultsSection allocations={allocations} />);
 
       // Should round to 4 decimal places
-      expect(screen.getByText('(33.1234 shares)')).toBeInTheDocument();
+      expect(screen.getByText('33.1234 shares')).toBeInTheDocument();
     });
 
     it('should render container div with correct structure', () => {
@@ -359,16 +377,16 @@ describe('ResultsSection', () => {
       expect(resultsSection).toBeInTheDocument();
     });
 
-    it('should render resultItem divs for each allocation', () => {
+    it('should render result rows for each allocation', () => {
       const allocations: AllocationResult[] = [
         { name: 'AAPL', percentage: 50, amount: '5000.00' },
         { name: 'MSFT', percentage: 50, amount: '5000.00' }
       ];
       const { container } = render(<ResultsSection allocations={allocations} />);
 
-      // Should have resultItem divs (CSS modules will hash the class name)
-      const items = container.querySelectorAll('[class*="resultItem"]');
-      expect(items.length).toBe(2);
+      // Should have result rows (CSS modules will hash the class name)
+      const rows = container.querySelectorAll('[class*="resultRow"]');
+      expect(rows.length).toBe(2);
     });
 
     it('should handle error prop with empty string', () => {
@@ -390,6 +408,86 @@ describe('ResultsSection', () => {
       expect(errorDiv).toBeInTheDocument();
       // Error div should contain the whitespace text
       expect(errorDiv?.textContent).toBe('   ');
+    });
+  });
+
+  describe('Mobile layout', () => {
+    beforeEach(() => {
+      vi.mocked(useMediaQuery).mockReturnValue(true);
+    });
+
+    it('should render mobile cards when viewport is mobile', () => {
+      const allocations: AllocationResult[] = [
+        { name: 'AAPL', percentage: 50, amount: '5000.00' },
+      ];
+      const { container } = render(<ResultsSection allocations={allocations} />);
+
+      const mobileCards = container.querySelector('[class*="mobileCards"]');
+      expect(mobileCards).toBeInTheDocument();
+    });
+
+    it('should display allocation details in mobile cards', () => {
+      const allocations: AllocationResult[] = [
+        { name: 'AAPL', percentage: 50, amount: '5000.00', shares: 33.3333 },
+      ];
+      render(<ResultsSection allocations={allocations} />);
+
+      expect(screen.getByText('AAPL')).toBeInTheDocument();
+      expect(screen.getByText('50%')).toBeInTheDocument();
+      expect(screen.getByText('$5,000.00')).toBeInTheDocument();
+      expect(screen.getByText('33.3333 shares')).toBeInTheDocument();
+    });
+
+    it('should display company name in mobile cards when available', () => {
+      const allocations: AllocationResult[] = [
+        {
+          name: 'AAPL',
+          percentage: 50,
+          amount: '5000.00',
+          companyName: 'Apple Inc.',
+        },
+      ];
+      render(<ResultsSection allocations={allocations} />);
+
+      expect(screen.getByText('Apple Inc.')).toBeInTheDocument();
+    });
+
+    it('should display placeholder for shares when not provided in mobile', () => {
+      const allocations: AllocationResult[] = [
+        { name: 'AAPL', percentage: 50, amount: '5000.00' },
+      ];
+      const { container } = render(<ResultsSection allocations={allocations} />);
+
+      // Check for placeholder text (em dash character)
+      const sharesLabel = screen.getByText('Shares');
+      expect(sharesLabel).toBeInTheDocument();
+      // The placeholder should be in the same card row
+      const cardRow = sharesLabel.closest('[class*="cardRow"]');
+      expect(cardRow).toBeInTheDocument();
+      // Check that placeholder is rendered (em dash or similar)
+      expect(container.textContent).toContain('AAPL');
+    });
+
+    it('should display multiple allocations in mobile cards', () => {
+      const allocations: AllocationResult[] = [
+        { name: 'AAPL', percentage: 40, amount: '4000.00' },
+        { name: 'MSFT', percentage: 35, amount: '3500.00' },
+        { name: 'GOOGL', percentage: 25, amount: '2500.00' },
+      ];
+      render(<ResultsSection allocations={allocations} />);
+
+      expect(screen.getByText('AAPL')).toBeInTheDocument();
+      expect(screen.getByText('MSFT')).toBeInTheDocument();
+      expect(screen.getByText('GOOGL')).toBeInTheDocument();
+    });
+
+    it('should format amounts correctly in mobile cards', () => {
+      const allocations: AllocationResult[] = [
+        { name: 'AAPL', percentage: 50, amount: '1234567.89' },
+      ];
+      render(<ResultsSection allocations={allocations} />);
+
+      expect(screen.getByText('$1,234,567.89')).toBeInTheDocument();
     });
   });
 });

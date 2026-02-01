@@ -62,13 +62,13 @@ function RothIRACalculator() {
                 newStockName={state.newStockName}
                 onNewStockNameChange={actions.setNewStockName}
                 onAddStock={() => actions.addStock(state.newStockName)}
+                onAddCash={actions.addCash}
                 loading={loading || state.loading}
               />
 
               {state.currentStocks.length > 0 && state.amount && (
                 <ResultsSection
                   allocations={state.allocations}
-                  error={state.validationErrors.percentages}
                 />
               )}
             </>
@@ -87,6 +87,7 @@ function RothIRACalculator() {
                 onRemoveTargetStock={actions.removeRebalanceStock}
                 onAddTargetStock={actions.addRebalanceStock}
                 onAddAsset={actions.addAssetToBoth}
+                onAddCashToBoth={actions.addCashToBoth}
                 newStockName={state.newStockName}
                 onNewStockNameChange={actions.setNewStockName}
                 validationErrors={state.validationErrors}

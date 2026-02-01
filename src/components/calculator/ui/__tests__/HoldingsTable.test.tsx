@@ -40,6 +40,7 @@ describe('HoldingsTable', () => {
     onRemoveTargetStock: vi.fn(),
     onAddTargetStock: vi.fn(),
     onAddAsset: vi.fn(),
+    onAddCashToBoth: vi.fn(),
     newStockName: '',
     onNewStockNameChange: vi.fn(),
     validationErrors: {},
@@ -205,7 +206,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       await user.type(input, 'TSLA');
 
       expect(onNewStockNameChange).toHaveBeenCalled();
@@ -341,7 +342,7 @@ describe('HoldingsTable', () => {
         // CSS modules will hash the class name, so check if it contains error-related classes
         return className.includes('Error') || className.includes('error');
       });
-      
+
       // If no error class found, at least verify the component renders with errors
       expect(validationErrors['rebalance-stock-0']).toBeDefined();
     });
@@ -362,7 +363,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       await user.type(input, '{Enter}');
 
       expect(onAddAsset).toHaveBeenCalled();
@@ -430,7 +431,7 @@ describe('HoldingsTable', () => {
       if (targetInputs.length > 0) {
         const targetInput = targetInputs[0] as HTMLInputElement;
         await user.clear(targetInput);
-        
+
         // Should handle empty string gracefully
         expect(targetInput.value).toBe('');
       }
@@ -444,7 +445,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       expect(input).toBeDisabled();
     });
 
@@ -499,7 +500,7 @@ describe('HoldingsTable', () => {
       expect(screen.getAllByText('Current value').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Target %').length).toBeGreaterThan(0);
       expect(screen.getAllByRole('button', { name: /delete/i }).length).toBeGreaterThan(0);
-      expect(screen.getByPlaceholderText('Enter stock symbol')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
     });
 
     it('should render with stacked layout when mobileLayoutVariant is stacked', () => {
@@ -513,8 +514,8 @@ describe('HoldingsTable', () => {
     it('should render add form when mobile with holdings', () => {
       render(<HoldingsTable {...defaultProps} />);
 
-      expect(screen.getByPlaceholderText('Enter stock symbol')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /add/i })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
     });
 
     it('should call onAddAsset when Add button clicked in mobile layout', async () => {
@@ -530,7 +531,10 @@ describe('HoldingsTable', () => {
         />
       );
 
-      await user.click(screen.getByRole('button', { name: /add/i }));
+      const addButtons = screen.getAllByRole('button', { name: /add/i });
+      const addButton = addButtons.find(btn => btn.textContent?.trim() === 'Add');
+      expect(addButton).toBeInTheDocument();
+      await user.click(addButton!);
       expect(onAddAsset).toHaveBeenCalled();
     });
 
@@ -569,9 +573,15 @@ describe('HoldingsTable', () => {
         />
       );
 
+      // Find the value input for GOOGL (placeholder is "0" for value inputs)
       const valueInputs = screen.getAllByPlaceholderText('0');
-      const googlInput = valueInputs[0];
-      await user.type(googlInput, '500');
+      const googlInput = valueInputs.find(input => {
+        // Find input that's in the GOOGL row - check if it's near GOOGL text
+        const row = input.closest('[class*="holdingCard"], [class*="tableRow"]');
+        return row?.textContent?.includes('GOOGL');
+      });
+      expect(googlInput).toBeInTheDocument();
+      await user.type(googlInput!, '500');
       expect(onAddPosition).toHaveBeenCalledWith('GOOGL');
     });
   });
@@ -759,7 +769,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       await user.type(input, '{Enter}');
       expect(onAddAsset).not.toHaveBeenCalled();
     });
@@ -776,9 +786,80 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       await user.type(input, '{Enter}');
       expect(onAddAsset).not.toHaveBeenCalled();
+    });
+
+    it('should render company name in mobile cards', () => {
+      render(<HoldingsTable {...defaultProps} />);
+
+      expect(screen.getByText('Apple Inc.')).toBeInTheDocument();
+      expect(screen.getByText('Microsoft Corporation')).toBeInTheDocument();
+    });
+
+    it('should handle onBlur for target-only row in mobile', async () => {
+      const user = userEvent.setup();
+      const onAddPosition = vi.fn().mockResolvedValue(undefined);
+      const onUpdatePosition = vi.fn();
+      const targetOnly: Stock[] = [{ name: 'GOOGL', percentage: 20 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={[]}
+          targetStocks={targetOnly}
+          stockPrices={{ GOOGL: 100 }}
+          onAddPosition={onAddPosition}
+          onUpdatePosition={onUpdatePosition}
+        />
+      );
+
+      const valueInputs = screen.getAllByPlaceholderText('0');
+      const googlInput = valueInputs.find((input) => {
+        const card = input.closest('[class*="holdingCard"]');
+        return card?.textContent?.includes('GOOGL');
+      });
+      expect(googlInput).toBeInTheDocument();
+      await user.type(googlInput!, '500');
+      await user.tab(); // Trigger blur
+
+      expect(onAddPosition).toHaveBeenCalled();
+    });
+
+    it('should render Add Cash button in mobile when cash not present', () => {
+      render(<HoldingsTable {...defaultProps} />);
+
+      expect(screen.getByRole('button', { name: /add cash/i })).toBeInTheDocument();
+    });
+
+    it('should not render Add Cash button in mobile when cash is present', () => {
+      const positionsWithCash: CurrentPosition[] = [
+        { symbol: 'CASH', inputType: 'value', value: 100 },
+      ];
+      const stocksWithCash: Stock[] = [{ name: 'CASH', percentage: 2 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={positionsWithCash}
+          targetStocks={stocksWithCash}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /add cash/i })).not.toBeInTheDocument();
+    });
+
+    it('should call onAddCashToBoth when Add Cash clicked in mobile', async () => {
+      const user = userEvent.setup();
+      const onAddCashToBoth = vi.fn();
+
+      render(<HoldingsTable {...defaultProps} onAddCashToBoth={onAddCashToBoth} />);
+
+      const addCashButton = screen.getByRole('button', { name: /add cash/i });
+      await user.click(addCashButton);
+
+      expect(onAddCashToBoth).toHaveBeenCalled();
     });
   });
 });
