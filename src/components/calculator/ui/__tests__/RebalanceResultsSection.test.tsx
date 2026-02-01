@@ -1,7 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { RebalanceResultsSection } from '../RebalanceResultsSection';
 import type { RebalanceResult } from '../../types';
+
+vi.mock('../../../../lib/useMediaQuery', () => ({
+  useMediaQuery: vi.fn(() => false),
+}));
+
+import { useMediaQuery } from '../../../../lib/useMediaQuery';
 
 const createResult = (overrides: Partial<RebalanceResult>): RebalanceResult => ({
   name: 'TEST',
@@ -20,6 +26,10 @@ const createResult = (overrides: Partial<RebalanceResult>): RebalanceResult => (
 });
 
 describe('RebalanceResultsSection', () => {
+  beforeEach(() => {
+    vi.mocked(useMediaQuery).mockReturnValue(false);
+  });
+
   it('should return null when no results and no error', () => {
     const { container } = render(<RebalanceResultsSection results={null} />);
     expect(container.firstChild).toBeNull();
@@ -141,5 +151,138 @@ describe('RebalanceResultsSection', () => {
     render(<RebalanceResultsSection results={results} />);
 
     expect(screen.getByText('Apple Inc.')).toBeInTheDocument();
+  });
+
+  it('should display "Price unavailable" when currentPrice is null', () => {
+    const results: RebalanceResult[] = [
+      createResult({
+        name: 'AAPL',
+        action: 'buy',
+        difference: 100,
+        currentPrice: null,
+        sharesToTrade: 0,
+      }),
+    ];
+    render(<RebalanceResultsSection results={results} />);
+
+    expect(screen.getByText('Price unavailable')).toBeInTheDocument();
+  });
+
+  it('should display "0.0000" when currentPrice is 0', () => {
+    const results: RebalanceResult[] = [
+      createResult({
+        name: 'AAPL',
+        action: 'buy',
+        difference: 100,
+        currentPrice: 0,
+        sharesToTrade: 0,
+      }),
+    ];
+    render(<RebalanceResultsSection results={results} />);
+
+    expect(screen.getByText('0.0000')).toBeInTheDocument();
+  });
+
+  it('should display "0.0000" when sharesToTrade is 0', () => {
+    const results: RebalanceResult[] = [
+      createResult({
+        name: 'AAPL',
+        action: 'buy',
+        difference: 100,
+        currentPrice: 100,
+        sharesToTrade: 0,
+      }),
+    ];
+    render(<RebalanceResultsSection results={results} />);
+
+    expect(screen.getByText('0.0000')).toBeInTheDocument();
+  });
+
+  describe('Mobile layout', () => {
+    beforeEach(() => {
+      vi.mocked(useMediaQuery).mockReturnValue(true);
+    });
+
+    it('should render mobile cards when viewport is mobile', () => {
+      const results: RebalanceResult[] = [
+        createResult({ name: 'AAPL', action: 'buy', difference: 500 }),
+      ];
+      const { container } = render(<RebalanceResultsSection results={results} />);
+
+      const mobileCards = container.querySelector('[class*="mobileCards"]');
+      expect(mobileCards).toBeInTheDocument();
+    });
+
+    it('should display rebalance results in mobile cards', () => {
+      const results: RebalanceResult[] = [
+        createResult({
+          name: 'AAPL',
+          action: 'buy',
+          difference: 500,
+          sharesToTrade: 3.3333,
+        }),
+      ];
+      render(<RebalanceResultsSection results={results} />);
+
+      expect(screen.getByText('AAPL')).toBeInTheDocument();
+      expect(screen.getByText('BUY')).toBeInTheDocument();
+    });
+
+    it('should display company name in mobile cards when available', () => {
+      const results: RebalanceResult[] = [
+        createResult({
+          name: 'AAPL',
+          action: 'buy',
+          difference: 100,
+          companyName: 'Apple Inc.',
+        }),
+      ];
+      render(<RebalanceResultsSection results={results} />);
+
+      expect(screen.getByText('Apple Inc.')).toBeInTheDocument();
+    });
+
+    it('should display formatted amounts in mobile cards', () => {
+      const results: RebalanceResult[] = [
+        createResult({
+          name: 'AAPL',
+          action: 'buy',
+          difference: 1234.56,
+          sharesToTrade: 8.1234,
+        }),
+      ];
+      render(<RebalanceResultsSection results={results} />);
+
+      expect(screen.getByText('$1,234.56')).toBeInTheDocument();
+    });
+
+    it('should display shares in mobile cards', () => {
+      const results: RebalanceResult[] = [
+        createResult({
+          name: 'AAPL',
+          action: 'buy',
+          difference: 100,
+          sharesToTrade: 0.6667,
+        }),
+      ];
+      render(<RebalanceResultsSection results={results} />);
+
+      expect(screen.getByText('0.6667')).toBeInTheDocument();
+    });
+
+    it('should display "Price unavailable" in mobile cards when price is null', () => {
+      const results: RebalanceResult[] = [
+        createResult({
+          name: 'AAPL',
+          action: 'buy',
+          difference: 100,
+          currentPrice: null,
+          sharesToTrade: 0,
+        }),
+      ];
+      render(<RebalanceResultsSection results={results} />);
+
+      expect(screen.getByText('Price unavailable')).toBeInTheDocument();
+    });
   });
 });

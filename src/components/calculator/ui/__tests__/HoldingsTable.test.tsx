@@ -790,5 +790,76 @@ describe('HoldingsTable', () => {
       await user.type(input, '{Enter}');
       expect(onAddAsset).not.toHaveBeenCalled();
     });
+
+    it('should render company name in mobile cards', () => {
+      render(<HoldingsTable {...defaultProps} />);
+
+      expect(screen.getByText('Apple Inc.')).toBeInTheDocument();
+      expect(screen.getByText('Microsoft Corporation')).toBeInTheDocument();
+    });
+
+    it('should handle onBlur for target-only row in mobile', async () => {
+      const user = userEvent.setup();
+      const onAddPosition = vi.fn().mockResolvedValue(undefined);
+      const onUpdatePosition = vi.fn();
+      const targetOnly: Stock[] = [{ name: 'GOOGL', percentage: 20 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={[]}
+          targetStocks={targetOnly}
+          stockPrices={{ GOOGL: 100 }}
+          onAddPosition={onAddPosition}
+          onUpdatePosition={onUpdatePosition}
+        />
+      );
+
+      const valueInputs = screen.getAllByPlaceholderText('0');
+      const googlInput = valueInputs.find((input) => {
+        const card = input.closest('[class*="holdingCard"]');
+        return card?.textContent?.includes('GOOGL');
+      });
+      expect(googlInput).toBeInTheDocument();
+      await user.type(googlInput!, '500');
+      await user.tab(); // Trigger blur
+
+      expect(onAddPosition).toHaveBeenCalled();
+    });
+
+    it('should render Add Cash button in mobile when cash not present', () => {
+      render(<HoldingsTable {...defaultProps} />);
+
+      expect(screen.getByRole('button', { name: /add cash/i })).toBeInTheDocument();
+    });
+
+    it('should not render Add Cash button in mobile when cash is present', () => {
+      const positionsWithCash: CurrentPosition[] = [
+        { symbol: 'CASH', inputType: 'value', value: 100 },
+      ];
+      const stocksWithCash: Stock[] = [{ name: 'CASH', percentage: 2 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={positionsWithCash}
+          targetStocks={stocksWithCash}
+        />
+      );
+
+      expect(screen.queryByRole('button', { name: /add cash/i })).not.toBeInTheDocument();
+    });
+
+    it('should call onAddCashToBoth when Add Cash clicked in mobile', async () => {
+      const user = userEvent.setup();
+      const onAddCashToBoth = vi.fn();
+
+      render(<HoldingsTable {...defaultProps} onAddCashToBoth={onAddCashToBoth} />);
+
+      const addCashButton = screen.getByRole('button', { name: /add cash/i });
+      await user.click(addCashButton);
+
+      expect(onAddCashToBoth).toHaveBeenCalled();
+    });
   });
 });
