@@ -41,8 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       {
         headers: {
           'User-Agent': 'Mozilla/5.0',
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
+          'Accept': 'application/json'
         },
         signal: controller.signal
       }

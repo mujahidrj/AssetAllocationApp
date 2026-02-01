@@ -1,13 +1,25 @@
 import '@testing-library/jest-dom'
-import { afterEach, beforeEach, vi } from 'vitest'
+import { afterEach, vi, beforeAll, afterAll } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import './mocks'
 
-beforeEach(() => {
-  vi.clearAllMocks()
+// MSW setup - API mocking for tests
+import { server } from './server'
+
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'warn' })
 })
 
-// Runs a cleanup after each test case
 afterEach(() => {
+  server.resetHandlers()
+})
+
+afterAll(() => {
+  server.close()
+})
+
+// Reset mocks after each test
+afterEach(() => {
+  vi.clearAllMocks()
   cleanup()
 })
