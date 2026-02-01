@@ -10,9 +10,11 @@
 }
 
 .wrapper {
-  max-width: min(768px, 95%);
+  max-width: min(768px, 100%);
   margin: 0 auto;
   width: 100%;
+  padding: 0 var(--spacing-sm);
+  box-sizing: border-box;
 }
 
 @media (min-width: 640px) {
@@ -41,13 +43,39 @@
 }
 
 .card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   background: var(--color-bg-secondary);
   border-radius: var(--radius-xl);
-  padding: clamp(var(--spacing-lg), 4vw, var(--spacing-xl));
+  padding: clamp(var(--spacing-md), 4vw, var(--spacing-xl));
   box-shadow: var(--shadow-md);
   max-width: 768px;
   margin: 0 auto;
   border: 1px solid var(--color-border);
+}
+
+.card > * + * {
+  margin-top: var(--spacing-xl);
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: var(--spacing-md);
+    border-radius: var(--radius-lg);
+  }
+
+  .card > * + * {
+    margin-top: var(--spacing-lg);
+  }
+
+  .container {
+    padding: var(--spacing-sm);
+  }
+
+  .wrapper {
+    padding: 0 var(--spacing-sm);
+  }
 }
 
 .formSection {
@@ -56,6 +84,13 @@
   background: var(--color-bg-elevated);
   border-radius: var(--radius-lg);
   border-left: 3px solid var(--color-primary);
+}
+
+@media (max-width: 640px) {
+  .formSection {
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+  }
 }
 
 .label {
@@ -117,7 +152,7 @@
 .addStockSection {
   display: flex;
   align-items: center;
-  gap: 1.25rem;  /* increased gap between input and button */
+  gap: 1.25rem;
   margin-bottom: 1.5rem;
   width: 100%;
 }
@@ -131,7 +166,8 @@
 
 .addButton {
   padding: 0 var(--spacing-lg);
-  height: 2.75rem;  /* match input height (includes border) */
+  min-height: 44px;
+  height: 2.75rem;
   background-color: var(--color-bg-secondary);
   color: var(--color-text-secondary);
   border: 0.125rem solid var(--color-border);
@@ -142,6 +178,19 @@
   align-items: center;
   gap: var(--spacing-sm);
   flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .addStockSection {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+  }
+
+  .addButton {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .addButton:hover {
@@ -183,13 +232,37 @@
   align-items: center;
   gap: 1rem;
   flex: 1;
+  min-width: 0;
 }
 
 .stockSymbol {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  min-width: 120px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .stockItem {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+  }
+
+  .allocationControls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .stockSymbol {
+    min-width: unset;
+  }
+
+  .companyName {
+    max-width: 100%;
+  }
 }
 
 .stockSymbol span:first-child {

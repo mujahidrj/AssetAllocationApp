@@ -71,11 +71,13 @@ a:hover {
   color: var(--color-primary-hover);
 }
 
+html,
 body {
   margin: 0;
   min-width: min(320px, 100%);
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 h1 {
