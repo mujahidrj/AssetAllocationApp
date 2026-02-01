@@ -15,6 +15,7 @@
   border: 1px solid var(--color-border);
   background: var(--color-bg-input);
   width: 100%;
+  --action-button-min-width: 3.5rem;
 }
 
 .holdingsTable {
@@ -284,9 +285,9 @@
 }
 
 .deleteButton {
-  padding: var(--spacing-xs);
-  width: 2rem;
-  height: 2rem;
+  padding: 0 var(--spacing-md);
+  min-width: var(--action-button-min-width);
+  height: 2.25rem;
   color: var(--color-text-primary);
   background-color: var(--color-error);
   border: none;
@@ -308,22 +309,23 @@
   outline-offset: 2px;
 }
 
-.addFormContainer {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
+.addRow {
+  border-bottom: none;
+}
+
+.addRow .assetCell,
+.addRow .currentCell,
+.addRow .percentageCell,
+.addRow .targetCell,
+.addRow .actionsCell {
   padding: var(--spacing-md);
-  background: var(--color-bg-input);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
-  align-items: center;
 }
 
-.addFormInput {
-  flex: 1;
+.addRowInputCell {
+  padding: var(--spacing-md) !important;
 }
 
-.addFormInput .input {
+.addRowInput {
   width: 100%;
   padding: var(--spacing-sm) var(--spacing-md);
   border: 0.125rem solid var(--color-border);
@@ -332,16 +334,18 @@
   color: var(--color-text-primary);
   font-size: 0.875rem;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
-.addFormInput .input:focus {
+.addRowInput:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
 }
 
-.addFormButton {
-  padding: var(--spacing-sm) var(--spacing-lg);
+.addRowButton {
+  padding: 0 var(--spacing-md);
+  min-width: var(--action-button-min-width);
   background: var(--color-primary);
   color: var(--color-text-primary);
   border: 0.125rem solid var(--color-primary);
@@ -350,33 +354,21 @@
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
 }
 
-.addFormButton:hover:not(:disabled) {
+.addRowButton:hover:not(:disabled) {
   background: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
 }
 
-.addFormButton:disabled {
+.addRowButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.cancelButton {
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: transparent;
-  color: var(--color-text-secondary);
-  border: 0.125rem solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.cancelButton:hover {
-  background: var(--color-bg-elevated);
-  border-color: var(--color-text-tertiary);
 }
 
 .error {
@@ -387,32 +379,6 @@
   color: var(--color-error);
   font-size: 0.875rem;
   margin-bottom: var(--spacing-md);
-}
-
-.addButton {
-  margin-top: var(--spacing-lg);
-  padding: var(--spacing-md) var(--spacing-lg);
-  background: var(--color-primary);
-  color: var(--color-text-primary);
-  border: 0.125rem solid var(--color-primary);
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.addButton:hover {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
-}
-
-.addButton:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
 }
 
 .emptyState {

@@ -31,8 +31,6 @@ interface HoldingsTableProps {
   onNewStockNameChange: (value: string) => void;
   validationErrors: Record<string, string | undefined>;
   loading?: boolean;
-  showAddForm?: boolean;
-  onToggleAddForm?: () => void;
 }
 
 export function HoldingsTable({
@@ -50,9 +48,7 @@ export function HoldingsTable({
   newStockName,
   onNewStockNameChange,
   validationErrors,
-  loading = false,
-  showAddForm = false,
-  onToggleAddForm
+  loading = false
 }: HoldingsTableProps) {
   // Track local input values for better UX while typing
   const [localTargetValues, setLocalTargetValues] = useState<Record<string, string>>({});
@@ -145,63 +141,20 @@ export function HoldingsTable({
   const handleAddAsset = async () => {
     if (!newStockName.trim()) return;
     await onAddAsset(newStockName.trim());
-    if (onToggleAddForm && !(validationErrors.newPosition || validationErrors.newRebalanceStock)) {
-      onToggleAddForm();
-    }
   };
 
   return (
     <div className={styles.holdingsSection}>
       <h3 className={styles.sectionTitle}>Holdings</h3>
-      {showAddForm && (
-        <div className={styles.addFormContainer}>
-          <div className={styles.addFormInput}>
-            <input
-              type="text"
-              value={newStockName}
-              onChange={(e) => onNewStockNameChange(e.target.value)}
-              className={`${styles.input} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
-              placeholder="Enter stock symbol"
-              disabled={loading}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleAddAsset();
-                }
-              }}
-            />
-          </div>
-          <button
-            onClick={handleAddAsset}
-            className={styles.addFormButton}
-            disabled={loading || !newStockName.trim()}
-          >
-            Add
-          </button>
-          {onToggleAddForm && (
-            <button
-              onClick={onToggleAddForm}
-              className={styles.cancelButton}
-              type="button"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      )}
-      {(validationErrors.newPosition || validationErrors.newRebalanceStock) && (
-        <div className={styles.error}>
-          {validationErrors.newPosition || validationErrors.newRebalanceStock}
-        </div>
-      )}
       {holdingsRows.length === 0 ? (
         <div className={styles.emptyState}>
           <FontAwesomeIcon icon={faChartLine} size="3x" />
           <h3>No holdings added yet</h3>
-          <p>Add your first asset using the button below.</p>
+          <p>Add your first asset using the form below.</p>
         </div>
-      ) : (
-        <div className={styles.tableContainer}>
-          <table className={styles.holdingsTable}>
+      ) : null}
+      <div className={styles.tableContainer}>
+        <table className={styles.holdingsTable}>
             <thead>
               <tr>
                 <th className={styles.assetCol}>Asset</th>
@@ -389,14 +342,40 @@ export function HoldingsTable({
                   </tr>
                 );
               })}
+            <tr className={styles.addRow}>
+              <td colSpan={4} className={styles.addRowInputCell}>
+                <input
+                  type="text"
+                  value={newStockName}
+                  onChange={(e) => onNewStockNameChange(e.target.value)}
+                  className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
+                  placeholder="Enter stock symbol"
+                  disabled={loading}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAddAsset();
+                    }
+                  }}
+                />
+              </td>
+              <td className={styles.actionsCell}>
+                <button
+                  onClick={handleAddAsset}
+                  className={styles.addRowButton}
+                  disabled={loading || !newStockName.trim()}
+                  type="button"
+                >
+                  Add
+                </button>
+              </td>
+            </tr>
             </tbody>
           </table>
         </div>
-      )}
-      {!showAddForm && (
-        <button onClick={onToggleAddForm} className={styles.addButton} type="button">
-          + Add Asset
-        </button>
+      {(validationErrors.newPosition || validationErrors.newRebalanceStock) && (
+        <div className={styles.error}>
+          {validationErrors.newPosition || validationErrors.newRebalanceStock}
+        </div>
       )}
     </div>
   );

@@ -6,66 +6,95 @@
   width: 100%;
 }
 
-.stockItem {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  padding: var(--spacing-lg);
-  background: var(--color-bg-input);
+.tableContainer {
+  overflow-x: visible;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  box-sizing: border-box;
+  background: var(--color-bg-input);
   width: 100%;
-  align-items: stretch;
-  transition: all 0.2s;
+  --action-button-min-width: 3.5rem;
 }
 
-.stockItem:hover {
+.stocksTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  table-layout: fixed;
+}
+
+.stocksTable thead {
   background: var(--color-bg-elevated);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-sm);
+  border-bottom: 2px solid var(--color-border);
 }
 
-.stockSymbol {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: space-between;
+.stocksTable th {
+  padding: var(--spacing-md);
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.stockSymbol span:first-child {
+.assetCol {
+  width: 22%;
+  max-width: 180px;
+}
+
+.allocationCol {
+  width: 50%;
+}
+
+.percentageCol {
+  width: 12%;
+  max-width: 100px;
+}
+
+.actionsCol {
+  width: 8%;
+  max-width: 70px;
+}
+
+.tableRow {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.2s;
+}
+
+.tableRow:hover {
+  background: var(--color-bg-elevated);
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.assetCell {
+  padding: var(--spacing-md);
+}
+
+.symbol {
   font-weight: 600;
   font-size: 1rem;
   color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
 }
 
 .companyName {
   font-size: 0.75rem;
   color: var(--color-text-tertiary);
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: min(200px, 60%);
-  cursor: help;
-  transition: color 0.2s;
-}
-
-.companyName:hover {
-  color: var(--color-primary);
-}
-
-.allocationControls {
-  display: flex;
-  flex-direction: row;
-  gap: 0.75rem;
+  white-space: nowrap;
   width: 100%;
-  align-items: center;
+}
+
+.allocationCell {
+  padding: var(--spacing-md);
 }
 
 .percentageSlider {
-  flex: 1;
-  min-width: 100px;
+  width: 100%;
   height: 0.375rem;
   -webkit-appearance: none;
   appearance: none;
@@ -113,21 +142,24 @@
   background: var(--color-primary-hover);
 }
 
+.percentageCell {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
 .percentageInputWrapper {
-  display: flex;
   position: relative;
-  width: min(4.5rem, 25%);
-  min-width: 3.5rem;
-  flex-shrink: 0;
+  display: flex;
+  width: 100%;
+  max-width: 5rem;
 }
 
 .percentageInput {
   width: 100%;
-  padding: var(--spacing-sm) 1.25rem var(--spacing-sm) var(--spacing-xs);
+  padding: var(--spacing-xs) 1.25rem var(--spacing-xs) var(--spacing-xs);
   border: 0.125rem solid var(--color-border);
   border-radius: var(--radius-sm);
   text-align: right;
-  background: var(--color-bg-input);
+  background: var(--color-bg-secondary);
   color: var(--color-text-primary);
   appearance: textfield;
   -moz-appearance: textfield;
@@ -135,16 +167,16 @@
   transition: border-color 0.2s;
 }
 
-.percentageInput:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-}
-
 .percentageInput::-webkit-outer-spin-button,
 .percentageInput::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+.percentageInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
 }
 
 .percentSymbol {
@@ -155,26 +187,25 @@
   color: var(--color-text-tertiary);
   pointer-events: none;
   user-select: none;
+  font-size: 0.75rem;
 }
 
-.buttonWrapper {
-  display: flex;
-  justify-content: center;
-  margin-left: 0.5rem;
-  flex-shrink: 0;
+.actionsCell {
+  padding: var(--spacing-md);
+  text-align: center;
 }
 
 .deleteButton {
-  padding: var(--spacing-xs);
-  width: 2rem;
-  height: 2rem;
+  padding: 0 var(--spacing-md);
+  min-width: var(--action-button-min-width);
+  height: 2.25rem;
   color: var(--color-text-primary);
   background-color: var(--color-error);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 }
@@ -189,6 +220,72 @@
   outline-offset: 2px;
 }
 
+.addRow {
+  border-bottom: none;
+}
+
+.addRow .assetCell,
+.addRow .allocationCell,
+.addRow .percentageCell,
+.addRow .actionsCell {
+  padding: var(--spacing-md);
+}
+
+.addRowInputCell {
+  padding: var(--spacing-md) !important;
+}
+
+.addRowInput {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.addRowInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.inputError {
+  border-color: var(--color-error);
+  background-color: var(--color-error-bg);
+}
+
+.addRowButton {
+  padding: 0 var(--spacing-md);
+  min-width: var(--action-button-min-width);
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+  border: 0.125rem solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+}
+
+.addRowButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.addRowButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .error {
   margin-bottom: var(--spacing-lg);
   font-size: 0.875rem;
@@ -200,36 +297,89 @@
   text-align: center;
 }
 
-@media (min-width: 640px) {
-  .stockItem {
-    flex-direction: row;
-    align-items: center;
-    padding: var(--spacing-lg);
-    gap: var(--spacing-lg);
+.emptyState {
+  padding: var(--spacing-3xl);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: 1.125rem;
+  background: var(--color-bg-input);
+  border-radius: var(--radius-md);
+  border: 2px dashed var(--color-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+}
+
+.emptyState svg {
+  color: var(--color-primary);
+  opacity: 0.5;
+}
+
+.emptyState h3 {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.emptyState p {
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font-size: 1rem;
+  max-width: 400px;
+}
+
+@media (max-width: 768px) {
+  .tableContainer {
+    display: block;
   }
 
-  .stockSymbol {
-    flex-direction: column;
-    align-items: flex-start;
-    flex: 0 0 200px;
-    width: 200px;
+  .stocksTable {
+    display: block;
+    width: 100%;
   }
 
-  .allocationControls {
-    gap: var(--spacing-lg);
+  .stocksTable thead {
+    display: none;
+  }
+
+  .stocksTable tbody,
+  .stocksTable tr,
+  .stocksTable td {
+    display: block;
+    width: 100%;
+  }
+
+  .stocksTable tr {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+  }
+
+  .stocksTable td {
+    padding: var(--spacing-sm) 0;
+    text-align: left;
+    border: none;
+  }
+
+  .stocksTable td:before {
+    content: attr(data-label);
+    font-weight: 600;
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+  }
+
+  .allocationCell {
+    padding: var(--spacing-sm) 0;
   }
 
   .percentageSlider {
-    min-width: 150px;
-  }
-
-  .buttonWrapper {
-    margin-left: var(--spacing-md);
-  }
-
-  .deleteButton {
-    padding: var(--spacing-xs) var(--spacing-md);
-    width: auto;
-    height: auto;
+    width: 100%;
   }
 }
