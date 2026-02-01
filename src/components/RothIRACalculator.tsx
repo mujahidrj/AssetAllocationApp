@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useAuth } from '../lib/useAuth';
 import { useStocks } from '../lib/useStocks';
 import { useCalculator } from './calculator/hooks/useCalculator';
@@ -17,6 +18,11 @@ import styles from './RothIRACalculator.module.css';
 
 function RothIRACalculator() {
   const { user } = useAuth();
+  // Use ?layout=stacked in URL to preview Option 3 (labels above, values below)
+  const mobileHoldingsLayout = useMemo(() => {
+    if (typeof window === 'undefined') return 'row';
+    return new URLSearchParams(window.location.search).get('layout') === 'stacked' ? 'stacked' : 'row';
+  }, []);
   const { stocks = [], setStocks, loading } = useStocks();
   const { state, actions } = useCalculator({ user, stocks, setStocks });
 
@@ -69,6 +75,7 @@ function RothIRACalculator() {
           ) : (
             <>
               <HoldingsTable
+                mobileLayoutVariant={mobileHoldingsLayout}
                 positions={state.currentPositions}
                 targetStocks={state.rebalanceStocks}
                 stockPrices={state.stockPrices || {}}

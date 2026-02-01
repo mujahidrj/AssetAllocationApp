@@ -2,17 +2,131 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
-  margin: var(--spacing-lg) auto;
+  margin: 0 auto;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .stockList {
+    gap: var(--spacing-md);
+  }
 }
 
 .tableContainer {
-  overflow-x: visible;
+  overflow-x: auto;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-bg-input);
   width: 100%;
+  max-width: 100%;
   --action-button-min-width: 3.5rem;
+}
+
+/* Mobile card layout - rendered conditionally via useMediaQuery */
+.mobileCards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.stockCard {
+  padding: var(--spacing-md);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.cardAsset {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.cardAssetInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.cardAsset .deleteButtonIcon {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-error);
+  color: var(--color-text-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.cardAsset .deleteButtonIcon:hover {
+  background-color: var(--color-error-hover);
+}
+
+.cardAsset .deleteButtonIcon:focus {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+.cardSliderRow,
+.cardPercentRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+  min-width: 0;
+}
+
+.cardLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mobileCards .companyName {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-wrap: break-word;
+}
+
+/* Add form: mobile always, desktop only when no table (empty state) */
+.addFormMobile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: 100%;
+  margin-top: var(--spacing-sm);
+}
+
+.addFormMobile .addRowInput,
+.addFormMobile .addRowButton {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.addFormMobile .addRowButton {
+  min-height: 44px;
 }
 
 .stocksTable {
@@ -332,8 +446,13 @@
 }
 
 @media (max-width: 768px) {
+  .stockList {
+    margin: 0;
+  }
+
   .tableContainer {
     display: block;
+    overflow-x: hidden;
   }
 
   .stocksTable {
@@ -346,40 +465,83 @@
   }
 
   .stocksTable tbody,
-  .stocksTable tr,
-  .stocksTable td {
+  .stocksTable tr {
     display: block;
     width: 100%;
   }
 
-  .stocksTable tr {
+  .stocksTable tbody tr {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    margin-bottom: var(--spacing-md);
-    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-lg);
+  }
+
+  .stocksTable tbody tr.addRow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    margin-top: var(--spacing-md);
+  }
+
+  .stocksTable tbody tr.addRow td {
+    display: block;
+    width: 100%;
+    padding: 0 !important;
+  }
+
+  .stocksTable tbody tr.addRow .addRowInputCell {
+    width: 100%;
+  }
+
+  .stocksTable tbody tr.addRow .addRowInput {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .stocksTable tbody tr.addRow .addRowButton {
+    width: 100%;
+    min-height: 44px;
   }
 
   .stocksTable td {
-    padding: var(--spacing-sm) 0;
+    padding: var(--spacing-md) 0;
     text-align: left;
     border: none;
+    width: 100%;
+    break-inside: avoid;
   }
 
   .stocksTable td:before {
     content: attr(data-label);
     font-weight: 600;
     display: block;
-    margin-bottom: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
     color: var(--color-text-secondary);
     font-size: 0.75rem;
     text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .stocksTable tr.addRow td:before {
+    display: none;
   }
 
   .allocationCell {
-    padding: var(--spacing-sm) 0;
+    padding: var(--spacing-md) 0;
   }
 
   .percentageSlider {
+    width: 100%;
+  }
+
+  .percentageInputWrapper {
+    max-width: 100%;
+  }
+
+  .deleteButton {
+    min-height: 44px;
     width: 100%;
   }
 }

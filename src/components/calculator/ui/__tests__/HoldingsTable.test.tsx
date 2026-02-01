@@ -1,8 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HoldingsTable } from '../HoldingsTable';
 import type { CurrentPosition, Stock } from '../../types';
+
+vi.mock('../../../../lib/useMediaQuery', () => ({
+  useMediaQuery: vi.fn(() => false),
+}));
+
+import { useMediaQuery } from '../../../../lib/useMediaQuery';
 
 describe('HoldingsTable', () => {
   const mockPositions: CurrentPosition[] = [
@@ -476,6 +482,303 @@ describe('HoldingsTable', () => {
       expect(screen.getByText('TSLA')).toBeInTheDocument();
       // Should show target percentage input
       expect(screen.getByDisplayValue('100')).toBeInTheDocument();
+    });
+  });
+
+  describe('Mobile layout and mobileLayoutVariant', () => {
+    beforeEach(() => {
+      vi.mocked(useMediaQuery).mockReturnValue(true);
+    });
+
+    it('should render mobile cards when viewport is mobile', () => {
+      render(<HoldingsTable {...defaultProps} />);
+
+      expect(screen.getByText('AAPL')).toBeInTheDocument();
+      expect(screen.getByText('MSFT')).toBeInTheDocument();
+      expect(screen.getByText('GOOGL')).toBeInTheDocument();
+      expect(screen.getAllByText('Current value').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Target %').length).toBeGreaterThan(0);
+      expect(screen.getAllByRole('button', { name: /delete/i }).length).toBeGreaterThan(0);
+      expect(screen.getByPlaceholderText('Enter stock symbol')).toBeInTheDocument();
+    });
+
+    it('should render with stacked layout when mobileLayoutVariant is stacked', () => {
+      render(<HoldingsTable {...defaultProps} mobileLayoutVariant="stacked" />);
+
+      expect(screen.getAllByText('Current value').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Target %').length).toBeGreaterThan(0);
+      expect(screen.getByText('AAPL')).toBeInTheDocument();
+    });
+
+    it('should render add form when mobile with holdings', () => {
+      render(<HoldingsTable {...defaultProps} />);
+
+      expect(screen.getByPlaceholderText('Enter stock symbol')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add/i })).toBeInTheDocument();
+    });
+
+    it('should call onAddAsset when Add button clicked in mobile layout', async () => {
+      const onAddAsset = vi.fn();
+      const user = userEvent.setup();
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          newStockName="TSLA"
+          onNewStockNameChange={vi.fn()}
+          onAddAsset={onAddAsset}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: /add/i }));
+      expect(onAddAsset).toHaveBeenCalled();
+    });
+
+    it('should call onRemoveTargetStock when delete clicked on target-only row (mobile)', async () => {
+      const user = userEvent.setup();
+      const onRemoveTargetStock = vi.fn();
+      const targetOnly: Stock[] = [{ name: 'GOOGL', percentage: 100 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={[]}
+          targetStocks={targetOnly}
+          onRemoveTargetStock={onRemoveTargetStock}
+        />
+      );
+
+      const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+      await user.click(deleteButtons[0]);
+      expect(onRemoveTargetStock).toHaveBeenCalledWith(0);
+    });
+
+    it('should call onAddPosition when entering value in target-only row (mobile)', async () => {
+      const user = userEvent.setup();
+      const onAddPosition = vi.fn().mockResolvedValue(undefined);
+      const targetOnly: Stock[] = [{ name: 'GOOGL', percentage: 20 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={[]}
+          targetStocks={targetOnly}
+          stockPrices={{ GOOGL: 100 }}
+          onAddPosition={onAddPosition}
+          onUpdatePosition={vi.fn()}
+        />
+      );
+
+      const valueInputs = screen.getAllByPlaceholderText('0');
+      const googlInput = valueInputs[0];
+      await user.type(googlInput, '500');
+      expect(onAddPosition).toHaveBeenCalledWith('GOOGL');
+    });
+  });
+
+  describe('Target-only row (desktop)', () => {
+    it('should call onAddPosition when entering value in current value input for target-only row', async () => {
+      const user = userEvent.setup();
+      const onAddPosition = vi.fn().mockResolvedValue(undefined);
+      const onUpdatePosition = vi.fn();
+      const targetOnly: Stock[] = [{ name: 'GOOGL', percentage: 20 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={[]}
+          targetStocks={targetOnly}
+          stockPrices={{ GOOGL: 100 }}
+          totalPortfolioValue={1000}
+          onAddPosition={onAddPosition}
+          onUpdatePosition={onUpdatePosition}
+        />
+      );
+
+      // Target-only row: current value is empty, target shows 20. First spinbutton is current value.
+      const spinbuttons = screen.getAllByRole('spinbutton');
+      const currentValueInput = spinbuttons[0];
+      await user.type(currentValueInput, '500');
+      expect(onAddPosition).toHaveBeenCalledWith('GOOGL');
+    });
+
+    it('should call onAddPosition on blur when value entered in target-only row current value', async () => {
+      const user = userEvent.setup();
+      const onAddPosition = vi.fn().mockResolvedValue(undefined);
+      const onUpdatePosition = vi.fn();
+      const targetOnly: Stock[] = [{ name: 'GOOGL', percentage: 20 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={[]}
+          targetStocks={targetOnly}
+          stockPrices={{ GOOGL: 100 }}
+          totalPortfolioValue={1000}
+          onAddPosition={onAddPosition}
+          onUpdatePosition={onUpdatePosition}
+        />
+      );
+
+      const spinbuttons = screen.getAllByRole('spinbutton');
+      const currentValueInput = spinbuttons[0];
+      await user.type(currentValueInput, '300');
+      await user.tab();
+      expect(onAddPosition).toHaveBeenCalledWith('GOOGL');
+    });
+
+    it('should call onRemoveTargetStock when delete clicked on target-only row', async () => {
+      const user = userEvent.setup();
+      const onRemoveTargetStock = vi.fn();
+      const targetOnly: Stock[] = [{ name: 'GOOGL', percentage: 100 }];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={[]}
+          targetStocks={targetOnly}
+          onRemoveTargetStock={onRemoveTargetStock}
+        />
+      );
+
+      const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
+      await user.click(deleteButtons[0]);
+      expect(onRemoveTargetStock).toHaveBeenCalledWith(0);
+    });
+  });
+
+  describe('handleUpdateTarget and pendingTargetUpdates', () => {
+    it('should call onAddTargetStock when setting target % for position-only row', async () => {
+      const user = userEvent.setup();
+      const onAddTargetStock = vi.fn();
+      const positionsOnly: CurrentPosition[] = [
+        { symbol: 'TSLA', inputType: 'value', value: 500, companyName: 'Tesla' },
+      ];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={positionsOnly}
+          targetStocks={[]}
+          onAddTargetStock={onAddTargetStock}
+          onUpdateTargetPercentage={vi.fn()}
+        />
+      );
+
+      // TSLA row: current value input shows 500, target % input shows 0
+      const targetInput = screen.getByDisplayValue('0');
+      await user.clear(targetInput);
+      await user.type(targetInput, '25');
+      expect(onAddTargetStock).toHaveBeenCalledWith('TSLA');
+    });
+
+    it('should apply pending target percentage when target stock is added', async () => {
+      const user = userEvent.setup();
+      const onAddTargetStock = vi.fn().mockResolvedValue(undefined);
+      const onUpdateTargetPercentage = vi.fn();
+      const positionsOnly: CurrentPosition[] = [
+        { symbol: 'TSLA', inputType: 'value', value: 500 },
+      ];
+
+      const { rerender } = render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={positionsOnly}
+          targetStocks={[]}
+          onAddTargetStock={onAddTargetStock}
+          onUpdateTargetPercentage={onUpdateTargetPercentage}
+        />
+      );
+
+      const targetInput = screen.getByDisplayValue('0');
+      await user.clear(targetInput);
+      await user.type(targetInput, '40');
+
+      expect(onAddTargetStock).toHaveBeenCalledWith('TSLA');
+
+      rerender(
+        <HoldingsTable
+          {...defaultProps}
+          positions={positionsOnly}
+          targetStocks={[{ name: 'TSLA', percentage: 0 }]}
+          onAddTargetStock={onAddTargetStock}
+          onUpdateTargetPercentage={onUpdateTargetPercentage}
+        />
+      );
+
+      await waitFor(() => {
+        expect(onUpdateTargetPercentage).toHaveBeenCalledWith(0, '40');
+      });
+    });
+  });
+
+  describe('Validation error display', () => {
+    it('should display validation error message in error div', () => {
+      const validationErrors = {
+        newPosition: 'Invalid symbol',
+      };
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          validationErrors={validationErrors}
+        />
+      );
+
+      expect(screen.getByText('Invalid symbol')).toBeInTheDocument();
+    });
+
+    it('should display newRebalanceStock validation error', () => {
+      const validationErrors = {
+        newRebalanceStock: 'Stock already exists',
+      };
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          validationErrors={validationErrors}
+        />
+      );
+
+      expect(screen.getByText('Stock already exists')).toBeInTheDocument();
+    });
+  });
+
+  describe('handleAddAsset guard', () => {
+    it('should not call onAddAsset when Enter pressed with empty input', async () => {
+      const user = userEvent.setup();
+      const onAddAsset = vi.fn();
+      const onNewStockNameChange = vi.fn();
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          newStockName=""
+          onNewStockNameChange={onNewStockNameChange}
+          onAddAsset={onAddAsset}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      await user.type(input, '{Enter}');
+      expect(onAddAsset).not.toHaveBeenCalled();
+    });
+
+    it('should not call onAddAsset when Enter pressed with whitespace-only input', async () => {
+      const user = userEvent.setup();
+      const onAddAsset = vi.fn();
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          newStockName="   "
+          onAddAsset={onAddAsset}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      await user.type(input, '{Enter}');
+      expect(onAddAsset).not.toHaveBeenCalled();
     });
   });
 });

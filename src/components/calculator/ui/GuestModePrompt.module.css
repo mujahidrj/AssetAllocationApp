@@ -1,5 +1,4 @@
 .signInPrompt {
-  margin-bottom: var(--spacing-xl);
   padding: var(--spacing-xl);
   background: rgba(79, 70, 229, 0.15);
   border: 2px solid #4f46e5;
@@ -14,6 +13,17 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
+}
+
+@media (max-width: 640px) {
+  .signInPrompt {
+    padding: var(--spacing-md);
+  }
+
+  .samplePortfolioSection {
+    margin-top: var(--spacing-sm);
+    gap: var(--spacing-sm);
+  }
 }
 
 .label {

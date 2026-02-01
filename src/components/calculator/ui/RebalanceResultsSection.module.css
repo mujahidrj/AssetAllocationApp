@@ -1,5 +1,5 @@
 .resultsSection {
-  margin-top: var(--spacing-2xl);
+  margin-top: 0;
   padding: var(--spacing-xl);
   background: var(--color-bg-input);
   border-radius: var(--radius-lg);
@@ -160,31 +160,82 @@
   text-align: center;
 }
 
-@media (min-width: 768px) {
-  .resultItem {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--spacing-xl);
+/* Mobile card layout - rendered conditionally via useMediaQuery */
+@media (max-width: 768px) {
+  .resultsSection {
+    padding: var(--spacing-md);
   }
 
-  .stockInfo {
-    flex: 2;
-    min-width: 0;
+  .resultsHeader {
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
   }
+}
 
-  .currentInfo,
-  .targetInfo {
-    flex: 1;
-    min-width: 100px;
-  }
+.mobileCards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
 
-  .actionInfo {
-    flex: 1;
-    min-width: 120px;
-  }
+.resultCard {
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
 
-  .difference {
-    flex: 1;
-    min-width: 120px;
-  }
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cardAsset .symbol {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.cardAsset .companyName {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.cardDetails {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cardRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cardLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.cardRow.netChange .changeValue {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.cardRow.netChange.positive .changeValue {
+  color: var(--color-success);
+}
+
+.cardRow.netChange.negative .changeValue {
+  color: var(--color-error);
 }

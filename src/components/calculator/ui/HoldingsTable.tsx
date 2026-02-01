@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faChartLine } from '@fortawesome/free-solid-svg-icons';
 import type { CurrentPosition, Stock } from '../types';
+import { useMediaQuery } from '../../../lib/useMediaQuery';
 import styles from './HoldingsTable.module.css';
 
 interface HoldingsRow {
@@ -15,7 +16,11 @@ interface HoldingsRow {
   targetStock?: Stock;
 }
 
+/** 'row' = Option 2 (labels left, values right) | 'stacked' = Option 3 (labels above, values below) */
+export type MobileHoldingsLayout = 'row' | 'stacked';
+
 interface HoldingsTableProps {
+  mobileLayoutVariant?: MobileHoldingsLayout;
   positions: CurrentPosition[];
   targetStocks: Stock[];
   stockPrices: Record<string, number | null>;
@@ -34,6 +39,7 @@ interface HoldingsTableProps {
 }
 
 export function HoldingsTable({
+  mobileLayoutVariant = 'row',
   positions,
   targetStocks,
   stockPrices,
@@ -50,6 +56,8 @@ export function HoldingsTable({
   validationErrors,
   loading = false
 }: HoldingsTableProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
+
   // Track local input values for better UX while typing
   const [localTargetValues, setLocalTargetValues] = useState<Record<string, string>>({});
   const [localCurrentValues, setLocalCurrentValues] = useState<Record<string, { value?: string }>>({});
@@ -153,6 +161,9 @@ export function HoldingsTable({
           <p>Add your first asset using the form below.</p>
         </div>
       ) : null}
+
+      {/* Desktop: table layout */}
+      {!isMobile && holdingsRows.length > 0 && (
       <div className={styles.tableContainer}>
         <table className={styles.holdingsTable}>
             <thead>
@@ -172,7 +183,7 @@ export function HoldingsTable({
 
                 return (
                   <tr key={row.symbol} className={styles.tableRow}>
-                    <td className={styles.assetCell}>
+                    <td className={styles.assetCell} data-label="Asset">
                       <div className={styles.symbol}>{row.symbol}</div>
                       {row.companyName && (
                         <div className={styles.companyName} title={row.companyName}>
@@ -180,7 +191,7 @@ export function HoldingsTable({
                         </div>
                       )}
                     </td>
-                    <td className={styles.currentCell}>
+                    <td className={styles.currentCell} data-label="Current">
                       {row.isPosition ? (
                         <div className={styles.currentValueInput}>
                           <div className={styles.valueInputWrapper}>
@@ -289,12 +300,12 @@ export function HoldingsTable({
                         </div>
                       )}
                     </td>
-                    <td className={styles.percentageCell}>
+                    <td className={styles.percentageCell} data-label="Current %">
                       <span className={styles.readonlyPercentage}>
                         {row.currentPercentage.toFixed(1)}%
                       </span>
                     </td>
-                    <td className={styles.targetCell}>
+                    <td className={styles.targetCell} data-label="Target %">
                       <div className={styles.targetInputWrapper}>
                         <input
                           type="number"
@@ -322,7 +333,7 @@ export function HoldingsTable({
                         <span className={styles.percentSymbol}>%</span>
                       </div>
                     </td>
-                    <td className={styles.actionsCell}>
+                    <td className={styles.actionsCell} data-label="Actions">
                       <button
                         onClick={() => {
                           if (row.isPosition) {
@@ -372,6 +383,209 @@ export function HoldingsTable({
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Mobile: card layout - use mobileLayoutVariant="stacked" for Option 3 */}
+      {isMobile && holdingsRows.length > 0 && (
+      <div className={`${styles.mobileCards} ${mobileLayoutVariant === 'stacked' ? styles.mobileCardsStacked : ''}`}>
+        {holdingsRows.map((row) => {
+          const positionIndex = positions.findIndex(p => p.symbol === row.symbol);
+          const targetIndex = targetStocks.findIndex(s => s.name === row.symbol);
+          const price = stockPrices[row.symbol] || 0;
+
+          return (
+            <div key={row.symbol} className={styles.holdingCard}>
+              <div className={styles.cardAsset}>
+                <div className={styles.cardAssetInfo}>
+                  <div className={styles.symbol}>{row.symbol}</div>
+                  {row.companyName && (
+                    <div className={styles.companyName}>{row.companyName}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    if (row.isPosition) handleRemovePosition(row.symbol);
+                    if (row.targetStock) handleRemoveTarget(row.symbol);
+                  }}
+                  className={styles.deleteButtonIcon}
+                  aria-label="Delete"
+                  type="button"
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                </button>
+              </div>
+              <div className={styles.cardRow}>
+                <label className={styles.cardLabel}>Current value</label>
+                {row.isPosition ? (
+                  <div className={styles.currentValueInput}>
+                    <div className={styles.valueInputWrapper}>
+                      <span className={styles.dollarSign}>$</span>
+                      <input
+                        type="number"
+                        value={localCurrentValues[row.symbol]?.value !== undefined
+                          ? localCurrentValues[row.symbol].value
+                          : (row.position?.value?.toString() || (row.position?.inputType === 'shares' && price > 0 ? ((row.position?.shares || 0) * price).toFixed(2) : ''))}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setLocalCurrentValues(prev => ({
+                            ...prev,
+                            [row.symbol]: { ...prev[row.symbol], value: val }
+                          }));
+                          const numValue = parseFloat(val);
+                          if (!isNaN(numValue) && val !== '' && val !== '.') {
+                            onUpdatePosition(positionIndex, { inputType: 'value', value: numValue });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          const numValue = parseFloat(val) || 0;
+                          onUpdatePosition(positionIndex, { inputType: 'value', value: numValue });
+                          setLocalCurrentValues(prev => {
+                            const updated = { ...prev };
+                            if (updated[row.symbol]) {
+                              delete updated[row.symbol].value;
+                              if (Object.keys(updated[row.symbol]).length === 0) {
+                                delete updated[row.symbol];
+                              }
+                            }
+                            return updated;
+                          });
+                        }}
+                        className={styles.input}
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
+                      />
+                    </div>
+                    {price > 0 && (
+                      <div className={styles.calculatedInfo}>
+                        <span className={styles.calculatedShares}>
+                          {(row.currentValue / price).toFixed(4)} shares
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className={styles.currentValueInput}>
+                    <div className={styles.valueInputWrapper}>
+                      <span className={styles.dollarSign}>$</span>
+                      <input
+                        type="number"
+                        value={localCurrentValues[row.symbol]?.value || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setLocalCurrentValues(prev => ({
+                            ...prev,
+                            [row.symbol]: { ...prev[row.symbol], value: val }
+                          }));
+                          const numValue = parseFloat(val);
+                          if (!isNaN(numValue) && val !== '' && val !== '.') {
+                            void onAddPosition(row.symbol).then(() => {
+                              setTimeout(() => {
+                                const newPosIndex = positions.findIndex(p => p.symbol === row.symbol);
+                                if (newPosIndex !== -1) {
+                                  onUpdatePosition(newPosIndex, { inputType: 'value', value: numValue });
+                                }
+                              }, 100);
+                            });
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          const numValue = parseFloat(val) || 0;
+                          if (numValue > 0) {
+                            void onAddPosition(row.symbol).then(() => {
+                              setTimeout(() => {
+                                const newPosIndex = positions.findIndex(p => p.symbol === row.symbol);
+                                if (newPosIndex !== -1) {
+                                  onUpdatePosition(newPosIndex, { inputType: 'value', value: numValue });
+                                }
+                              }, 100);
+                            });
+                          }
+                          setLocalCurrentValues(prev => {
+                            const updated = { ...prev };
+                            if (updated[row.symbol]) {
+                              delete updated[row.symbol].value;
+                              if (Object.keys(updated[row.symbol]).length === 0) {
+                                delete updated[row.symbol];
+                              }
+                            }
+                            return updated;
+                          });
+                        }}
+                        className={styles.input}
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className={styles.cardRow}>
+                <label className={styles.cardLabel}>Current %</label>
+                <span className={styles.readonlyPercentage}>
+                  {row.currentPercentage.toFixed(1)}%
+                </span>
+              </div>
+              <div className={styles.cardRow}>
+                <label className={styles.cardLabel}>Target %</label>
+                <div className={styles.targetInputWrapper}>
+                  <input
+                    type="number"
+                    value={localTargetValues[row.symbol] !== undefined
+                      ? localTargetValues[row.symbol]
+                      : row.targetPercentage.toString()}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setLocalTargetValues(prev => ({ ...prev, [row.symbol]: val }));
+                      handleUpdateTarget(row.symbol, val);
+                    }}
+                    onBlur={() => {
+                      setLocalTargetValues(prev => {
+                        const updated = { ...prev };
+                        delete updated[row.symbol];
+                        return updated;
+                      });
+                    }}
+                    className={`${styles.targetInput} ${targetIndex !== -1 && validationErrors[`rebalance-stock-${targetIndex}`] ? styles.inputError : ''}`}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                  />
+                  <span className={styles.percentSymbol}>%</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      )}
+
+      {/* Add form - mobile when has holdings, both when empty */}
+      {(isMobile && holdingsRows.length > 0) || holdingsRows.length === 0 ? (
+      <div className={styles.addFormMobile}>
+        <input
+          type="text"
+          value={newStockName}
+          onChange={(e) => onNewStockNameChange(e.target.value)}
+          className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
+          placeholder="Enter stock symbol"
+          disabled={loading}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddAsset()}
+        />
+        <button
+          onClick={handleAddAsset}
+          className={styles.addRowButton}
+          disabled={loading || !newStockName.trim()}
+          type="button"
+        >
+          Add
+        </button>
+      </div>
+      ) : null}
+
       {(validationErrors.newPosition || validationErrors.newRebalanceStock) && (
         <div className={styles.error}>
           {validationErrors.newPosition || validationErrors.newRebalanceStock}

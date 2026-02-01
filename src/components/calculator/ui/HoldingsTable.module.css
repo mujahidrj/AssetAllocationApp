@@ -1,5 +1,5 @@
 .holdingsSection {
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: 0;
 }
 
 .sectionTitle {
@@ -239,6 +239,7 @@
   position: relative;
   display: flex;
   width: 100%;
+  min-width: 4rem;
   max-width: 5rem;
 }
 
@@ -415,47 +416,198 @@
   max-width: 400px;
 }
 
+/* Mobile card layout - rendered conditionally via useMediaQuery */
+.mobileCards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.holdingCard {
+  padding: var(--spacing-md);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.holdingCard .cardAsset {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.holdingCard .cardAssetInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.holdingCard .cardAsset .deleteButtonIcon {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-error);
+  color: var(--color-text-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.holdingCard .cardAsset .deleteButtonIcon:hover {
+  background-color: var(--color-error-hover);
+}
+
+.holdingCard .cardAsset .deleteButtonIcon:focus {
+  outline: 2px solid var(--color-error);
+  outline-offset: 2px;
+}
+
+.holdingCard .cardAsset .symbol {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.holdingCard .cardAsset .companyName {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+/* Option 2: Label left, value right - clean two-column layout */
+.holdingCard .cardRow {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.holdingCard .cardLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  flex-shrink: 0;
+  width: 6.5rem;
+  min-width: 6.5rem;
+}
+
+.holdingCard .cardRow .currentValueInput,
+.holdingCard .cardRow .targetInputWrapper,
+.holdingCard .cardRow .readonlyPercentage {
+  flex: 1;
+  min-width: 0;
+}
+
+.holdingCard .cardRow .readonlyPercentage {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: right;
+}
+
+.holdingCard .targetInputWrapper {
+  max-width: 100%;
+  min-width: unset;
+}
+
+/* Unified input styling for mobile - use target input style, same width */
+.holdingCard .cardRow .currentValueInput,
+.holdingCard .cardRow .targetInputWrapper {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.holdingCard .cardRow .currentValueInput .valueInputWrapper {
+  width: 100%;
+  min-width: 0;
+}
+
+.holdingCard .cardRow .currentValueInput .input,
+.holdingCard .cardRow .targetInputWrapper .targetInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--spacing-xs) 1.25rem var(--spacing-xs) var(--spacing-xs);
+  font-size: 0.875rem;
+  background: var(--color-bg-secondary);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-sm);
+  text-align: right;
+}
+
+.holdingCard .cardRow .currentValueInput .input {
+  padding-left: var(--spacing-lg);
+}
+
+.holdingCard .cardRow .targetInputWrapper .targetInput {
+  padding-right: 1.25rem;
+}
+
+/* Option 3: Labels above, values below - stacked layout */
+.mobileCardsStacked .holdingCard .cardRow {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.mobileCardsStacked .holdingCard .cardRow .currentValueInput,
+.mobileCardsStacked .holdingCard .cardRow .targetInputWrapper,
+.mobileCardsStacked .holdingCard .cardRow .readonlyPercentage {
+  flex: none;
+}
+
+.mobileCardsStacked .holdingCard .cardRow .readonlyPercentage {
+  text-align: left;
+}
+
+.mobileCardsStacked .holdingCard .cardRow .targetInputWrapper input {
+  text-align: right;
+}
+
+
+.addFormMobile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.addFormMobile .addRowInput,
+.addFormMobile .addRowButton {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.addFormMobile .addRowButton {
+  min-height: 44px;
+}
+
 @media (max-width: 768px) {
-  .tableContainer {
-    display: block;
-  }
-
-  .holdingsTable {
-    display: block;
-    width: 100%;
-  }
-
-  .holdingsTable thead {
-    display: none;
-  }
-
-  .holdingsTable tbody,
-  .holdingsTable tr,
-  .holdingsTable td {
-    display: block;
-    width: 100%;
-  }
-
-  .holdingsTable tr {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+  .holdingsSection {
     margin-bottom: var(--spacing-md);
-    padding: var(--spacing-md);
   }
 
-  .holdingsTable td {
-    padding: var(--spacing-sm) 0;
-    text-align: left;
-    border: none;
-  }
-
-  .holdingsTable td:before {
-    content: attr(data-label);
-    font-weight: 600;
-    display: block;
-    margin-bottom: var(--spacing-xs);
-    color: var(--color-text-secondary);
-    font-size: 0.75rem;
-    text-transform: uppercase;
+  .sectionTitle {
+    margin-bottom: var(--spacing-md);
   }
 }

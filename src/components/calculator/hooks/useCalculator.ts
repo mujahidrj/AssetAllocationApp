@@ -21,7 +21,7 @@ const fetchStockInfo = async (symbol: string, signal: AbortSignal) => {
       `https://finnhub.io/api/v1/search?q=${symbol}&token=${finnhubApiKey}`,
       { signal }
     );
-    
+
     if (!response.ok) {
       throw new Error('Failed to fetch stock info');
     }
@@ -43,50 +43,50 @@ const fetchStockInfo = async (symbol: string, signal: AbortSignal) => {
 // Helper function to fetch stock price with abort controller
 const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
   try {
-      // In production, use the deployed API URL, in development use the local server
-      const isDevelopment = import.meta.env.DEV;
-      const apiUrl = isDevelopment ? import.meta.env.VITE_API_URL : window.location.origin;
-      
-      const response = await fetch(
-        `${apiUrl}/api/stock/${encodeURIComponent(symbol)}`,
-        { 
-          signal,
-          credentials: 'same-origin',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
+    // In production, use the deployed API URL, in development use the local server
+    const isDevelopment = import.meta.env.DEV;
+    const apiUrl = isDevelopment ? import.meta.env.VITE_API_URL : window.location.origin;
+
+    const response = await fetch(
+      `${apiUrl}/api/stock/${encodeURIComponent(symbol)}`,
+      {
+        signal,
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
-      );
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage: string;
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || `API error (${response.status})`;
-        } catch {
-          errorMessage = errorText || `API error (${response.status})`;
-        }
-        
-        console.warn(`Error fetching stock ${symbol}:`, errorMessage);
-        return null;
       }
-      
-      const data = await response.json();
-      
-      // Handle both formats: direct { price: ... } and Yahoo Finance nested format
-      if (data?.price) {
-        return data.price;
+    );
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage: string;
+
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || `API error (${response.status})`;
+      } catch {
+        errorMessage = errorText || `API error (${response.status})`;
       }
-      
-      // Fallback: try to extract from Yahoo Finance API response structure
-      if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
-        return data.chart.result[0].meta.regularMarketPrice;
-      }
-      
-      console.warn(`No price data available for ${symbol}`, data);
+
+      console.warn(`Error fetching stock ${symbol}:`, errorMessage);
       return null;
+    }
+
+    const data = await response.json();
+
+    // Handle both formats: direct { price: ... } and Yahoo Finance nested format
+    if (data?.price) {
+      return data.price;
+    }
+
+    // Fallback: try to extract from Yahoo Finance API response structure
+    if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+      return data.chart.result[0].meta.regularMarketPrice;
+    }
+
+    console.warn(`No price data available for ${symbol}`, data);
+    return null;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       return null;
@@ -127,18 +127,19 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return;
     }
 
+    const userId = user.uid;
     let mounted = true;
 
     async function loadRebalanceData() {
       try {
-        const positionsRef = doc(db, 'userPositions', user.uid);
-        const percentagesRef = doc(db, 'userRebalancePercentages', user.uid);
-        
+        const positionsRef = doc(db, 'userPositions', userId);
+        const percentagesRef = doc(db, 'userRebalancePercentages', userId);
+
         const [positionsSnap, percentagesSnap] = await Promise.all([
           getDoc(positionsRef),
           getDoc(percentagesRef)
         ]);
-        
+
         if (!mounted) return;
 
         if (positionsSnap.exists()) {
@@ -225,9 +226,9 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     }
 
     abortControllerRef.current = new AbortController();
-    
+
     try {
-      const pricePromises = missingSymbols.map(symbol => 
+      const pricePromises = missingSymbols.map(symbol =>
         fetchStockPrice(symbol, abortControllerRef.current!.signal)
       );
       const prices = await Promise.all(pricePromises);
@@ -291,7 +292,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
   const validatePercentages = useCallback(() => {
     if (currentStocks.length === 0) return undefined;
-    
+
     const total = currentStocks.reduce((sum, stock) => sum + stock.percentage, 0);
     if (Math.abs(total - 100) > 0.01) { // Allow for small floating point differences
       return `Total percentage is ${total.toFixed(1)}%. Please adjust to equal 100%`;
@@ -323,12 +324,12 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     try {
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
-      const newStock = { 
-        name: trimmedSymbol, 
+      const newStock = {
+        name: trimmedSymbol,
         percentage: 0,
         companyName: companyName || undefined
       };
-      
+
       if (user && setStocks) {
         await setStocks([...stocks, newStock]);
       } else {
@@ -341,9 +342,9 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         return newErrors;
       });
     } catch {
-      setValidationErrors(prev => ({ 
-        ...prev, 
-        newStock: "Failed to add stock. Please try again." 
+      setValidationErrors(prev => ({
+        ...prev,
+        newStock: "Failed to add stock. Please try again."
       }));
     } finally {
       setFetchingStock(false);
@@ -363,7 +364,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     // Calculate total percentage after removal
     const total = updatedStocks.reduce((sum, stock) => sum + stock.percentage, 0);
-    
+
     setValidationErrors(prev => {
       const newErrors = { ...prev };
       if (Math.abs(total - 100) > 0.01) {
@@ -377,11 +378,11 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
   const updateStockPercentage = useCallback((index: number, newPercentage: string) => {
     const parsedValue = parseFloat(newPercentage) || 0;
-    
+
     if (parsedValue < 0 || parsedValue > 100) {
-      setValidationErrors(prev => ({ 
-        ...prev, 
-        [`stock-${index}`]: "Percentage must be between 0 and 100" 
+      setValidationErrors(prev => ({
+        ...prev,
+        [`stock-${index}`]: "Percentage must be between 0 and 100"
       }));
       return;
     }
@@ -405,20 +406,20 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       updatedStocks = updateStockAtIndex(localStocks);
       setLocalStocks(updatedStocks);
     }
-    
+
     // Calculate total percentage after update
     const total = updatedStocks.reduce((sum, stock) => sum + stock.percentage, 0);
-    
+
     setValidationErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[`stock-${index}`];
-      
+
       if (Math.abs(total - 100) > 0.01) {
         newErrors.percentages = `Total percentage is ${total.toFixed(1)}%. Please adjust to equal 100%`;
       } else {
         delete newErrors.percentages;
       }
-      
+
       return newErrors;
     });
   }, [user, stocks, setStocks, localStocks]);
@@ -458,9 +459,9 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         return newErrors;
       });
     } catch {
-      setValidationErrors(prev => ({ 
-        ...prev, 
-        newPosition: "Failed to add position. Please try again." 
+      setValidationErrors(prev => ({
+        ...prev,
+        newPosition: "Failed to add position. Please try again."
       }));
     } finally {
       setFetchingStock(false);
@@ -477,15 +478,11 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       const updated = [...prev];
       if (index >= 0 && index < updated.length) {
         // Filter out undefined values to prevent Firestore errors
-        const cleanUpdates: Partial<CurrentPosition> = {};
-        Object.keys(updates).forEach(key => {
-          const value = updates[key as keyof CurrentPosition];
-          if (value !== undefined) {
-            cleanUpdates[key as keyof CurrentPosition] = value;
-          }
-        });
+        const cleanUpdates = Object.fromEntries(
+          Object.entries(updates).filter(([, v]) => v !== undefined)
+        ) as Partial<CurrentPosition>;
         updated[index] = { ...updated[index], ...cleanUpdates };
-        
+
         // If switching input types, explicitly remove the unused field
         if (cleanUpdates.inputType === 'shares' && updated[index].value !== undefined) {
           delete updated[index].value;
@@ -501,8 +498,8 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   const addAssetToBoth = useCallback(async (symbol: string) => {
     const trimmedSymbol = symbol.trim().toUpperCase();
     if (!trimmedSymbol) {
-      setValidationErrors(prev => ({ 
-        ...prev, 
+      setValidationErrors(prev => ({
+        ...prev,
         newPosition: "Please enter a stock symbol",
         newRebalanceStock: "Please enter a stock symbol"
       }));
@@ -514,8 +511,8 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     const targetExists = rebalanceStocks.some(stock => stock.name === trimmedSymbol);
 
     if (positionExists && targetExists) {
-      setValidationErrors(prev => ({ 
-        ...prev, 
+      setValidationErrors(prev => ({
+        ...prev,
         newPosition: "Asset already exists",
         newRebalanceStock: "Asset already exists"
       }));
@@ -563,8 +560,8 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         return newErrors;
       });
     } catch {
-      setValidationErrors(prev => ({ 
-        ...prev, 
+      setValidationErrors(prev => ({
+        ...prev,
         newPosition: "Failed to add asset. Please try again.",
         newRebalanceStock: "Failed to add asset. Please try again."
       }));
@@ -603,7 +600,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       const updatedStocks = [...rebalanceStocks, newStock];
       setRebalanceStocks(updatedStocks);
       setNewStockName("");
-      
+
       // Validate percentages after adding
       const total = updatedStocks.reduce((sum, stock) => sum + stock.percentage, 0);
       setValidationErrors(prev => {
@@ -617,9 +614,9 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         return newErrors;
       });
     } catch {
-      setValidationErrors(prev => ({ 
-        ...prev, 
-        newRebalanceStock: "Failed to add stock. Please try again." 
+      setValidationErrors(prev => ({
+        ...prev,
+        newRebalanceStock: "Failed to add stock. Please try again."
       }));
     } finally {
       setFetchingStock(false);
@@ -630,7 +627,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   const removeRebalanceStock = useCallback((index: number) => {
     const updatedStocks = rebalanceStocks.filter((_, i) => i !== index);
     setRebalanceStocks(updatedStocks);
-    
+
     const total = updatedStocks.reduce((sum, stock) => sum + stock.percentage, 0);
     setValidationErrors(prev => {
       const newErrors = { ...prev };
@@ -645,11 +642,11 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
   const updateRebalancePercentage = useCallback((index: number, newPercentage: string) => {
     const parsedValue = parseFloat(newPercentage) || 0;
-    
+
     if (parsedValue < 0 || parsedValue > 100) {
-      setValidationErrors(prev => ({ 
-        ...prev, 
-        [`rebalance-stock-${index}`]: "Percentage must be between 0 and 100" 
+      setValidationErrors(prev => ({
+        ...prev,
+        [`rebalance-stock-${index}`]: "Percentage must be between 0 and 100"
       }));
       return;
     }
@@ -662,18 +659,18 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       };
     }
     setRebalanceStocks(updatedStocks);
-    
+
     const total = updatedStocks.reduce((sum, stock) => sum + stock.percentage, 0);
     setValidationErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors[`rebalance-stock-${index}`];
-      
+
       if (Math.abs(total - 100) > 0.01) {
         newErrors.rebalancePercentages = `Total percentage is ${total.toFixed(1)}%. Please adjust to equal 100%`;
       } else {
         delete newErrors.rebalancePercentages;
       }
-      
+
       return newErrors;
     });
   }, [rebalanceStocks]);
@@ -694,7 +691,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     });
 
     const totalPortfolioValue = positionValues.reduce((sum, val) => sum + val, 0);
-    
+
     // If no positions have values yet, don't calculate but also don't show error
     if (totalPortfolioValue <= 0) {
       return null;
@@ -720,12 +717,12 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     // IMPORTANT: Use the same calculation logic as totalPortfolioValue to ensure consistency
     const currentValuesMap = new Map<string, number>();
     const currentSharesMap = new Map<string, number>();
-    
+
     currentPositions.forEach(pos => {
       const price = stockPrices[pos.symbol] ?? null; // null means fetch failed, undefined means not fetched
       let currentValue: number;
       let currentShares: number;
-      
+
       if (pos.inputType === 'shares') {
         currentShares = pos.shares || 0;
         // Only calculate value if we have a price
@@ -736,7 +733,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         // Only calculate shares if we have a price
         currentShares = price != null && price > 0 ? currentValue / price : 0;
       }
-      
+
       // Always set the value, even if 0 (0 is a valid value meaning no position yet)
       currentValuesMap.set(pos.symbol, currentValue);
       currentSharesMap.set(pos.symbol, currentShares);
@@ -756,10 +753,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       // Get price - check for null explicitly since null means fetch failed, undefined means not fetched yet
       const price = stockPrices[stock.name] ?? null;
       // Calculate shares to trade - only if we have a valid price (not null, not 0, not undefined)
-      const sharesToTrade = price != null && price > 0 && Math.abs(difference) > 0.01 
-        ? Math.abs(difference) / price 
+      const sharesToTrade = price != null && price > 0 && Math.abs(difference) > 0.01
+        ? Math.abs(difference) / price
         : 0;
-      
+
       let action: 'buy' | 'sell' | 'hold' = 'hold';
       if (Math.abs(difference) > 0.01) {
         action = difference > 0 ? 'buy' : 'sell';
@@ -788,11 +785,11 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         const currentShares = currentSharesMap.get(pos.symbol) || 0;
         const currentPercentage = (currentValue / totalPortfolioValue) * 100;
         const price = stockPrices[pos.symbol] ?? null;
-        
+
         // These positions should be sold completely
         // Use price-based calculation if price is available, otherwise use current shares
-        const sharesToSell = price != null && price > 0 && currentValue > 0 
-          ? currentValue / price 
+        const sharesToSell = price != null && price > 0 && currentValue > 0
+          ? currentValue / price
           : currentShares;
         return {
           name: pos.symbol,
@@ -831,7 +828,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         const result = calculateRebalance();
         setRebalanceResults(result);
       }, 100);
-      
+
       return () => clearTimeout(timeoutId);
     } else {
       setRebalanceResults(null);
@@ -840,7 +837,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
   const calculateAllocations = useCallback(() => {
     if (!amount) return null;
-    
+
     const amountError = validateAmount(amount);
     if (amountError) {
       setValidationErrors(prev => ({ ...prev, amount: amountError }));
@@ -852,7 +849,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       setValidationErrors(prev => ({ ...prev, percentages: percentageError }));
       return null;
     }
-    
+
     setValidationErrors(prev => {
       const newErrors = { ...prev };
       delete newErrors.amount;

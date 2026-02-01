@@ -14,7 +14,11 @@ export function ResultsSection({ allocations, error }: ResultsSectionProps) {
       {error ? (
         <div className={styles.error}>{error}</div>
       ) : (
-        allocations.map((allocation) => (
+        <>
+          <div className={styles.resultsHeader}>
+            <h3 className={styles.title}>Allocation Results</h3>
+          </div>
+          {allocations.map((allocation) => (
           <div key={allocation.name} className={styles.resultItem}>
             <div className={styles.stockInfo}>
               <span className={styles.stockSymbol}>{allocation.name}</span>
@@ -34,7 +38,8 @@ export function ResultsSection({ allocations, error }: ResultsSectionProps) {
               </div>
             </div>
           </div>
-        ))
+        ))}
+        </>
       )}
     </div>
   );

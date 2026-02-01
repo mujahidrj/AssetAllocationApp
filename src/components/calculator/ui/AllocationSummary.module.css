@@ -1,5 +1,5 @@
 .summarySection {
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: 0;
   padding: var(--spacing-lg);
   background: var(--color-bg-input);
   border-radius: var(--radius-md);
@@ -15,8 +15,23 @@
 
 .summaryGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: var(--spacing-lg);
+}
+
+@media (max-width: 640px) {
+  .summarySection {
+    padding: var(--spacing-md);
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
+
+  .sectionTitle {
+    margin-bottom: var(--spacing-md);
+  }
 }
 
 .summaryItem {
