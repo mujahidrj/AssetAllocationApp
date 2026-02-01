@@ -16,6 +16,7 @@ See [COVERAGE_REPORT.md](./COVERAGE_REPORT.md) for detailed breakdown.
 ### Automated Testing
 
 Tests run automatically on:
+
 - ✅ **Every push** to `main` or `develop` branches
 - ✅ **Every pull request** to `main` or `develop` branches
 - ✅ **Daily at 2 AM UTC** (scheduled run to catch regressions)
@@ -34,9 +35,10 @@ npm install --save-dev husky
 npx husky init
 echo "npm test" > .husky/pre-commit
 chmod +x .husky/pre-commit
-```
+```bash
 
 Or manually run before committing:
+
 ```bash
 npm test && git commit -m "your message"
 ```
@@ -55,6 +57,7 @@ npm test && git commit -m "your message"
    - **New code**: Should maintain or improve coverage
 
 3. **Before Committing:**
+
    ```bash
    # Run tests locally
    npm test
@@ -94,7 +97,7 @@ npm run test:watch
 
 # Run specific test file
 npm test -- useCalculator
-```
+```bash
 
 ### Viewing Coverage
 
@@ -103,13 +106,14 @@ npm run test:coverage
 ```
 
 This generates:
+
 - Terminal summary
 - HTML report at `coverage/index.html`
 - JSON report at `coverage/coverage-final.json`
 
 ## Test Structure
 
-```
+```text
 src/
   components/
     calculator/
@@ -131,7 +135,7 @@ src/
     setup.ts             # Test configuration
     utils.tsx             # Test utilities
     mocks.ts              # Firebase mocks
-```
+```text
 
 ## Test Utilities
 
@@ -155,6 +159,7 @@ const position = createMockPosition({ symbol: 'AAPL', value: 1000 });
 ### API Mocking (MSW)
 
 API calls are automatically mocked via handlers in `src/test/handlers.ts`:
+
 - Stock price API: `/api/stock/:symbol`
 - Finnhub search: `https://finnhub.io/api/v1/search`
 
@@ -200,6 +205,7 @@ describe('useCalculator', () => {
    - Avoid testing internal state directly
 
 2. **Use User Events**
+
    ```typescript
    const user = userEvent.setup();
    await user.click(button);
@@ -207,6 +213,7 @@ describe('useCalculator', () => {
    ```
 
 3. **Wait for Async Operations**
+
    ```typescript
    await waitFor(() => {
      expect(screen.getByText('Loaded')).toBeInTheDocument();
@@ -214,6 +221,7 @@ describe('useCalculator', () => {
    ```
 
 4. **Wrap State Updates in `act()`**
+
    ```typescript
    act(() => {
      result.current.actions.setAmount('1000');
@@ -223,6 +231,7 @@ describe('useCalculator', () => {
 ## Test Coverage
 
 ### Well Covered (80%+)
+
 - ✅ Calculator UI Components (82.98%)
 - ✅ Calculator Hooks (82.97%)
 - ✅ Sample Portfolio Data (100%)
@@ -231,6 +240,7 @@ describe('useCalculator', () => {
 - ✅ `RothIRACalculator.tsx` (92.72%)
 
 ### Needs Improvement
+
 - ⚠️ `ResultsSection.tsx` (12%) - Coverage calculation issue (tests are passing)
 
 See [COVERAGE_REPORT.md](./COVERAGE_REPORT.md) for detailed breakdown.
@@ -238,27 +248,30 @@ See [COVERAGE_REPORT.md](./COVERAGE_REPORT.md) for detailed breakdown.
 ## Troubleshooting
 
 ### MSW Not Working
+
 - Ensure `msw` is installed: `npm install --save-dev msw`
 - Check `src/test/setup.ts` imports server
 - Verify handlers in `src/test/handlers.ts`
 
 ### Coverage Not Generating
+
 - Ensure `@vitest/coverage-v8` is installed
 - Check `vite.config.ts` has coverage config
 - Run `npm run test:coverage`
 
 ### Firebase Mock Issues
+
 - Check `src/test/mocks.ts`
 - Ensure mocks match actual hook signatures
 - Update mocks if hook interfaces change
 
 ## Resources
 
-- **Vitest Docs**: https://vitest.dev/
-- **React Testing Library**: https://testing-library.com/react
-- **MSW Docs**: https://mswjs.io/
-- **Testing Best Practices**: https://kentcdodds.com/blog/common-mistakes-with-react-testing-library
+- **Vitest Docs**: <https://vitest.dev/>
+- **React Testing Library**: <https://testing-library.com/react>
+- **MSW Docs**: <https://mswjs.io/>
+- **Testing Best Practices**: <https://kentcdodds.com/blog/common-mistakes-with-react-testing-library>
 
 ---
 
-*Last updated: February 2025*
+Last updated: February 2025

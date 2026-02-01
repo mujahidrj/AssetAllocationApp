@@ -90,7 +90,7 @@ describe('StockList', () => {
     const onUpdatePercentage = vi.fn();
     const stocks: Stock[] = [createMockStock({ name: 'AAPL', percentage: 50 })];
     
-    const { container } = render(<StockList {...defaultProps} stocks={stocks} onUpdatePercentage={onUpdatePercentage} />);
+    render(<StockList {...defaultProps} stocks={stocks} onUpdatePercentage={onUpdatePercentage} />);
     
     const slider = screen.getByRole('slider') as HTMLInputElement;
     // Simulate slider change by directly triggering input event with correct value

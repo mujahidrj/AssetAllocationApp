@@ -1,6 +1,12 @@
 import { vi } from 'vitest'
 
-vi.mock('../lib/auth', () => ({
+// Mock Firebase to prevent initialization in CI (no valid API key in test env)
+vi.mock('../lib/firebase', () => ({
+  auth: {},
+  db: {},
+}));
+
+vi.mock('../lib/useAuth', () => ({
   useAuth: () => ({
     user: null,
     loading: false,

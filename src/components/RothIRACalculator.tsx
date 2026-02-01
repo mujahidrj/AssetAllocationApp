@@ -1,4 +1,4 @@
-import { useAuth } from '../lib/auth';
+import { useAuth } from '../lib/useAuth';
 import { useStocks } from '../lib/useStocks';
 import { useCalculator } from './calculator/hooks/useCalculator';
 import { Header } from './calculator/ui/Header';
