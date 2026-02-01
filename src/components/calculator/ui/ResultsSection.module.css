@@ -21,9 +21,13 @@
 }
 
 .resultsHeader {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
   padding-bottom: var(--spacing-md);
   border-bottom: 2px solid var(--color-border);
+}
+
+.tableWrapper {
+  overflow-x: auto;
 }
 
 .title {
@@ -33,91 +37,94 @@
   color: var(--color-text-primary);
 }
 
-.resultItem {
-  display: flex;
-  flex-direction: column;
+.resultsTable {
   width: 100%;
-  gap: var(--spacing-sm);
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.resultsTable thead {
+  background: var(--color-bg-elevated);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.resultsTable th {
   padding: var(--spacing-md);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.resultsTable th.assetCol {
+  text-align: left;
+}
+
+.resultsTable th.numCol {
+  text-align: right;
+  min-width: 5rem;
+}
+
+.resultsTable .assetCol {
+  width: auto;
+}
+
+.resultsTable .numCol {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.resultRow {
   border-bottom: 1px solid var(--color-border);
-  box-sizing: border-box;
+}
+
+.resultRow:last-child {
+  border-bottom: none;
+}
+
+.resultRow:hover {
+  background: var(--color-bg-elevated);
+}
+
+.assetCell {
+  padding: var(--spacing-md);
+  text-align: left;
+}
+
+.numCell {
+  padding: var(--spacing-md);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.numCell:nth-child(3) {
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.numCell:nth-child(4) {
+  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
 }
 
 @media (max-width: 768px) {
-  .resultItem {
-    padding: var(--spacing-sm) 0;
-  }
-
-  .resultItem:last-child {
-    border-bottom: none;
-  }
-
   .companyName {
+    display: block;
     white-space: normal;
     word-wrap: break-word;
   }
 }
 
-.stockInfo {
-  display: flex;
-  gap: 0.5rem;
-  align-items: baseline;
-  width: 100%;
-  flex-wrap: wrap;
-}
-
 .stockSymbol {
   font-weight: 600;
   font-size: 1rem;
+  color: var(--color-text-primary);
 }
 
 .companyName {
   font-size: 0.875rem;
   color: var(--color-text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.percentageAndAmount {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: baseline;
-  width: 100%;
-  flex-wrap: nowrap;
-}
-
-.percentage {
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-}
-
-.amountGroup {
-  display: flex;
-  gap: var(--spacing-sm);
-  align-items: baseline;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
-  text-align: right;
-  flex: 1;
-  min-width: 0;
-}
-
-.amount {
-  color: var(--color-success);
-  font-size: 1rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.shares {
-  color: var(--color-text-tertiary);
-  font-size: 0.875rem;
-  white-space: nowrap;
 }
 
 .error {
@@ -131,24 +138,60 @@
   text-align: center;
 }
 
-@media (min-width: 640px) {
-  .resultItem {
-    flex-direction: row;
-    align-items: center;
-    gap: var(--spacing-lg);
-  }
+/* Mobile card layout - rendered conditionally via useMediaQuery */
+.mobileCards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
 
-  .stockInfo {
-    flex: 2;
-    min-width: 0;
-  }
+.resultCard {
+  padding: var(--spacing-md);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
 
-  .percentageAndAmount {
-    flex: 1;
-    width: auto;
-  }
+.cardAsset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+}
 
-  .amountGroup {
-    justify-self: end;
-  }
+.cardAsset .stockSymbol {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.cardAsset .companyName {
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary);
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.cardDetails {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.cardRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cardLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.cardAmount {
+  color: var(--color-success);
+  font-weight: 500;
 }

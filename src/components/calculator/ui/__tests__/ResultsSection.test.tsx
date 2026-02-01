@@ -127,7 +127,7 @@ describe('ResultsSection', () => {
     ];
     render(<ResultsSection allocations={allocations} />);
 
-    expect(screen.getByText('(33.3333 shares)')).toBeInTheDocument();
+    expect(screen.getByText('33.3333 shares')).toBeInTheDocument();
   });
 
   it('should not display shares when not provided', () => {
@@ -136,7 +136,8 @@ describe('ResultsSection', () => {
     ];
     render(<ResultsSection allocations={allocations} />);
 
-    expect(screen.queryByText(/shares/i)).not.toBeInTheDocument();
+    // Shares column shows placeholder when no shares data
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('should format shares to 4 decimal places', () => {
@@ -150,10 +151,10 @@ describe('ResultsSection', () => {
     ];
     render(<ResultsSection allocations={allocations} />);
 
-    expect(screen.getByText('(33.1235 shares)')).toBeInTheDocument();
+    expect(screen.getByText('33.1235 shares')).toBeInTheDocument();
   });
 
-  it('should not display shares when shares is 0', () => {
+  it('should display shares when shares is 0', () => {
     const allocations: AllocationResult[] = [
       {
         name: 'AAPL',
@@ -165,7 +166,7 @@ describe('ResultsSection', () => {
     render(<ResultsSection allocations={allocations} />);
 
     // shares: 0 should still display (0 is a number)
-    expect(screen.getByText('(0.0000 shares)')).toBeInTheDocument();
+    expect(screen.getByText('0.0000 shares')).toBeInTheDocument();
   });
 
   it('should handle amount as string', () => {
@@ -194,7 +195,7 @@ describe('ResultsSection', () => {
     render(<ResultsSection allocations={allocations} />);
 
     expect(screen.getByText('$0.01')).toBeInTheDocument();
-    expect(screen.getByText('(0.0001 shares)')).toBeInTheDocument();
+    expect(screen.getByText('0.0001 shares')).toBeInTheDocument();
   });
 
   it('should handle multiple allocations', () => {
@@ -226,7 +227,7 @@ describe('ResultsSection', () => {
       render(<ResultsSection allocations={allocations} />);
 
       // 0 is a number, so shares should display
-      expect(screen.getByText('(0.0000 shares)')).toBeInTheDocument();
+      expect(screen.getByText('0.0000 shares')).toBeInTheDocument();
     });
 
     it('should handle allocation with shares as undefined', () => {
@@ -240,8 +241,8 @@ describe('ResultsSection', () => {
       ];
       render(<ResultsSection allocations={allocations} />);
 
-      // Undefined shares should not display
-      expect(screen.queryByText(/shares/i)).not.toBeInTheDocument();
+      // Undefined shares should show placeholder
+      expect(screen.getByText('—')).toBeInTheDocument();
     });
 
     it('should handle allocation with shares as null', () => {
@@ -255,9 +256,8 @@ describe('ResultsSection', () => {
       ];
       render(<ResultsSection allocations={allocations} />);
 
-      // Null shares should not display (typeof null !== 'number' is false, but null is not a number)
-      // Actually typeof null is 'object', so it won't match 'number'
-      expect(screen.queryByText(/shares/i)).not.toBeInTheDocument();
+      // Null shares should show placeholder
+      expect(screen.getByText('—')).toBeInTheDocument();
     });
 
     it('should handle allocation with empty string company name', () => {
@@ -345,7 +345,7 @@ describe('ResultsSection', () => {
       render(<ResultsSection allocations={allocations} />);
 
       // Should round to 4 decimal places
-      expect(screen.getByText('(33.1234 shares)')).toBeInTheDocument();
+      expect(screen.getByText('33.1234 shares')).toBeInTheDocument();
     });
 
     it('should render container div with correct structure', () => {
@@ -359,16 +359,16 @@ describe('ResultsSection', () => {
       expect(resultsSection).toBeInTheDocument();
     });
 
-    it('should render resultItem divs for each allocation', () => {
+    it('should render result rows for each allocation', () => {
       const allocations: AllocationResult[] = [
         { name: 'AAPL', percentage: 50, amount: '5000.00' },
         { name: 'MSFT', percentage: 50, amount: '5000.00' }
       ];
       const { container } = render(<ResultsSection allocations={allocations} />);
 
-      // Should have resultItem divs (CSS modules will hash the class name)
-      const items = container.querySelectorAll('[class*="resultItem"]');
-      expect(items.length).toBe(2);
+      // Should have result rows (CSS modules will hash the class name)
+      const rows = container.querySelectorAll('[class*="resultRow"]');
+      expect(rows.length).toBe(2);
     });
 
     it('should handle error prop with empty string', () => {
