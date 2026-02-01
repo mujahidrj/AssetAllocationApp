@@ -193,9 +193,16 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   useEffect(() => {
     if (!user) return;
 
-    // Save rebalance stocks (including empty array) to persist deletions
+    // Firestore rejects undefined - omit optional fields when they're undefined
+    const cleanedStocks = rebalanceStocks.map(({ name, percentage, companyName }) => {
+      const stock: Stock = { name, percentage };
+      if (companyName != null) {
+        stock.companyName = companyName;
+      }
+      return stock;
+    });
     const percentagesRef = doc(db, 'userRebalancePercentages', user.uid);
-    setDoc(percentagesRef, { stocks: rebalanceStocks }).catch(error => {
+    setDoc(percentagesRef, { stocks: cleanedStocks }).catch(error => {
       console.error('Error saving rebalance percentages:', error);
     });
   }, [user, rebalanceStocks]);
@@ -324,6 +331,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     try {
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      if (companyName === null) {
+        setValidationErrors(prev => ({ ...prev, newStock: `Couldn't find ${trimmedSymbol}` }));
+        return;
+      }
       const newStock = {
         name: trimmedSymbol,
         percentage: 0,
@@ -445,6 +456,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     try {
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      if (companyName === null) {
+        setValidationErrors(prev => ({ ...prev, newPosition: `Couldn't find ${trimmedSymbol}` }));
+        return;
+      }
       const newPosition: CurrentPosition = {
         symbol: trimmedSymbol,
         inputType: 'value',
@@ -527,8 +542,16 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     setFetchingStock(true);
 
     try {
-      // Fetch company name once
+      // Fetch company name once - validates ticker exists
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      if (companyName === null) {
+        setValidationErrors(prev => ({
+          ...prev,
+          newPosition: `Couldn't find ${trimmedSymbol}`,
+          newRebalanceStock: `Couldn't find ${trimmedSymbol}`
+        }));
+        return;
+      }
 
       // Add to positions if not exists
       if (!positionExists) {
@@ -592,6 +615,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     try {
       const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      if (companyName === null) {
+        setValidationErrors(prev => ({ ...prev, newRebalanceStock: `Couldn't find ${trimmedSymbol}` }));
+        return;
+      }
       const newStock: Stock = {
         name: trimmedSymbol,
         percentage: 0,

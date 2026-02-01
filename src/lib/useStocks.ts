@@ -71,8 +71,16 @@ export function useStocks() {
     }
 
     try {
+      // Firestore rejects undefined - omit optional fields when they're undefined
+      const cleanedStocks = newStocks.map(({ name, percentage, companyName }) => {
+        const stock: Stock = { name, percentage };
+        if (companyName != null) {
+          stock.companyName = companyName;
+        }
+        return stock;
+      });
       const stocksRef = doc(db, 'userStocks', user.uid);
-      await setDoc(stocksRef, { stocks: newStocks });
+      await setDoc(stocksRef, { stocks: cleanedStocks });
       setStocks(newStocks);
     } catch (error) {
       console.error('Error updating stocks:', error);
