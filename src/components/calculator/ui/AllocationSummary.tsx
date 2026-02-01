@@ -6,7 +6,7 @@ interface AllocationSummaryProps {
   hasError?: boolean;
 }
 
-export function AllocationSummary({ targetTotal, currentTotal, hasError }: AllocationSummaryProps) {
+export function AllocationSummary({ targetTotal, currentTotal }: AllocationSummaryProps) {
   const isTargetValid = Math.abs(targetTotal - 100) <= 0.01;
 
   return (

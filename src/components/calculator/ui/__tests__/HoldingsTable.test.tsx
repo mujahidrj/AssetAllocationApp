@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HoldingsTable } from '../HoldingsTable';
 import type { CurrentPosition, Stock } from '../../types';
-import { render as customRender } from '../../../../test/utils';
 
 describe('HoldingsTable', () => {
   const mockPositions: CurrentPosition[] = [
@@ -331,7 +330,7 @@ describe('HoldingsTable', () => {
       // Check if error class is applied (CSS modules hash class names)
       // Look for inputs that have the error class applied via className
       const targetInputs = container.querySelectorAll('input[type="number"]');
-      const hasErrorInput = Array.from(targetInputs).some(input => {
+      Array.from(targetInputs).some(input => {
         const className = input.className || '';
         // CSS modules will hash the class name, so check if it contains error-related classes
         return className.includes('Error') || className.includes('error');
@@ -387,7 +386,6 @@ describe('HoldingsTable', () => {
     });
 
     it('should handle switching between shares and value input types', async () => {
-      const user = userEvent.setup();
       const onUpdatePosition = vi.fn();
 
       const positionsWithShares: CurrentPosition[] = [

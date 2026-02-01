@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { useAuth } from './auth';
+import { useAuth } from './useAuth';
 import { 
   doc, 
   setDoc, 

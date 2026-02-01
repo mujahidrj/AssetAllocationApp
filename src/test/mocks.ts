@@ -1,6 +1,6 @@
 import { vi } from 'vitest'
 
-vi.mock('../lib/auth', () => ({
+vi.mock('../lib/useAuth', () => ({
   useAuth: () => ({
     user: null,
     loading: false,
