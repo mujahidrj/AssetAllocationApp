@@ -205,7 +205,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       await user.type(input, 'TSLA');
 
       expect(onNewStockNameChange).toHaveBeenCalled();
@@ -341,7 +341,7 @@ describe('HoldingsTable', () => {
         // CSS modules will hash the class name, so check if it contains error-related classes
         return className.includes('Error') || className.includes('error');
       });
-      
+
       // If no error class found, at least verify the component renders with errors
       expect(validationErrors['rebalance-stock-0']).toBeDefined();
     });
@@ -362,7 +362,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       await user.type(input, '{Enter}');
 
       expect(onAddAsset).toHaveBeenCalled();
@@ -430,7 +430,7 @@ describe('HoldingsTable', () => {
       if (targetInputs.length > 0) {
         const targetInput = targetInputs[0] as HTMLInputElement;
         await user.clear(targetInput);
-        
+
         // Should handle empty string gracefully
         expect(targetInput.value).toBe('');
       }
@@ -444,7 +444,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       expect(input).toBeDisabled();
     });
 
@@ -499,7 +499,7 @@ describe('HoldingsTable', () => {
       expect(screen.getAllByText('Current value').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Target %').length).toBeGreaterThan(0);
       expect(screen.getAllByRole('button', { name: /delete/i }).length).toBeGreaterThan(0);
-      expect(screen.getByPlaceholderText('Enter stock symbol')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
     });
 
     it('should render with stacked layout when mobileLayoutVariant is stacked', () => {
@@ -513,7 +513,7 @@ describe('HoldingsTable', () => {
     it('should render add form when mobile with holdings', () => {
       render(<HoldingsTable {...defaultProps} />);
 
-      expect(screen.getByPlaceholderText('Enter stock symbol')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /add/i })).toBeInTheDocument();
     });
 
@@ -569,7 +569,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const valueInputs = screen.getAllByPlaceholderText('0');
+      const valueInputs = screen.getAllByPlaceholderText('Enter stock symbol (e.g. VOO)');
       const googlInput = valueInputs[0];
       await user.type(googlInput, '500');
       expect(onAddPosition).toHaveBeenCalledWith('GOOGL');
@@ -759,7 +759,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       await user.type(input, '{Enter}');
       expect(onAddAsset).not.toHaveBeenCalled();
     });
@@ -776,7 +776,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol/i);
+      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
       await user.type(input, '{Enter}');
       expect(onAddAsset).not.toHaveBeenCalled();
     });

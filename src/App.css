@@ -1,16 +1,9 @@
 #root {
-  max-width: min(1280px, 95vw);
-  margin: 0 auto;
-  padding: 1rem;
-  text-align: center;
   width: 100%;
+  min-height: 100vh;
+  padding: var(--spacing-sm) 0;
+  text-align: center;
   box-sizing: border-box;
-}
-
-@media (min-width: 640px) {
-  #root {
-    padding: 2rem;
-  }
 }
 
 .logo {
@@ -19,9 +12,11 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
@@ -30,6 +25,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }

@@ -10,7 +10,8 @@
 }
 
 .tableContainer {
-  overflow-x: visible;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  overflow-y: visible;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-bg-input);
@@ -316,18 +317,67 @@
 
 .addRow .assetCell,
 .addRow .currentCell,
-.addRow .percentageCell,
-.addRow .targetCell,
-.addRow .actionsCell {
+.addRow .percentageCell {
   padding: var(--spacing-md);
 }
 
+.addRow .assetCell {
+  text-align: center;
+}
+
+.addRow .actionsCell {
+  text-align: center;
+}
+
+.addCashButton {
+  padding: var(--spacing-sm) var(--spacing-md);
+  min-width: var(--action-button-min-width);
+  height: 2.25rem;
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 0.125rem solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.addCashButton:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: var(--color-text-primary);
+  border-color: var(--color-primary);
+}
+
+.addCashButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addCashButton:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+
+
 .addRowInputCell {
   padding: var(--spacing-md) !important;
+  width: 100%;
+  min-width: 0; /* Allow cell to shrink */
+  max-width: 100%;
+  overflow: hidden; /* Prevent overflow */
 }
 
 .addRowInput {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: var(--spacing-sm) var(--spacing-md);
   border: 0.125rem solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -371,6 +421,7 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 
 .error {
   padding: var(--spacing-sm) var(--spacing-md);
@@ -600,6 +651,12 @@
 
 .addFormMobile .addRowButton {
   min-height: 44px;
+}
+
+.addFormMobile .addCashButton {
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--spacing-sm);
 }
 
 @media (max-width: 768px) {

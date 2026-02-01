@@ -10,7 +10,9 @@ interface ResultsSectionProps {
 export function ResultsSection({ allocations, error }: ResultsSectionProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
-  if (!allocations || !Array.isArray(allocations)) return null;
+  // If there's an error, always render to show it (even if allocations is null)
+  // Only return null if there's no error AND no allocations
+  if (!error && (!allocations || !Array.isArray(allocations))) return null;
 
   return (
     <div className={styles.resultsSection}>

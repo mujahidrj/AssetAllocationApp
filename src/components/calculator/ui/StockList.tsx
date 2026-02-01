@@ -12,6 +12,7 @@ interface StockListProps {
   newStockName: string;
   onNewStockNameChange: (value: string) => void;
   onAddStock: () => void;
+  onAddCash: () => void;
   loading?: boolean;
 }
 
@@ -23,9 +24,11 @@ export function StockList({
   newStockName,
   onNewStockNameChange,
   onAddStock,
+  onAddCash,
   loading = false,
 }: StockListProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');
+  const hasCash = stocks.some(s => s.name === 'CASH');
 
   const handleAddStock = () => {
     if (newStockName.trim() && !loading) {
@@ -35,12 +38,6 @@ export function StockList({
 
   return (
     <div className={styles.stockList}>
-      {(validationErrors.percentages || validationErrors.rebalancePercentages) && (
-        <div className={styles.error}>
-          {validationErrors.rebalancePercentages || validationErrors.percentages}
-        </div>
-      )}
-
       {stocks.length === 0 && (
         <div className={styles.emptyState}>
           <FontAwesomeIcon icon={faChartLine} size="3x" />
@@ -113,27 +110,65 @@ export function StockList({
                     </tr>
                   ))}
                   <tr className={styles.addRow}>
-                    <td colSpan={3} className={styles.addRowInputCell}>
-                      <input
-                        type="text"
-                        value={newStockName}
-                        onChange={(e) => onNewStockNameChange(e.target.value)}
-                        className={`${styles.addRowInput} ${validationErrors.newStock ? styles.inputError : ''}`}
-                        placeholder="Enter stock symbol"
-                        disabled={loading}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddStock()}
-                      />
-                    </td>
-                    <td className={styles.actionsCell}>
-                      <button
-                        onClick={handleAddStock}
-                        className={styles.addRowButton}
-                        disabled={loading || !newStockName.trim()}
-                        type="button"
-                      >
-                        Add
-                      </button>
-                    </td>
+                    {!hasCash ? (
+                      <>
+                        <td className={styles.assetCell}>
+                          <button
+                            onClick={onAddCash}
+                            className={styles.addCashButton}
+                            disabled={loading}
+                            type="button"
+                          >
+                            Add Cash
+                          </button>
+                        </td>
+                        <td colSpan={2} className={styles.addRowInputCell}>
+                          <input
+                            type="text"
+                            value={newStockName}
+                            onChange={(e) => onNewStockNameChange(e.target.value)}
+                            className={`${styles.addRowInput} ${validationErrors.newStock ? styles.inputError : ''}`}
+                            placeholder="Enter stock symbol (e.g. VOO)"
+                            disabled={loading}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddStock()}
+                          />
+                        </td>
+                        <td className={styles.actionsCell}>
+                          <button
+                            onClick={handleAddStock}
+                            className={styles.addRowButton}
+                            disabled={loading || !newStockName.trim()}
+                            type="button"
+                          >
+                            Add
+                          </button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td colSpan={3} className={styles.addRowInputCell}>
+                          <input
+                            type="text"
+                            value={newStockName}
+                            onChange={(e) => onNewStockNameChange(e.target.value)}
+                            className={`${styles.addRowInput} ${validationErrors.newStock ? styles.inputError : ''}`}
+                            placeholder="Enter stock symbol (e.g. VOO)"
+                            disabled={loading}
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddStock()}
+                          />
+                        </td>
+                        <td className={styles.actionsCell}>
+                          <button
+                            onClick={handleAddStock}
+                            className={styles.addRowButton}
+                            disabled={loading || !newStockName.trim()}
+                            type="button"
+                          >
+                            Add
+                          </button>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 </tbody>
               </table>
@@ -206,7 +241,7 @@ export function StockList({
             value={newStockName}
             onChange={(e) => onNewStockNameChange(e.target.value)}
             className={`${styles.addRowInput} ${validationErrors.newStock ? styles.inputError : ''}`}
-            placeholder="Enter stock symbol"
+            placeholder="Enter stock symbol (e.g. VOO)"
             disabled={loading}
             onKeyDown={(e) => e.key === 'Enter' && handleAddStock()}
           />
@@ -218,11 +253,27 @@ export function StockList({
           >
             Add
           </button>
+          {!hasCash && (
+            <button
+              onClick={onAddCash}
+              className={styles.addCashButton}
+              disabled={loading}
+              type="button"
+            >
+              Add Cash
+            </button>
+          )}
         </div>
       )}
 
       {validationErrors.newStock && (
         <div className={styles.error}>{validationErrors.newStock}</div>
+      )}
+
+      {(validationErrors.percentages || validationErrors.rebalancePercentages) && (
+        <div className={styles.error}>
+          {validationErrors.rebalancePercentages || validationErrors.percentages}
+        </div>
       )}
     </div>
   );
