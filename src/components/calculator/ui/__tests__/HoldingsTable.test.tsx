@@ -40,6 +40,7 @@ describe('HoldingsTable', () => {
     onRemoveTargetStock: vi.fn(),
     onAddTargetStock: vi.fn(),
     onAddAsset: vi.fn(),
+    onAddCashToBoth: vi.fn(),
     newStockName: '',
     onNewStockNameChange: vi.fn(),
     validationErrors: {},
@@ -514,7 +515,7 @@ describe('HoldingsTable', () => {
       render(<HoldingsTable {...defaultProps} />);
 
       expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /add/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
     });
 
     it('should call onAddAsset when Add button clicked in mobile layout', async () => {
@@ -530,7 +531,10 @@ describe('HoldingsTable', () => {
         />
       );
 
-      await user.click(screen.getByRole('button', { name: /add/i }));
+      const addButtons = screen.getAllByRole('button', { name: /add/i });
+      const addButton = addButtons.find(btn => btn.textContent?.trim() === 'Add');
+      expect(addButton).toBeInTheDocument();
+      await user.click(addButton!);
       expect(onAddAsset).toHaveBeenCalled();
     });
 
@@ -569,9 +573,15 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const valueInputs = screen.getAllByPlaceholderText('Enter stock symbol (e.g. VOO)');
-      const googlInput = valueInputs[0];
-      await user.type(googlInput, '500');
+      // Find the value input for GOOGL (placeholder is "0" for value inputs)
+      const valueInputs = screen.getAllByPlaceholderText('0');
+      const googlInput = valueInputs.find(input => {
+        // Find input that's in the GOOGL row - check if it's near GOOGL text
+        const row = input.closest('[class*="holdingCard"], [class*="tableRow"]');
+        return row?.textContent?.includes('GOOGL');
+      });
+      expect(googlInput).toBeInTheDocument();
+      await user.type(googlInput!, '500');
       expect(onAddPosition).toHaveBeenCalledWith('GOOGL');
     });
   });

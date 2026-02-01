@@ -12,21 +12,21 @@ describe('AllocationSummary', () => {
   it('should display target total with percentage', () => {
     render(<AllocationSummary targetTotal={100} currentTotal={50000} />);
     
-    expect(screen.getByText(/Target Total:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Target Total Percentage:/i)).toBeInTheDocument();
     expect(screen.getByText(/100\.0%/)).toBeInTheDocument();
   });
 
   it('should display current total with currency formatting', () => {
     render(<AllocationSummary targetTotal={100} currentTotal={50000} />);
     
-    expect(screen.getByText(/Current Total:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Current Total Portfolio Value:/i)).toBeInTheDocument();
     expect(screen.getByText('$50,000.00')).toBeInTheDocument();
   });
 
   it('should show checkmark when target total is exactly 100%', () => {
     const { container } = render(<AllocationSummary targetTotal={100} currentTotal={50000} />);
     
-    expect(screen.getByText(/Target Total:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Target Total Percentage:/i)).toBeInTheDocument();
     // Checkmark is in the same span as the percentage, so check the container
     expect(container.textContent).toContain('100.0%');
     expect(container.textContent).toContain('✓');
@@ -35,7 +35,7 @@ describe('AllocationSummary', () => {
   it('should show checkmark when target total is within 0.01 of 100%', () => {
     const { container } = render(<AllocationSummary targetTotal={99.99} currentTotal={50000} />);
     
-    expect(screen.getByText(/Target Total:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Target Total Percentage:/i)).toBeInTheDocument();
     // Checkmark is in the same span as the percentage
     // Note: toFixed(1) will round 99.99 to 100.0, and Math.abs(99.99 - 100) = 0.01 <= 0.01, so checkmark shows
     const text = container.textContent || '';
