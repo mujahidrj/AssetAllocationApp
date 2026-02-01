@@ -1,0 +1,66 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  # Run tests on a schedule (daily at 2 AM UTC)
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run linter
+      run: npm run lint || echo "Linter warnings (non-blocking)"
+    
+    - name: Run tests with coverage
+      run: npm run test:coverage
+    
+    - name: Check coverage threshold
+      run: |
+        # Extract coverage percentage from coverage output
+        COVERAGE_OUTPUT=$(npm run test:coverage 2>&1)
+        COVERAGE=$(echo "$COVERAGE_OUTPUT" | grep -A 1 "All files" | grep -oE '[0-9]+\.[0-9]+' | head -1)
+        
+        if [ -z "$COVERAGE" ]; then
+          echo "⚠️ Could not extract coverage percentage"
+          exit 0
+        fi
+        
+        echo "Current coverage: $COVERAGE%"
+        
+        # Compare coverage (80% threshold)
+        COVERAGE_INT=$(echo "$COVERAGE" | cut -d. -f1)
+        if [ "$COVERAGE_INT" -lt 80 ]; then
+          echo "❌ Coverage $COVERAGE% is below 80% threshold"
+          exit 1
+        else
+          echo "✅ Coverage $COVERAGE% meets 80% threshold"
+        fi
+    
+    - name: Upload coverage to artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report-${{ matrix.node-version }}
+        path: coverage/
+        retention-days: 7

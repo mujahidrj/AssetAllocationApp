@@ -237,7 +237,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   // Fetch prices for any new stocks
   useEffect(() => {
     const stockSymbols = currentStocks.map(stock => stock.name);
-    void fetchMissingPrices(stockSymbols);
+    // Use void to explicitly mark as fire-and-forget, but ensure errors are handled
+    fetchMissingPrices(stockSymbols).catch(error => {
+      console.warn('Error in fetchMissingPrices:', error);
+    });
   }, [currentStocks, fetchMissingPrices]);
 
   // Fetch prices for rebalancing stocks and current positions
@@ -247,7 +250,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         ...rebalanceStocks.map(stock => stock.name),
         ...currentPositions.map(pos => pos.symbol)
       ];
-      void fetchMissingPrices(rebalanceSymbols);
+      // Use void to explicitly mark as fire-and-forget, but ensure errors are handled
+      fetchMissingPrices(rebalanceSymbols).catch(error => {
+        console.warn('Error in fetchMissingPrices:', error);
+      });
     }
   }, [mode, rebalanceStocks, currentPositions, fetchMissingPrices]);
 

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { 
+import {
   type User,
-  GoogleAuthProvider, 
+  GoogleAuthProvider,
   signInWithPopup,
   signOut as firebaseSignOut
 } from 'firebase/auth';
@@ -40,6 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: 'select_account',
+    });
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
