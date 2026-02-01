@@ -356,75 +356,75 @@ export function HoldingsTable({
                   </tr>
                 );
               })}
-            <tr className={styles.addRow}>
-              {!hasCash ? (
-                <>
-                  <td className={styles.assetCell}>
-                    <button
-                      onClick={onAddCashToBoth}
-                      className={styles.addCashButton}
-                      disabled={loading}
-                      type="button"
-                    >
-                      Add Cash
-                    </button>
-                  </td>
-                  <td colSpan={3} className={styles.addRowInputCell}>
-                    <input
-                      type="text"
-                      value={newStockName}
-                      onChange={(e) => onNewStockNameChange(e.target.value)}
-                      className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
-                      placeholder="Enter stock symbol (e.g. VOO)"
-                      disabled={loading}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAddAsset();
-                        }
-                      }}
-                    />
-                  </td>
-                  <td className={styles.actionsCell}>
-                    <button
-                      onClick={handleAddAsset}
-                      className={styles.addRowButton}
-                      disabled={loading || !newStockName.trim()}
-                      type="button"
-                    >
-                      Add
-                    </button>
-                  </td>
-                </>
-              ) : (
-                <>
-                  <td colSpan={4} className={styles.addRowInputCell}>
-                    <input
-                      type="text"
-                      value={newStockName}
-                      onChange={(e) => onNewStockNameChange(e.target.value)}
-                      className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
-                      placeholder="Enter stock symbol (e.g. VOO)"
-                      disabled={loading}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAddAsset();
-                        }
-                      }}
-                    />
-                  </td>
-                  <td className={styles.actionsCell}>
-                    <button
-                      onClick={handleAddAsset}
-                      className={styles.addRowButton}
-                      disabled={loading || !newStockName.trim()}
-                      type="button"
-                    >
-                      Add
-                    </button>
-                  </td>
-                </>
-              )}
-            </tr>
+              <tr className={styles.addRow}>
+                {!hasCash ? (
+                  <>
+                    <td className={styles.assetCell}>
+                      <button
+                        onClick={onAddCashToBoth}
+                        className={styles.addCashButton}
+                        disabled={loading}
+                        type="button"
+                      >
+                        Add Cash
+                      </button>
+                    </td>
+                    <td colSpan={3} className={styles.addRowInputCell}>
+                      <input
+                        type="text"
+                        value={newStockName}
+                        onChange={(e) => onNewStockNameChange(e.target.value)}
+                        className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
+                        placeholder="Enter stock symbol (e.g. VOO)"
+                        disabled={loading}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleAddAsset();
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className={styles.actionsCell}>
+                      <button
+                        onClick={handleAddAsset}
+                        className={styles.addRowButton}
+                        disabled={loading || !newStockName.trim()}
+                        type="button"
+                      >
+                        Add
+                      </button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td colSpan={4} className={styles.addRowInputCell}>
+                      <input
+                        type="text"
+                        value={newStockName}
+                        onChange={(e) => onNewStockNameChange(e.target.value)}
+                        className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
+                        placeholder="Enter stock symbol (e.g. VOO)"
+                        disabled={loading}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleAddAsset();
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className={styles.actionsCell}>
+                      <button
+                        onClick={handleAddAsset}
+                        className={styles.addRowButton}
+                        disabled={loading || !newStockName.trim()}
+                        type="button"
+                      >
+                        Add
+                      </button>
+                    </td>
+                  </>
+                )}
+              </tr>
             </tbody>
           </table>
         </div>
