@@ -1,9 +1,12 @@
-.stockList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  margin: var(--spacing-lg) auto;
-  width: 100%;
+.holdingsSection {
+  margin-bottom: var(--spacing-2xl);
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-lg) 0;
 }
 
 .tableContainer {
@@ -15,19 +18,19 @@
   --action-button-min-width: 3.5rem;
 }
 
-.stocksTable {
+.holdingsTable {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
   table-layout: fixed;
 }
 
-.stocksTable thead {
+.holdingsTable thead {
   background: var(--color-bg-elevated);
   border-bottom: 2px solid var(--color-border);
 }
 
-.stocksTable th {
+.holdingsTable th {
   padding: var(--spacing-md);
   text-align: left;
   font-weight: 600;
@@ -38,22 +41,24 @@
 }
 
 .assetCol {
-  width: 22%;
-  max-width: 180px;
+  width: 18%;
+  max-width: 150px;
 }
 
-.allocationCol {
-  width: 50%;
+.currentCol {
+  width: 28%;
+  max-width: 200px;
 }
 
-.percentageCol {
-  width: 12%;
-  max-width: 100px;
+.percentageCol,
+.targetCol {
+  width: 13%;
+  max-width: 120px;
 }
 
 .actionsCol {
-  width: 8%;
-  max-width: 70px;
+  width: 10%;
+  max-width: 80px;
 }
 
 .tableRow {
@@ -89,71 +94,155 @@
   width: 100%;
 }
 
-.allocationCell {
+.currentCell {
   padding: var(--spacing-md);
 }
 
-.percentageSlider {
+.currentValueInput {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
   width: 100%;
-  height: 0.375rem;
-  -webkit-appearance: none;
-  appearance: none;
-  background: var(--color-border);
-  border-radius: var(--radius-xs);
+}
+
+.inputWithToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.valueInputWrapper {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.dollarSign {
+  position: absolute;
+  left: var(--spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  font-size: 0.875rem;
+}
+
+.input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  padding-left: var(--spacing-lg);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
   outline: none;
-  opacity: 0.9;
-  transition: opacity 0.2s;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
 }
 
-.percentageSlider:hover {
-  opacity: 1;
+.inputError {
+  border-color: var(--color-error);
+  background-color: var(--color-error-bg);
 }
 
-.percentageSlider:focus {
-  opacity: 1;
+.inputTypeToggle {
+  display: flex;
+  gap: 0;
+  background: var(--color-bg-elevated);
+  border: 0.125rem solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.percentageSlider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  background: var(--color-primary);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.1s;
-  box-shadow: 0 0 0 2px var(--color-bg-primary);
-}
-
-.percentageSlider::-moz-range-thumb {
-  width: 1.25rem;
-  height: 1.25rem;
-  background: var(--color-primary);
-  border-radius: 50%;
-  cursor: pointer;
+.toggleBtn {
+  padding: var(--spacing-xs) var(--spacing-sm);
   border: none;
-  transition: transform 0.1s;
-  box-shadow: 0 0 0 2px var(--color-bg-primary);
+  border-right: 0.125rem solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 2.5rem;
 }
 
-.percentageSlider::-webkit-slider-thumb:hover,
-.percentageSlider::-moz-range-thumb:hover {
-  transform: scale(1.1);
-  background: var(--color-primary-hover);
+.toggleBtn:last-child {
+  border-right: none;
+}
+
+.toggleBtn:hover {
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+}
+
+.toggleBtn.active {
+  background: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.toggleBtn:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.calculatedInfo {
+  font-size: 0.7rem;
+  color: var(--color-text-tertiary);
+  margin-top: 0.125rem;
+}
+
+.calculatedValue {
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.calculatedShares {
+  color: var(--color-text-secondary);
+}
+
+.noPosition {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
+.noTarget {
+  color: var(--color-text-tertiary);
+  font-style: italic;
 }
 
 .percentageCell {
   padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--color-text-secondary);
+  font-weight: 500;
 }
 
-.percentageInputWrapper {
+.readonlyPercentage {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.targetCell {
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.targetInputWrapper {
   position: relative;
   display: flex;
   width: 100%;
   max-width: 5rem;
 }
 
-.percentageInput {
+.targetInput {
   width: 100%;
   padding: var(--spacing-xs) 1.25rem var(--spacing-xs) var(--spacing-xs);
   border: 0.125rem solid var(--color-border);
@@ -167,13 +256,13 @@
   transition: border-color 0.2s;
 }
 
-.percentageInput::-webkit-outer-spin-button,
-.percentageInput::-webkit-inner-spin-button {
+.targetInput::-webkit-outer-spin-button,
+.targetInput::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-.percentageInput:focus {
+.targetInput:focus {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
@@ -225,8 +314,9 @@
 }
 
 .addRow .assetCell,
-.addRow .allocationCell,
+.addRow .currentCell,
 .addRow .percentageCell,
+.addRow .targetCell,
 .addRow .actionsCell {
   padding: var(--spacing-md);
 }
@@ -251,11 +341,6 @@
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-}
-
-.inputError {
-  border-color: var(--color-error);
-  background-color: var(--color-error-bg);
 }
 
 .addRowButton {
@@ -287,14 +372,13 @@
 }
 
 .error {
-  margin-bottom: var(--spacing-lg);
-  font-size: 0.875rem;
-  color: var(--color-error);
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
   background: var(--color-error-bg);
-  border-radius: var(--radius-sm);
   border: 1px solid var(--color-error-border);
-  text-align: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: 0.875rem;
+  margin-bottom: var(--spacing-md);
 }
 
 .emptyState {
@@ -336,36 +420,36 @@
     display: block;
   }
 
-  .stocksTable {
+  .holdingsTable {
     display: block;
     width: 100%;
   }
 
-  .stocksTable thead {
+  .holdingsTable thead {
     display: none;
   }
 
-  .stocksTable tbody,
-  .stocksTable tr,
-  .stocksTable td {
+  .holdingsTable tbody,
+  .holdingsTable tr,
+  .holdingsTable td {
     display: block;
     width: 100%;
   }
 
-  .stocksTable tr {
+  .holdingsTable tr {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     margin-bottom: var(--spacing-md);
     padding: var(--spacing-md);
   }
 
-  .stocksTable td {
+  .holdingsTable td {
     padding: var(--spacing-sm) 0;
     text-align: left;
     border: none;
   }
 
-  .stocksTable td:before {
+  .holdingsTable td:before {
     content: attr(data-label);
     font-weight: 600;
     display: block;
@@ -373,13 +457,5 @@
     color: var(--color-text-secondary);
     font-size: 0.75rem;
     text-transform: uppercase;
-  }
-
-  .allocationCell {
-    padding: var(--spacing-sm) 0;
-  }
-
-  .percentageSlider {
-    width: 100%;
   }
 }

@@ -12,12 +12,39 @@ app.use(cors());
 app.get('/api/stock/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
-    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`);
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      return res.status(response.status).json({ 
+        error: `Failed to fetch data from Yahoo Finance: ${response.statusText}` 
+      });
+    }
+    
     const data = await response.json();
-    res.json(data);
+    
+    // Extract price from Yahoo Finance API response structure
+    // Response format: { chart: { result: [{ meta: { regularMarketPrice: number } }] } }
+    if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+      return res.json({
+        symbol: data.chart.result[0].meta.symbol || symbol,
+        price: data.chart.result[0].meta.regularMarketPrice
+      });
+    }
+    
+    // If no price data, return error
+    console.error('Invalid Yahoo Finance API response:', { symbol, response: data });
+    return res.status(500).json({ 
+      error: `No price data available for symbol ${symbol}` 
+    });
   } catch (error) {
     console.error('Error fetching stock data:', error);
-    res.status(500).json({ error: 'Failed to fetch stock data' });
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch stock data';
+    return res.status(500).json({ error: errorMessage });
   }
 });
 
