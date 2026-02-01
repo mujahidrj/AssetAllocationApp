@@ -155,9 +155,6 @@ describe('RothIRACalculator', () => {
     const deleteButtons = screen.getAllByRole('button', { name: /delete stock/i })
 
     if (deleteButtons.length > 0) {
-      const firstStock = screen.getByText(/FZROX|VTSAX|VOO/i)
-      const stockName = firstStock.textContent || ''
-
       await user.click(deleteButtons[0])
 
       // Wait a bit for the removal to take effect
