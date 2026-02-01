@@ -30,8 +30,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error('Error signing in with Google:', error);
       const firebaseError = error as FirebaseError;
+      if (firebaseError.code === 'auth/popup-closed-by-user') {
+        return;
+      }
+      console.error('Error signing in with Google:', error);
       if (firebaseError.code === 'auth/configuration-not-found') {
         alert('Authentication is not properly configured. Please contact the administrator.');
       } else {
