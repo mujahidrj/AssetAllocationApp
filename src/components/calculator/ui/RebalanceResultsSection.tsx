@@ -11,7 +11,7 @@ export function RebalanceResultsSection({ results, error }: RebalanceResultsSect
   if (!error && (!results || !Array.isArray(results) || results.length === 0)) return null;
 
   // Filter out holds and entries with no net change - only show buys and sells with meaningful differences
-  const actionableResults = results?.filter(r => 
+  const actionableResults = results?.filter(r =>
     r.action !== 'hold' && Math.abs(r.difference) > 0.01
   ) || [];
 
@@ -57,7 +57,11 @@ export function RebalanceResultsSection({ results, error }: RebalanceResultsSect
                       ${Math.abs(result.difference).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className={styles.sharesCell}>
-                      {result.sharesToTrade.toFixed(4)}
+                      {result.currentPrice != null && result.currentPrice > 0 && result.sharesToTrade > 0
+                        ? result.sharesToTrade.toFixed(4)
+                        : result.currentPrice === null
+                          ? 'Price unavailable'
+                          : '0.0000'}
                     </td>
                     <td className={`${styles.changeCell} ${result.difference >= 0 ? styles.positive : styles.negative}`}>
                       {result.difference >= 0 ? '+' : ''}

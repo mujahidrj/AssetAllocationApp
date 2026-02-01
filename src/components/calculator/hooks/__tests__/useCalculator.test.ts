@@ -907,6 +907,104 @@ describe('useCalculator - Rebalance Mode', () => {
 
       expect(result.current.state.rebalanceResults).toBeNull();
     });
+
+    it('should calculate correct buy amount when rebalancing from current to target', async () => {
+      const { result } = renderHook(() => useCalculator({ 
+        user: mockUser, 
+        stocks: mockStocks, 
+        setStocks: mockSetStocks 
+      }));
+
+      act(() => {
+        result.current.actions.setMode('rebalance');
+      });
+
+      await waitFor(() => {
+        expect(result.current.state.rebalanceStocks.length).toBeGreaterThan(0);
+      });
+
+      // Add FZROX position with $29 value
+      await act(async () => {
+        await result.current.actions.addCurrentPosition('FZROX');
+      });
+
+      act(() => {
+        result.current.actions.updateCurrentPosition(0, { value: 29 });
+      });
+
+      // Add FZILX position with $71 value
+      await act(async () => {
+        await result.current.actions.addCurrentPosition('FZILX');
+      });
+
+      act(() => {
+        const fzilxIndex = result.current.state.currentPositions.findIndex(p => p.symbol === 'FZILX');
+        result.current.actions.updateCurrentPosition(fzilxIndex, { value: 71 });
+      });
+
+      // Wait for stock prices to be fetched
+      await waitFor(() => {
+        expect(result.current.state.stockPrices['FZROX']).toBeDefined();
+        expect(result.current.state.stockPrices['FZILX']).toBeDefined();
+      }, { timeout: 3000 });
+
+      // Set target percentages: FZROX 80%, FZILX 20%
+      const fzroxIndex = result.current.state.rebalanceStocks.findIndex(s => s.name === 'FZROX');
+      const fzilxIndex = result.current.state.rebalanceStocks.findIndex(s => s.name === 'FZILX');
+      
+      if (fzroxIndex !== -1) {
+        act(() => {
+          result.current.actions.updateRebalancePercentage(fzroxIndex, '80');
+        });
+      }
+      
+      if (fzilxIndex !== -1) {
+        act(() => {
+          result.current.actions.updateRebalancePercentage(fzilxIndex, '20');
+        });
+      }
+
+      // Wait for rebalance calculation
+      await waitFor(() => {
+        expect(result.current.state.rebalanceResults).not.toBeNull();
+        expect(result.current.state.rebalanceResults?.length).toBeGreaterThan(0);
+      }, { timeout: 5000 });
+
+      const results = result.current.state.rebalanceResults;
+      expect(results).not.toBeNull();
+      
+      if (results) {
+        const fzroxResult = results.find(r => r.name === 'FZROX');
+        const fzilxResult = results.find(r => r.name === 'FZILX');
+        
+        // Total portfolio value should be $100 ($29 + $71)
+        expect(result.current.state.totalPortfolioValue).toBe(100);
+        
+        // FZROX: current $29 (29%), target 80% = $80, difference should be $51 (buy)
+        if (fzroxResult) {
+          expect(fzroxResult.currentValue).toBe(29);
+          expect(fzroxResult.targetValue).toBe(80);
+          expect(fzroxResult.difference).toBe(51); // Should buy $51, not $80
+          expect(fzroxResult.action).toBe('buy');
+          // Shares should be calculated if price is available
+          if (fzroxResult.currentPrice && fzroxResult.currentPrice > 0) {
+            expect(fzroxResult.sharesToTrade).toBeGreaterThan(0);
+          }
+        }
+        
+        // FZILX: current $71 (71%), target 20% = $20, difference should be -$51 (sell)
+        if (fzilxResult) {
+          expect(fzilxResult.currentValue).toBe(71);
+          expect(fzilxResult.targetValue).toBe(20);
+          expect(fzilxResult.difference).toBe(-51); // Should sell $51
+          expect(fzilxResult.action).toBe('sell');
+          // Shares should be calculated if price is available
+          if (fzilxResult.currentPrice && fzilxResult.currentPrice > 0) {
+            expect(fzilxResult.sharesToTrade).toBeGreaterThan(0);
+          }
+        }
+      }
+    });
   });
 
   describe('addAssetToBoth', () => {

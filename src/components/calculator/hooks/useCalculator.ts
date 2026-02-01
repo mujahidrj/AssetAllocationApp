@@ -74,10 +74,18 @@ const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
       }
       
       const data = await response.json();
+      
+      // Handle both formats: direct { price: ... } and Yahoo Finance nested format
       if (data?.price) {
         return data.price;
       }
-      console.warn(`No price data available for ${symbol}`);
+      
+      // Fallback: try to extract from Yahoo Finance API response structure
+      if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+        return data.chart.result[0].meta.regularMarketPrice;
+      }
+      
+      console.warn(`No price data available for ${symbol}`, data);
       return null;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
@@ -206,6 +214,8 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
   // Function to fetch prices for new stocks
   const fetchMissingPrices = useCallback(async (stockSymbols: string[]) => {
+    // Only fetch prices for symbols that haven't been fetched yet (undefined)
+    // Don't refetch if price is null (fetch failed) or if price exists (already fetched)
     const missingSymbols = stockSymbols.filter(symbol => stockPrices[symbol] === undefined);
     if (missingSymbols.length === 0) return;
 
@@ -225,12 +235,23 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       setStockPrices(prev => {
         const newPrices = { ...prev };
         missingSymbols.forEach((symbol, index) => {
+          // Store the price (could be a number or null if fetch failed)
           newPrices[symbol] = prices[index];
         });
         return newPrices;
       });
     } catch (error) {
       console.warn('Error fetching stock prices:', error);
+      // On error, mark symbols as null (fetch failed) so we don't retry indefinitely
+      setStockPrices(prev => {
+        const newPrices = { ...prev };
+        missingSymbols.forEach(symbol => {
+          if (newPrices[symbol] === undefined) {
+            newPrices[symbol] = null;
+          }
+        });
+        return newPrices;
+      });
     }
   }, [stockPrices]);
 
@@ -664,9 +685,9 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     // Calculate current portfolio value
     const positionValues = currentPositions.map(pos => {
-      const price = stockPrices[pos.symbol];
+      const price = stockPrices[pos.symbol] || 0;
       if (pos.inputType === 'shares') {
-        return (pos.shares || 0) * (price || 0);
+        return (pos.shares || 0) * price;
       } else {
         return pos.value || 0;
       }
@@ -696,22 +717,27 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     });
 
     // Create maps of current values and shares by symbol
+    // IMPORTANT: Use the same calculation logic as totalPortfolioValue to ensure consistency
     const currentValuesMap = new Map<string, number>();
     const currentSharesMap = new Map<string, number>();
     
     currentPositions.forEach(pos => {
-      const price = stockPrices[pos.symbol] || 0;
+      const price = stockPrices[pos.symbol] ?? null; // null means fetch failed, undefined means not fetched
       let currentValue: number;
       let currentShares: number;
       
       if (pos.inputType === 'shares') {
         currentShares = pos.shares || 0;
-        currentValue = currentShares * price;
+        // Only calculate value if we have a price
+        currentValue = price != null && price > 0 ? currentShares * price : 0;
       } else {
+        // Use the actual value from the position
         currentValue = pos.value || 0;
-        currentShares = price > 0 ? currentValue / price : 0;
+        // Only calculate shares if we have a price
+        currentShares = price != null && price > 0 ? currentValue / price : 0;
       }
       
+      // Always set the value, even if 0 (0 is a valid value meaning no position yet)
       currentValuesMap.set(pos.symbol, currentValue);
       currentSharesMap.set(pos.symbol, currentShares);
     });
@@ -721,13 +747,18 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
     // Calculate rebalance results for stocks in target allocation
     const targetResults: RebalanceResult[] = rebalanceStocks.map(stock => {
+      // Get current value - if not in positions, it's 0 (new position to buy)
       const currentValue = currentValuesMap.get(stock.name) || 0;
       const currentShares = currentSharesMap.get(stock.name) || 0;
-      const currentPercentage = (currentValue / totalPortfolioValue) * 100;
+      const currentPercentage = totalPortfolioValue > 0 ? (currentValue / totalPortfolioValue) * 100 : 0;
       const targetValue = totalPortfolioValue * (stock.percentage / 100);
       const difference = targetValue - currentValue;
-      const price = stockPrices[stock.name] || 0;
-      const sharesToTrade = price > 0 ? Math.abs(difference) / price : 0;
+      // Get price - check for null explicitly since null means fetch failed, undefined means not fetched yet
+      const price = stockPrices[stock.name] ?? null;
+      // Calculate shares to trade - only if we have a valid price (not null, not 0, not undefined)
+      const sharesToTrade = price != null && price > 0 && Math.abs(difference) > 0.01 
+        ? Math.abs(difference) / price 
+        : 0;
       
       let action: 'buy' | 'sell' | 'hold' = 'hold';
       if (Math.abs(difference) > 0.01) {
@@ -736,13 +767,13 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
 
       return {
         ...stock,
-        amount: targetValue.toFixed(2),
-        currentPrice: price || null,
-        shares: price > 0 ? targetValue / price : undefined,
+        amount: targetValue.toFixed(2), // Target value after rebalancing
+        currentPrice: price != null ? price : null, // Explicitly handle null vs undefined
+        shares: price != null && price > 0 ? targetValue / price : undefined,
         currentValue,
         currentPercentage,
         targetValue,
-        difference,
+        difference, // This is what's displayed in the Amount column (via Math.abs)
         action,
         sharesToTrade,
         currentShares
@@ -756,9 +787,13 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         const currentValue = currentValuesMap.get(pos.symbol) || 0;
         const currentShares = currentSharesMap.get(pos.symbol) || 0;
         const currentPercentage = (currentValue / totalPortfolioValue) * 100;
-        const price = stockPrices[pos.symbol] || 0;
+        const price = stockPrices[pos.symbol] ?? null;
         
         // These positions should be sold completely
+        // Use price-based calculation if price is available, otherwise use current shares
+        const sharesToSell = price != null && price > 0 && currentValue > 0 
+          ? currentValue / price 
+          : currentShares;
         return {
           name: pos.symbol,
           percentage: 0, // Not in target allocation
@@ -771,7 +806,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
           targetValue: 0,
           difference: -currentValue, // Negative means sell
           action: 'sell' as const,
-          sharesToTrade: currentShares, // Sell all shares
+          sharesToTrade: sharesToSell, // Shares to sell
           currentShares
         };
       });
