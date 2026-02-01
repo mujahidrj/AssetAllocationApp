@@ -1,4 +1,4 @@
-import { useAuth } from '../lib/auth';
+import { useAuth } from '../lib/useAuth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faGoogle } from '@fortawesome/free-brands-svg-icons';
 import { faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
@@ -11,9 +11,9 @@ export function LoginButton() {
     return (
       <div className={styles.container}>
         {user.photoURL && (
-          <img 
-            src={user.photoURL} 
-            alt={user.displayName || 'User'} 
+          <img
+            src={user.photoURL}
+            alt={user.displayName || 'User'}
             className={styles.userPhoto}
           />
         )}

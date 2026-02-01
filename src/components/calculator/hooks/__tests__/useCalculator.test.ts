@@ -14,9 +14,9 @@ vi.mock('firebase/auth', () => ({
 }));
 
 vi.mock('firebase/firestore', async () => {
-  const actual = await vi.importActual('firebase/firestore');
+  const actual = (await vi.importActual<typeof import('firebase/firestore')>('firebase/firestore'));
   return {
-    ...actual,
+    ...(actual as object),
     getFirestore: vi.fn(() => ({})),
     doc: vi.fn(),
     setDoc: vi.fn(),
@@ -40,10 +40,10 @@ describe('useCalculator - Deposit Mode', () => {
 
   describe('Initial State', () => {
     it('should initialize with default local stocks for guest user', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       expect(result.current.state.currentStocks).toHaveLength(2);
@@ -52,30 +52,30 @@ describe('useCalculator - Deposit Mode', () => {
     });
 
     it('should initialize with empty amount', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       expect(result.current.state.amount).toBe('');
     });
 
     it('should initialize in deposit mode', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       expect(result.current.state.mode).toBe('deposit');
     });
 
     it('should initialize with no validation errors', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       expect(Object.keys(result.current.state.validationErrors)).toHaveLength(0);
@@ -84,10 +84,10 @@ describe('useCalculator - Deposit Mode', () => {
 
   describe('setAmount', () => {
     it('should update amount when setAmount is called', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -98,17 +98,17 @@ describe('useCalculator - Deposit Mode', () => {
     });
 
     it('should clear amount validation error when amount is set', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       // First set an invalid amount to trigger error
       act(() => {
         result.current.actions.setAmount('-100');
       });
-      
+
       // Wait for validation
       await waitFor(() => {
         expect(result.current.state.validationErrors.amount).toBeDefined();
@@ -138,10 +138,10 @@ describe('useCalculator - Deposit Mode', () => {
           json: async () => ({ price: 150.25 }),
         } as Response);
 
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       const initialStockCount = result.current.state.currentStocks.length;
@@ -170,10 +170,10 @@ describe('useCalculator - Deposit Mode', () => {
           json: async () => ({ price: 150.25 }),
         } as Response);
 
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       await act(async () => {
@@ -197,17 +197,17 @@ describe('useCalculator - Deposit Mode', () => {
           json: async () => ({ price: 150.25 }),
         } as Response);
 
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       // Add stock first time
       await act(async () => {
         await result.current.actions.addStock('AAPL');
       });
-      
+
       await waitFor(() => {
         expect(result.current.state.currentStocks.some(s => s.name === 'AAPL')).toBe(true);
       });
@@ -218,7 +218,7 @@ describe('useCalculator - Deposit Mode', () => {
       await act(async () => {
         await result.current.actions.addStock('AAPL');
       });
-      
+
       // Wait a bit to see if it was added
       await waitFor(() => {
         expect(result.current.state.currentStocks.length).toBe(firstCount);
@@ -227,10 +227,10 @@ describe('useCalculator - Deposit Mode', () => {
     });
 
     it('should validate empty stock symbol', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       await act(async () => {
@@ -245,10 +245,10 @@ describe('useCalculator - Deposit Mode', () => {
 
   describe('removeStock', () => {
     it('should remove a stock by index', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       const initialCount = result.current.state.currentStocks.length;
@@ -265,10 +265,10 @@ describe('useCalculator - Deposit Mode', () => {
 
   describe('updateStockPercentage', () => {
     it('should update stock percentage by index', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -279,10 +279,10 @@ describe('useCalculator - Deposit Mode', () => {
     });
 
     it('should validate percentages add up to 100%', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -297,10 +297,10 @@ describe('useCalculator - Deposit Mode', () => {
     });
 
     it('should clear percentage error when percentages add up to 100%', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       // Wait for initial state
@@ -368,10 +368,10 @@ describe('useCalculator - Deposit Mode', () => {
         return Promise.reject(new Error('Unexpected URL'));
       });
 
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       // Wait for initial state to settle (default stocks: FZROX 80%, FZILX 20% = 100%)
@@ -402,10 +402,10 @@ describe('useCalculator - Deposit Mode', () => {
     });
 
     it('should not calculate allocations when amount is invalid', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -420,10 +420,10 @@ describe('useCalculator - Deposit Mode', () => {
     });
 
     it('should not calculate allocations when percentages are invalid', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -442,10 +442,10 @@ describe('useCalculator - Deposit Mode', () => {
 
   describe('setMode', () => {
     it('should switch between deposit and rebalance modes', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       expect(result.current.state.mode).toBe('deposit');
@@ -493,10 +493,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
   describe('Initial State', () => {
     it('should initialize with default rebalance stocks', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -509,10 +509,10 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should initialize with empty current positions', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -525,10 +525,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
   describe('addCurrentPosition', () => {
     it('should add a new position when valid symbol is provided', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -550,10 +550,10 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should not add duplicate position', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -583,10 +583,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
   describe('removeCurrentPosition', () => {
     it('should remove a position by index', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -611,10 +611,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
   describe('updateCurrentPosition', () => {
     it('should update position value', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -637,10 +637,10 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should switch between shares and value input types', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -667,10 +667,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
   describe('addRebalanceStock', () => {
     it('should add a new target stock', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -693,10 +693,10 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should not add duplicate target stock', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -726,10 +726,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
   describe('updateRebalancePercentage', () => {
     it('should update target stock percentage', () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -744,10 +744,10 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should validate rebalance percentages add up to 100%', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -765,10 +765,10 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should clear rebalance percentage error when percentages add up to 100%', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -817,10 +817,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
   describe('calculateRebalance', () => {
     it('should calculate rebalance results when positions and targets are valid', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -881,10 +881,10 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should not calculate rebalance when percentages are invalid', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -909,10 +909,10 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should calculate correct buy amount when rebalancing from current to target', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -951,13 +951,13 @@ describe('useCalculator - Rebalance Mode', () => {
       // Set target percentages: FZROX 80%, FZILX 20%
       const fzroxIndex = result.current.state.rebalanceStocks.findIndex(s => s.name === 'FZROX');
       const fzilxIndex = result.current.state.rebalanceStocks.findIndex(s => s.name === 'FZILX');
-      
+
       if (fzroxIndex !== -1) {
         act(() => {
           result.current.actions.updateRebalancePercentage(fzroxIndex, '80');
         });
       }
-      
+
       if (fzilxIndex !== -1) {
         act(() => {
           result.current.actions.updateRebalancePercentage(fzilxIndex, '20');
@@ -972,14 +972,14 @@ describe('useCalculator - Rebalance Mode', () => {
 
       const results = result.current.state.rebalanceResults;
       expect(results).not.toBeNull();
-      
+
       if (results) {
         const fzroxResult = results.find(r => r.name === 'FZROX');
         const fzilxResult = results.find(r => r.name === 'FZILX');
-        
+
         // Total portfolio value should be $100 ($29 + $71)
         expect(result.current.state.totalPortfolioValue).toBe(100);
-        
+
         // FZROX: current $29 (29%), target 80% = $80, difference should be $51 (buy)
         if (fzroxResult) {
           expect(fzroxResult.currentValue).toBe(29);
@@ -991,7 +991,7 @@ describe('useCalculator - Rebalance Mode', () => {
             expect(fzroxResult.sharesToTrade).toBeGreaterThan(0);
           }
         }
-        
+
         // FZILX: current $71 (71%), target 20% = $20, difference should be -$51 (sell)
         if (fzilxResult) {
           expect(fzilxResult.currentValue).toBe(71);
@@ -1009,10 +1009,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
   describe('addAssetToBoth', () => {
     it('should add asset to both positions and target stocks', async () => {
-      const { result } = renderHook(() => useCalculator({ 
-        user: mockUser, 
-        stocks: mockStocks, 
-        setStocks: mockSetStocks 
+      const { result } = renderHook(() => useCalculator({
+        user: mockUser,
+        stocks: mockStocks,
+        setStocks: mockSetStocks
       }));
 
       act(() => {
@@ -1047,10 +1047,10 @@ describe('useCalculator - Rebalance Mode', () => {
           } as Response);
         });
 
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         const initialStockCount = result.current.state.currentStocks.length;
@@ -1080,10 +1080,10 @@ describe('useCalculator - Rebalance Mode', () => {
           } as Response)
           .mockRejectedValueOnce(new Error('Price fetch failed'));
 
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         await act(async () => {
@@ -1104,10 +1104,10 @@ describe('useCalculator - Rebalance Mode', () => {
           return Promise.reject(new DOMException('Aborted', 'AbortError'));
         });
 
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         // Should handle abort gracefully
@@ -1122,10 +1122,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
     describe('Rebalance Calculation Error Handling', () => {
       it('should handle zero portfolio value in rebalance', async () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         act(() => {
@@ -1148,10 +1148,10 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       it('should handle missing stock prices in rebalance calculation', async () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         act(() => {
@@ -1174,10 +1174,10 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       it('should handle invalid percentage values', () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         act(() => {
@@ -1189,10 +1189,10 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       it('should handle negative percentage values', () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         act(() => {
@@ -1204,10 +1204,10 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       it('should handle percentage values over 100', () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         act(() => {
@@ -1221,10 +1221,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
     describe('Input Validation Error Handling', () => {
       it('should handle empty amount string', () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         act(() => {
@@ -1236,10 +1236,10 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       it('should handle invalid amount string', () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         act(() => {
@@ -1251,10 +1251,10 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       it('should handle removing stock at invalid index', () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         const initialCount = result.current.state.currentStocks.length;
@@ -1268,10 +1268,10 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       it('should handle updating stock at invalid index', () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUser, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUser,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         act(() => {
@@ -1285,10 +1285,10 @@ describe('useCalculator - Rebalance Mode', () => {
 
     describe('Firebase Error Handling', () => {
       it('should handle Firebase errors gracefully when user is null', () => {
-        const { result } = renderHook(() => useCalculator({ 
-          user: null, 
-          stocks: mockStocks, 
-          setStocks: mockSetStocks 
+        const { result } = renderHook(() => useCalculator({
+          user: null,
+          stocks: mockStocks,
+          setStocks: mockSetStocks
         }));
 
         // Should work with null user (guest mode)
@@ -1296,17 +1296,17 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       it('should handle stock removal when user is logged in', async () => {
-        const mockUserWithAuth = { uid: '123' } as any;
+        const mockUserWithAuth = { uid: '123' } as User;
         const mockSetStocksWithUser = vi.fn().mockResolvedValue(undefined);
 
         // Mock setDoc to return a promise
         const { setDoc } = await import('firebase/firestore');
-        vi.mocked(setDoc).mockResolvedValue(undefined as any);
+        vi.mocked(setDoc).mockResolvedValue(undefined as void);
 
-        const { result } = renderHook(() => useCalculator({ 
-          user: mockUserWithAuth, 
-          stocks: [{ name: 'AAPL', percentage: 100 }], 
-          setStocks: mockSetStocksWithUser 
+        const { result } = renderHook(() => useCalculator({
+          user: mockUserWithAuth,
+          stocks: [{ name: 'AAPL', percentage: 100 }],
+          setStocks: mockSetStocksWithUser
         }));
 
         await waitFor(() => {

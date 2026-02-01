@@ -14,7 +14,7 @@ describe('ViewToggle', () => {
 
   it('should highlight deposit button when deposit mode is active', () => {
     const handleModeChange = vi.fn();
-    const { container } = render(<ViewToggle mode="deposit" onModeChange={handleModeChange} />);
+    render(<ViewToggle mode="deposit" onModeChange={handleModeChange} />);
 
     const depositButton = screen.getByText('Deposit/Withdrawal');
     const rebalanceButton = screen.getByText('Rebalance Portfolio');
@@ -26,7 +26,7 @@ describe('ViewToggle', () => {
 
   it('should highlight rebalance button when rebalance mode is active', () => {
     const handleModeChange = vi.fn();
-    const { container } = render(<ViewToggle mode="rebalance" onModeChange={handleModeChange} />);
+    render(<ViewToggle mode="rebalance" onModeChange={handleModeChange} />);
 
     const depositButton = screen.getByText('Deposit/Withdrawal');
     const rebalanceButton = screen.getByText('Rebalance Portfolio');

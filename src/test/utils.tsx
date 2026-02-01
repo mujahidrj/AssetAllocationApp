@@ -1,20 +1,41 @@
-import { render as rtlRender, RenderOptions } from '@testing-library/react';
-import { ReactElement, ReactNode } from 'react';
-
-// Simple wrapper that doesn't require AuthProvider
-// Most component tests don't need auth context
-const SimpleWrapper = ({ children }: { children: ReactNode }) => {
-  return <>{children}</>;
-};
+import {
+  render as rtlRender,
+  RenderOptions,
+  screen,
+  waitFor,
+  within,
+  queryByText,
+  getByText,
+  queryByRole,
+  getByRole,
+  queryByLabelText,
+  getByLabelText,
+  queryByPlaceholderText,
+  getByPlaceholderText,
+} from '@testing-library/react';
+import { ReactElement } from 'react';
+import { SimpleWrapper } from './SimpleWrapper';
 
 const customRender = (
   ui: ReactElement,
   options?: Omit<RenderOptions, 'wrapper'>,
 ) => rtlRender(ui, { wrapper: SimpleWrapper, ...options });
 
-// Re-export everything
-export * from '@testing-library/react';
+// Explicitly export what's needed from @testing-library/react
 export { customRender as render };
+export {
+  screen,
+  waitFor,
+  within,
+  queryByText,
+  getByText,
+  queryByRole,
+  getByRole,
+  queryByLabelText,
+  getByLabelText,
+  queryByPlaceholderText,
+  getByPlaceholderText,
+};
 
 // Test utilities
 export const createMockStock = (overrides?: Partial<import('../components/calculator/types').Stock>) => ({
