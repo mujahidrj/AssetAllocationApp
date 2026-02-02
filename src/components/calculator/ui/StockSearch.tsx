@@ -44,37 +44,41 @@ export function StockSearch({
   const resultsRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Calculate dropdown position - always below the input
+  // Calculate dropdown position - always above the input, cascading upward
   const calculateDropdownPosition = useCallback(() => {
     if (!inputRef.current) return;
 
     const inputRect = inputRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
 
     // Calculate fixed positioning to escape scrollable containers
     // Fixed positioning is relative to viewport, not document
+    // Always position above the input, cascading upward (especially important on mobile)
+    const resultCount = searchResults.length;
+    const itemHeight = 60; // Approximate height per result item
+    const estimatedDropdownHeight = Math.min(250, resultCount * itemHeight + 20); // Dynamic height based on results
+    const spaceAbove = inputRect.top;
+    const spaceBelow = viewportHeight - inputRect.bottom;
+
+    // Always try to position above first (cascading upward from search box)
+    // Only use available space above, don't go off-screen
+    const maxAvailableHeight = Math.min(estimatedDropdownHeight, spaceAbove - 16);
+    const topPosition = inputRect.top - maxAvailableHeight - 4;
+
     const style: React.CSSProperties = {
       position: 'fixed',
-      left: `${inputRect.left}px`,
-      width: `${inputRect.width}px`,
-      top: `${inputRect.bottom + 4}px`,
+      left: `${Math.max(8, inputRect.left)}px`, // Keep within viewport with margins
+      width: `${Math.min(inputRect.width, viewportWidth - inputRect.left - 8)}px`, // Ensure it fits on screen
+      top: `${Math.max(8, topPosition)}px`, // Position above input, but don't go above viewport
+      maxHeight: `${Math.max(100, maxAvailableHeight)}px`, // Use available space above
       zIndex: 99999,
       // Ensure dropdown doesn't go off-screen on mobile
       maxWidth: 'calc(100vw - 16px)',
     };
 
-    // On mobile, check if dropdown would go off bottom of screen
-    const viewportHeight = window.innerHeight;
-    const estimatedDropdownHeight = 250; // Max height from CSS
-    const spaceBelow = viewportHeight - inputRect.bottom;
-    
-    if (spaceBelow < estimatedDropdownHeight && inputRect.top > estimatedDropdownHeight) {
-      // If not enough space below, position it above the input instead
-      style.top = `${inputRect.top - estimatedDropdownHeight - 4}px`;
-      style.maxHeight = `${inputRect.top - 16}px`; // Limit height to not go above viewport
-    }
-
     setDropdownStyle(style);
-  }, []);
+  }, [searchResults.length]);
 
 
   // Fetch stock price for a single symbol
@@ -290,10 +294,13 @@ export function StockSearch({
           // Show results dropdown if we have results OR if query is long enough but no results (to show "no results" message)
           setShowResults(resultsWithPrices.length > 0 || query.length >= MIN_SEARCH_LENGTH);
 
-          // Calculate dropdown position after results are set
-          setTimeout(() => {
-            calculateDropdownPosition();
-          }, 0);
+          // Calculate dropdown position after results are set and DOM updated
+          // Use requestAnimationFrame to ensure DOM has updated with new results
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              calculateDropdownPosition();
+            }, 0);
+          });
         }
       } else {
         // API returned no data - show "no results" if query is long enough
@@ -451,29 +458,49 @@ export function StockSearch({
   // Also recalculate on mobile when virtual keyboard appears/disappears
   useEffect(() => {
     if (showResults && searchResults.length > 0) {
-      calculateDropdownPosition();
-      const handleResize = () => calculateDropdownPosition();
-      const handleScroll = () => calculateDropdownPosition();
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        calculateDropdownPosition();
+      });
+
+      const handleResize = () => {
+        requestAnimationFrame(() => {
+          calculateDropdownPosition();
+        });
+      };
+
+      const handleScroll = () => {
+        requestAnimationFrame(() => {
+          calculateDropdownPosition();
+        });
+      };
+
       // Handle mobile virtual keyboard
       const handleOrientationChange = () => {
         // Small delay to allow viewport to adjust
-        setTimeout(() => calculateDropdownPosition(), 100);
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            calculateDropdownPosition();
+          });
+        }, 100);
       };
-      
+
       window.addEventListener('resize', handleResize);
       window.addEventListener('scroll', handleScroll, true); // Capture scroll events from all elements
       window.addEventListener('orientationchange', handleOrientationChange);
       // Visual viewport API for better mobile keyboard handling
       if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', handleResize);
+        window.visualViewport.addEventListener('scroll', handleScroll);
       }
-      
+
       return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('scroll', handleScroll, true);
         window.removeEventListener('orientationchange', handleOrientationChange);
         if (window.visualViewport) {
           window.visualViewport.removeEventListener('resize', handleResize);
+          window.visualViewport.removeEventListener('scroll', handleScroll);
         }
       };
     }
@@ -503,6 +530,10 @@ export function StockSearch({
             onFocus={() => {
               if (searchResults.length > 0) {
                 setShowResults(true);
+                // Recalculate position when input gains focus (important for mobile)
+                requestAnimationFrame(() => {
+                  calculateDropdownPosition();
+                });
               }
             }}
             className={`${styles.input} ${error ? styles.inputError : ''}`}
