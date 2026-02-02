@@ -57,7 +57,7 @@ export interface CalculatorState {
 
 export interface CalculatorActions {
   setAmount: (amount: string) => void;
-  addStock: (symbol: string) => Promise<void>;
+  addStock: (symbol: string, companyName?: string) => Promise<void>;
   addCash: () => void;
   removeStock: (index: number) => void;
   updateStockPercentage: (index: number, percentage: string) => void;

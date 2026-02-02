@@ -489,5 +489,36 @@ describe('ResultsSection', () => {
 
       expect(screen.getByText('$1,234,567.89')).toBeInTheDocument();
     });
+
+    it('should display error message when error prop is provided', () => {
+      const error = 'Invalid allocation';
+      render(<ResultsSection allocations={null} error={error} />);
+
+      expect(screen.getByText(error)).toBeInTheDocument();
+    });
+
+    it('should render null when allocations is null and no error', () => {
+      const { container } = render(<ResultsSection allocations={null} />);
+
+      expect(container.firstChild).toBeNull();
+    });
+
+    it('should handle allocations with undefined shares', () => {
+      const allocations: AllocationResult[] = [
+        { name: 'AAPL', percentage: 50, amount: '500.00', shares: undefined },
+      ];
+      render(<ResultsSection allocations={allocations} />);
+
+      expect(screen.getByText('—')).toBeInTheDocument();
+    });
+
+    it('should handle allocations with null shares', () => {
+      const allocations: AllocationResult[] = [
+        { name: 'AAPL', percentage: 50, amount: '500.00', shares: null as any },
+      ];
+      render(<ResultsSection allocations={allocations} />);
+
+      expect(screen.getByText('—')).toBeInTheDocument();
+    });
   });
 });

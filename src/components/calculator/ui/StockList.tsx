@@ -2,6 +2,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faChartLine } from '@fortawesome/free-solid-svg-icons';
 import type { Stock, ValidationErrors } from '../types';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
+import { StockSearch } from './StockSearch';
 import styles from './StockList.module.css';
 
 interface StockListProps {
@@ -11,7 +12,7 @@ interface StockListProps {
   validationErrors: ValidationErrors;
   newStockName: string;
   onNewStockNameChange: (value: string) => void;
-  onAddStock: () => void;
+  onAddStock: (symbol?: string, companyName?: string) => void;
   onAddCash: () => void;
   loading?: boolean;
 }
@@ -32,8 +33,14 @@ export function StockList({
 
   const handleAddStock = () => {
     if (newStockName.trim() && !loading) {
-      onAddStock();
+      onAddStock(newStockName.trim());
     }
+  };
+
+  const handleSearchSelect = (symbol: string, companyName: string) => {
+    onNewStockNameChange(symbol);
+    // Auto-add when selected from search
+    onAddStock(symbol, companyName);
   };
 
   return (
@@ -123,14 +130,17 @@ export function StockList({
                           </button>
                         </td>
                         <td colSpan={2} className={styles.addRowInputCell}>
-                          <input
-                            type="text"
+                          <StockSearch
                             value={newStockName}
-                            onChange={(e) => onNewStockNameChange(e.target.value)}
-                            className={`${styles.addRowInput} ${validationErrors.newStock ? styles.inputError : ''}`}
-                            placeholder="Enter stock symbol (e.g. VOO)"
-                            disabled={loading}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddStock()}
+                            onChange={onNewStockNameChange}
+                            onSelect={handleSearchSelect}
+                            onEnterPress={() => {
+                              if (newStockName.trim() && !loading) {
+                                handleAddStock();
+                              }
+                            }}
+                            error={validationErrors.newStock}
+                            loading={loading}
                           />
                         </td>
                         <td className={styles.actionsCell}>
@@ -147,14 +157,17 @@ export function StockList({
                     ) : (
                       <>
                         <td colSpan={3} className={styles.addRowInputCell}>
-                          <input
-                            type="text"
+                          <StockSearch
                             value={newStockName}
-                            onChange={(e) => onNewStockNameChange(e.target.value)}
-                            className={`${styles.addRowInput} ${validationErrors.newStock ? styles.inputError : ''}`}
-                            placeholder="Enter stock symbol (e.g. VOO)"
-                            disabled={loading}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddStock()}
+                            onChange={onNewStockNameChange}
+                            onSelect={handleSearchSelect}
+                            onEnterPress={() => {
+                              if (newStockName.trim() && !loading) {
+                                handleAddStock();
+                              }
+                            }}
+                            error={validationErrors.newStock}
+                            loading={loading}
                           />
                         </td>
                         <td className={styles.actionsCell}>
@@ -235,15 +248,20 @@ export function StockList({
 
       {/* Add stock form - show on mobile always, on desktop only when empty */}
       {(isMobile || stocks.length === 0) && (
-        <div className={styles.addFormMobile}>
-          <input
-            type="text"
+        <div
+          className={styles.addFormMobile}
+        >
+          <StockSearch
             value={newStockName}
-            onChange={(e) => onNewStockNameChange(e.target.value)}
-            className={`${styles.addRowInput} ${validationErrors.newStock ? styles.inputError : ''}`}
-            placeholder="Enter stock symbol (e.g. VOO)"
-            disabled={loading}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddStock()}
+            onChange={onNewStockNameChange}
+            onSelect={handleSearchSelect}
+            onEnterPress={() => {
+              if (newStockName.trim() && !loading) {
+                handleAddStock();
+              }
+            }}
+            error={validationErrors.newStock}
+            loading={loading}
           />
           <button
             onClick={handleAddStock}
@@ -264,10 +282,6 @@ export function StockList({
             </button>
           )}
         </div>
-      )}
-
-      {validationErrors.newStock && (
-        <div className={styles.error}>{validationErrors.newStock}</div>
       )}
 
       {(validationErrors.percentages || validationErrors.rebalancePercentages) && (

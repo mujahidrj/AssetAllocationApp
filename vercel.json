@@ -18,10 +18,18 @@
     {
       "source": "/api/stock/:symbol",
       "destination": "/api/stock?symbol=:symbol"
+    },
+    {
+      "source": "/api/search",
+      "destination": "/api/search"
     }
   ],
   "functions": {
     "api/stock.ts": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "api/search.ts": {
       "memory": 1024,
       "maxDuration": 10
     }
