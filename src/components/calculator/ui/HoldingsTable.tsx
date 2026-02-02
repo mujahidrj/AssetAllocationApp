@@ -155,7 +155,7 @@ export function HoldingsTable({
     await onAddAsset(newStockName.trim());
   };
 
-  const handleSearchSelect = (symbol: string, _companyName: string) => {
+  const handleSearchSelect = (symbol: string) => {
     onNewStockNameChange(symbol);
     // Auto-add when selected from search
     void onAddAsset(symbol);

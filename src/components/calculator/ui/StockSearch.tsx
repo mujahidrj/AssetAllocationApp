@@ -100,8 +100,18 @@ export function StockSearch({
       return null;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
+        // Abort errors are expected when requests are cancelled - silently ignore
         return null;
       }
+      // Suppress DOMException and InterceptorError (often from aborted requests handled by MSW)
+      if (error instanceof DOMException) {
+        return null;
+      }
+      // Check for InterceptorError (MSW error when aborting already-handled requests)
+      if (error instanceof Error && error.message?.includes('already been handled')) {
+        return null;
+      }
+      // Silently ignore expected errors - only log truly unexpected ones if needed
       return null;
     }
   }, []);
@@ -279,9 +289,22 @@ export function StockSearch({
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        // Ignore abort errors
+        // Abort errors are expected when requests are cancelled - silently ignore
         return;
       }
+      // Suppress DOMException and InterceptorError (often from aborted requests handled by MSW)
+      if (error instanceof DOMException) {
+        setSearchResults([]);
+        setShowResults(false);
+        return;
+      }
+      // Check for InterceptorError (MSW error when aborting already-handled requests)
+      if (error instanceof Error && error.message?.includes('already been handled')) {
+        setSearchResults([]);
+        setShowResults(false);
+        return;
+      }
+      // Only log unexpected errors
       console.error('Error searching stocks:', error);
       setSearchResults([]);
       setShowResults(false);

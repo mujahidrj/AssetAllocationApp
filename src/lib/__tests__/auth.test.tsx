@@ -52,7 +52,7 @@ function TestComponent() {
 
 describe('AuthProvider', () => {
   const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
-  const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 
   beforeEach(() => {
     vi.clearAllMocks();
