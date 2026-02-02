@@ -49,8 +49,22 @@ export function StockSearch({
     if (!inputRef.current) return;
 
     const inputRect = inputRef.current.getBoundingClientRect();
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+    
+    // Use Visual Viewport API on mobile to account for keyboard
+    // visualViewport gives us the visible area excluding the keyboard
+    const visualViewport = window.visualViewport;
+    const viewportWidth = visualViewport ? visualViewport.width : (window.innerWidth || document.documentElement.clientWidth);
+    
+    // On mobile with keyboard, getBoundingClientRect() returns coordinates relative to layout viewport
+    // but we need coordinates relative to visual viewport (visible area)
+    let inputTop = inputRect.top;
+    let inputLeft = inputRect.left;
+    
+    if (visualViewport) {
+      // Adjust for visual viewport offset (accounts for keyboard)
+      inputTop = inputRect.top - visualViewport.offsetTop;
+      inputLeft = inputRect.left - visualViewport.offsetLeft;
+    }
 
     // Calculate fixed positioning to escape scrollable containers
     // Fixed positioning is relative to viewport, not document
@@ -58,18 +72,17 @@ export function StockSearch({
     const resultCount = searchResults.length;
     const itemHeight = 60; // Approximate height per result item
     const estimatedDropdownHeight = Math.min(250, resultCount * itemHeight + 20); // Dynamic height based on results
-    const spaceAbove = inputRect.top;
-    const spaceBelow = viewportHeight - inputRect.bottom;
-
+    const spaceAbove = inputTop;
+    
     // Always try to position above first (cascading upward from search box)
     // Only use available space above, don't go off-screen
     const maxAvailableHeight = Math.min(estimatedDropdownHeight, spaceAbove - 16);
-    const topPosition = inputRect.top - maxAvailableHeight - 4;
+    const topPosition = inputTop - maxAvailableHeight - 4;
 
     const style: React.CSSProperties = {
       position: 'fixed',
-      left: `${Math.max(8, inputRect.left)}px`, // Keep within viewport with margins
-      width: `${Math.min(inputRect.width, viewportWidth - inputRect.left - 8)}px`, // Ensure it fits on screen
+      left: `${Math.max(8, inputLeft)}px`, // Keep within viewport with margins
+      width: `${Math.min(inputRect.width, viewportWidth - inputLeft - 8)}px`, // Ensure it fits on screen
       top: `${Math.max(8, topPosition)}px`, // Position above input, but don't go above viewport
       maxHeight: `${Math.max(100, maxAvailableHeight)}px`, // Use available space above
       zIndex: 99999,
@@ -462,20 +475,20 @@ export function StockSearch({
       requestAnimationFrame(() => {
         calculateDropdownPosition();
       });
-
+      
       const handleResize = () => {
         requestAnimationFrame(() => {
           calculateDropdownPosition();
         });
       };
-
+      
       const handleScroll = () => {
         requestAnimationFrame(() => {
           calculateDropdownPosition();
         });
       };
-
-      // Handle mobile virtual keyboard
+      
+      // Handle mobile virtual keyboard - this is critical for correct positioning
       const handleOrientationChange = () => {
         // Small delay to allow viewport to adjust
         setTimeout(() => {
@@ -484,24 +497,43 @@ export function StockSearch({
           });
         }, 100);
       };
-
+      
       window.addEventListener('resize', handleResize);
       window.addEventListener('scroll', handleScroll, true); // Capture scroll events from all elements
       window.addEventListener('orientationchange', handleOrientationChange);
+      
       // Visual viewport API for better mobile keyboard handling
+      // This fires when keyboard opens/closes and viewport changes
       if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', handleResize);
-        window.visualViewport.addEventListener('scroll', handleScroll);
+        const handleVisualViewportResize = () => {
+          // Recalculate immediately when visual viewport changes (keyboard open/close)
+          requestAnimationFrame(() => {
+            calculateDropdownPosition();
+          });
+        };
+        
+        const handleVisualViewportScroll = () => {
+          requestAnimationFrame(() => {
+            calculateDropdownPosition();
+          });
+        };
+        
+        window.visualViewport.addEventListener('resize', handleVisualViewportResize);
+        window.visualViewport.addEventListener('scroll', handleVisualViewportScroll);
+        
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          window.removeEventListener('scroll', handleScroll, true);
+          window.removeEventListener('orientationchange', handleOrientationChange);
+          window.visualViewport.removeEventListener('resize', handleVisualViewportResize);
+          window.visualViewport.removeEventListener('scroll', handleVisualViewportScroll);
+        };
       }
-
+      
       return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('scroll', handleScroll, true);
         window.removeEventListener('orientationchange', handleOrientationChange);
-        if (window.visualViewport) {
-          window.visualViewport.removeEventListener('resize', handleResize);
-          window.visualViewport.removeEventListener('scroll', handleScroll);
-        }
       };
     }
   }, [showResults, searchResults.length, calculateDropdownPosition]);
