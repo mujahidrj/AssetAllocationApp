@@ -33,7 +33,7 @@ describe('RothIRACalculator', () => {
   })
 
   it('allows adding a new stock', async () => {
-    const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i)
+    const input = screen.getByPlaceholderText(/search stock symbol or company/i)
     const addButtons = screen.getAllByText(/add/i)
     const addButton = addButtons.find(btn => btn.textContent?.trim() === 'Add')
     expect(addButton).toBeInTheDocument()
@@ -169,7 +169,7 @@ describe('RothIRACalculator', () => {
 
   it('sanitizes user input for stock symbols', async () => {
     const user = userEvent.setup()
-    const input = await screen.findByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i)
+    const input = await screen.findByPlaceholderText(/search stock symbol or company/i)
     const addButton = screen.getByRole('button', { name: /^add$/i })
 
     await user.type(input, '<script>alert("xss")</script>')

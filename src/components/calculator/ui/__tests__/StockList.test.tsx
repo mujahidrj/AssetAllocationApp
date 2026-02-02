@@ -134,7 +134,7 @@ describe('StockList', () => {
   it('should display add stock input', () => {
     render(<StockList {...defaultProps} />);
 
-    expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search stock symbol or company...')).toBeInTheDocument();
   });
 
   it('should call onNewStockNameChange when input changes', async () => {
@@ -143,7 +143,7 @@ describe('StockList', () => {
 
     render(<StockList {...defaultProps} onNewStockNameChange={onNewStockNameChange} />);
 
-    const input = screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)');
+    const input = screen.getByPlaceholderText('Search stock symbol or company...');
     await user.type(input, 'AAPL');
 
     expect(onNewStockNameChange).toHaveBeenCalled();
@@ -151,7 +151,7 @@ describe('StockList', () => {
 
   it('should call onAddStock when Add button is clicked', async () => {
     const user = userEvent.setup();
-    const onAddStock = vi.fn();
+    const onAddStock = vi.fn((symbol?: string, companyName?: string) => Promise.resolve());
 
     render(<StockList {...defaultProps} newStockName="AAPL" onAddStock={onAddStock} />);
 
@@ -163,13 +163,17 @@ describe('StockList', () => {
 
   it('should call onAddStock when Enter is pressed in input', async () => {
     const user = userEvent.setup();
-    const onAddStock = vi.fn();
+    const onAddStock = vi.fn((symbol?: string, companyName?: string) => Promise.resolve());
 
     render(<StockList {...defaultProps} newStockName="AAPL" onAddStock={onAddStock} />);
 
-    const input = screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)');
+    const input = screen.getByPlaceholderText('Search stock symbol or company...');
+    // StockSearch handles Enter key for selecting from dropdown, but also allows Enter to add
+    // Since there's no dropdown open, Enter should trigger add
     await user.type(input, '{Enter}');
 
+    // Note: StockSearch may handle Enter differently if dropdown is open
+    // This test verifies basic Enter functionality
     expect(onAddStock).toHaveBeenCalled();
   });
 
@@ -190,7 +194,7 @@ describe('StockList', () => {
   it('should disable input when loading', () => {
     render(<StockList {...defaultProps} loading={true} />);
 
-    const input = screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)');
+    const input = screen.getByPlaceholderText('Search stock symbol or company...');
     expect(input).toBeDisabled();
   });
 
@@ -211,7 +215,9 @@ describe('StockList', () => {
 
     render(<StockList {...defaultProps} validationErrors={validationErrors} />);
 
-    expect(screen.getByText('Stock symbol is invalid')).toBeInTheDocument();
+    // Error can appear in multiple places (StockSearch component and StockList error display)
+    const errorElements = screen.getAllByText('Stock symbol is invalid');
+    expect(errorElements.length).toBeGreaterThan(0);
   });
 
   it('should apply error class to percentage input when validation error exists', () => {
@@ -235,14 +241,14 @@ describe('StockList', () => {
 
     render(<StockList {...defaultProps} newStockName="INVALID" validationErrors={validationErrors} />);
 
-    const input = screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)');
+    const input = screen.getByPlaceholderText('Search stock symbol or company...');
     // CSS modules add hash, so check if class contains 'inputError'
     expect(input.className).toContain('inputError');
   });
 
   it('should not call onAddStock when input is empty and button is clicked', async () => {
     const user = userEvent.setup();
-    const onAddStock = vi.fn();
+    const onAddStock = vi.fn((symbol?: string, companyName?: string) => Promise.resolve());
 
     render(<StockList {...defaultProps} newStockName="" onAddStock={onAddStock} />);
 
@@ -254,7 +260,7 @@ describe('StockList', () => {
 
   it('should not call onAddStock when input is only whitespace', async () => {
     const user = userEvent.setup();
-    const onAddStock = vi.fn();
+    const onAddStock = vi.fn((symbol?: string, companyName?: string) => Promise.resolve());
 
     render(<StockList {...defaultProps} newStockName="   " onAddStock={onAddStock} />);
 
@@ -454,7 +460,7 @@ describe('StockList', () => {
     it('should render mobile add form', () => {
       render(<StockList {...defaultProps} />);
 
-      expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search stock symbol or company...')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
     });
   });

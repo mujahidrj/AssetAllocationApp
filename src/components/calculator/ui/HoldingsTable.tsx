@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrash, faChartLine } from '@fortawesome/free-solid-svg-icons';
 import type { CurrentPosition, Stock } from '../types';
 import { useMediaQuery } from '../../../lib/useMediaQuery';
+import { StockSearch } from './StockSearch';
 import styles from './HoldingsTable.module.css';
 
 interface HoldingsRow {
@@ -152,6 +153,12 @@ export function HoldingsTable({
   const handleAddAsset = async () => {
     if (!newStockName.trim()) return;
     await onAddAsset(newStockName.trim());
+  };
+
+  const handleSearchSelect = (symbol: string, companyName: string) => {
+    onNewStockNameChange(symbol);
+    // Auto-add when selected from search
+    onAddAsset(symbol);
   };
 
   return (
@@ -387,19 +394,20 @@ export function HoldingsTable({
                       </button>
                     </td>
                     <td colSpan={3} className={styles.addRowInputCell}>
-                      <input
-                        type="text"
-                        value={newStockName}
-                        onChange={(e) => onNewStockNameChange(e.target.value)}
-                        className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
-                        placeholder="Enter stock symbol (e.g. VOO)"
-                        disabled={loading}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleAddAsset();
-                          }
-                        }}
-                      />
+                      <div onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newStockName.trim() && !loading) {
+                          e.preventDefault();
+                          handleAddAsset();
+                        }
+                      }}>
+                        <StockSearch
+                          value={newStockName}
+                          onChange={onNewStockNameChange}
+                          onSelect={handleSearchSelect}
+                          error={validationErrors.newPosition || validationErrors.newRebalanceStock}
+                          loading={loading}
+                        />
+                      </div>
                     </td>
                     <td className={styles.actionsCell}>
                       <button
@@ -415,19 +423,20 @@ export function HoldingsTable({
                 ) : (
                   <>
                     <td colSpan={4} className={styles.addRowInputCell}>
-                      <input
-                        type="text"
-                        value={newStockName}
-                        onChange={(e) => onNewStockNameChange(e.target.value)}
-                        className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
-                        placeholder="Enter stock symbol (e.g. VOO)"
-                        disabled={loading}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleAddAsset();
-                          }
-                        }}
-                      />
+                      <div onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newStockName.trim() && !loading) {
+                          e.preventDefault();
+                          handleAddAsset();
+                        }
+                      }}>
+                        <StockSearch
+                          value={newStockName}
+                          onChange={onNewStockNameChange}
+                          onSelect={handleSearchSelect}
+                          error={validationErrors.newPosition || validationErrors.newRebalanceStock}
+                          loading={loading}
+                        />
+                      </div>
                     </td>
                     <td className={styles.actionsCell}>
                       <button
@@ -646,15 +655,20 @@ export function HoldingsTable({
       {/* Add form - mobile when has holdings, both when empty */}
       {(isMobile && holdingsRows.length > 0) || holdingsRows.length === 0 ? (
         <div className={styles.addFormMobile}>
-          <input
-            type="text"
-            value={newStockName}
-            onChange={(e) => onNewStockNameChange(e.target.value)}
-            className={`${styles.addRowInput} ${validationErrors.newPosition || validationErrors.newRebalanceStock ? styles.inputError : ''}`}
-            placeholder="Enter stock symbol (e.g. VOO)"
-            disabled={loading}
-            onKeyDown={(e) => e.key === 'Enter' && handleAddAsset()}
-          />
+          <div onKeyDown={(e) => {
+            if (e.key === 'Enter' && newStockName.trim() && !loading) {
+              e.preventDefault();
+              handleAddAsset();
+            }
+          }}>
+            <StockSearch
+              value={newStockName}
+              onChange={onNewStockNameChange}
+              onSelect={handleSearchSelect}
+              error={validationErrors.newPosition || validationErrors.newRebalanceStock}
+              loading={loading}
+            />
+          </div>
           <button
             onClick={handleAddAsset}
             className={styles.addRowButton}
@@ -675,12 +689,6 @@ export function HoldingsTable({
           )}
         </div>
       ) : null}
-
-      {(validationErrors.newPosition || validationErrors.newRebalanceStock) && (
-        <div className={styles.error}>
-          {validationErrors.newPosition || validationErrors.newRebalanceStock}
-        </div>
-      )}
     </div>
   );
 }

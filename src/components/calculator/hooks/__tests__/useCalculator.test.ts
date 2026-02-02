@@ -127,7 +127,7 @@ describe('useCalculator - Deposit Mode', () => {
 
   describe('addStock', () => {
     it('should add a new stock when valid symbol is provided', async () => {
-      // Mock API responses - first for Finnhub (company name), then for stock price
+      // Mock API responses - first for search API (company name), then for stock price
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
@@ -481,7 +481,7 @@ describe('useCalculator - Rebalance Mode', () => {
           json: async () => ({ price: 100 }),
         } as Response);
       }
-      if (url.includes('finnhub.io')) {
+      if (url.includes('/api/search')) {
         return Promise.resolve({
           ok: true,
           json: async () => ({ result: [{ description: 'Test Company' }] }),
@@ -581,11 +581,11 @@ describe('useCalculator - Rebalance Mode', () => {
     });
 
     it('should skip fetchStockInfo for stocks already in rebalanceStocks', async () => {
-      // Track Finnhub API calls
-      let finnhubCallCount = 0;
+      // Track search API calls
+      let searchApiCallCount = 0;
       mockFetch.mockImplementation((url: string) => {
-        if (url.includes('finnhub.io')) {
-          finnhubCallCount++;
+        if (url.includes('/api/search')) {
+          searchApiCallCount++;
           return Promise.resolve({
             ok: true,
             json: async () => ({ result: [{ description: 'Test Company' }] }),
@@ -616,7 +616,7 @@ describe('useCalculator - Rebalance Mode', () => {
       });
 
       // Reset counter before adding position
-      finnhubCallCount = 0;
+      searchApiCallCount = 0;
 
       await act(async () => {
         await result.current.actions.addCurrentPosition('FZROX');
@@ -631,8 +631,8 @@ describe('useCalculator - Rebalance Mode', () => {
       expect(position.symbol).toBe('FZROX');
       expect(position.companyName).toBe('Fidelity ZERO Total Market Index Fund');
 
-      // Verify fetchStockInfo (Finnhub API) was NOT called since stock is in rebalanceStocks
-      expect(finnhubCallCount).toBe(0);
+      // Verify fetchStockInfo (search API) was NOT called since stock is in rebalanceStocks
+      expect(searchApiCallCount).toBe(0);
 
       // Verify no validation errors
       expect(result.current.state.validationErrors.newPosition).toBeUndefined();

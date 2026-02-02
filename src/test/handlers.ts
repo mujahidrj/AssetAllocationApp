@@ -22,8 +22,8 @@ export const handlers = [
     return HttpResponse.json({ price });
   }),
 
-  // Finnhub stock search API
-  http.get('https://finnhub.io/api/v1/search', ({ request }) => {
+  // Yahoo Finance stock search API (via proxy)
+  http.get('*/api/search', ({ request }) => {
     const url = new URL(request.url);
     const query = url.searchParams.get('q');
     
@@ -35,6 +35,7 @@ export const handlers = [
       VOO: 'Vanguard S&P 500 ETF',
       FZROX: 'Fidelity ZERO Total Market Index Fund',
       FZILX: 'Fidelity ZERO International Index Fund',
+      AMAPX: 'Amana Participation Investor',
     };
 
     const description = mockCompanies[query || ''] || `${query} Corporation`;

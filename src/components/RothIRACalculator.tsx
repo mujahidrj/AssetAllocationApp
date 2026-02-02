@@ -61,7 +61,7 @@ function RothIRACalculator() {
                 validationErrors={state.validationErrors}
                 newStockName={state.newStockName}
                 onNewStockNameChange={actions.setNewStockName}
-                onAddStock={() => actions.addStock(state.newStockName)}
+                onAddStock={(symbol, companyName) => actions.addStock(symbol || state.newStockName, companyName)}
                 onAddCash={actions.addCash}
                 loading={loading || state.loading}
               />

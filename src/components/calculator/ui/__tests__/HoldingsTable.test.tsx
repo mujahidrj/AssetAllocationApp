@@ -3,6 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HoldingsTable } from '../HoldingsTable';
 import type { CurrentPosition, Stock } from '../../types';
+import { server } from '../../../../test/server';
+import { http, HttpResponse } from 'msw';
 
 vi.mock('../../../../lib/useMediaQuery', () => ({
   useMediaQuery: vi.fn(() => false),
@@ -206,7 +208,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
+      const input = screen.getByPlaceholderText('Search stock symbol or company...');
       await user.type(input, 'TSLA');
 
       expect(onNewStockNameChange).toHaveBeenCalled();
@@ -363,7 +365,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
+      const input = screen.getByPlaceholderText('Search stock symbol or company...');
       await user.type(input, '{Enter}');
 
       expect(onAddAsset).toHaveBeenCalled();
@@ -445,7 +447,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
+      const input = screen.getByPlaceholderText('Search stock symbol or company...');
       expect(input).toBeDisabled();
     });
 
@@ -500,7 +502,7 @@ describe('HoldingsTable', () => {
       expect(screen.getAllByText('Current value').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Target %').length).toBeGreaterThan(0);
       expect(screen.getAllByRole('button', { name: /delete/i }).length).toBeGreaterThan(0);
-      expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search stock symbol or company...')).toBeInTheDocument();
     });
 
     it('should render with stacked layout when mobileLayoutVariant is stacked', () => {
@@ -514,7 +516,7 @@ describe('HoldingsTable', () => {
     it('should render add form when mobile with holdings', () => {
       render(<HoldingsTable {...defaultProps} />);
 
-      expect(screen.getByPlaceholderText('Enter stock symbol (e.g. VOO)')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Search stock symbol or company...')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /^add$/i })).toBeInTheDocument();
     });
 
@@ -735,7 +737,9 @@ describe('HoldingsTable', () => {
         />
       );
 
-      expect(screen.getByText('Invalid symbol')).toBeInTheDocument();
+      // Error can appear in multiple places (StockSearch component)
+      const errorElements = screen.getAllByText('Invalid symbol');
+      expect(errorElements.length).toBeGreaterThan(0);
     });
 
     it('should display newRebalanceStock validation error', () => {
@@ -750,7 +754,9 @@ describe('HoldingsTable', () => {
         />
       );
 
-      expect(screen.getByText('Stock already exists')).toBeInTheDocument();
+      // Error can appear in multiple places (StockSearch component)
+      const errorElements = screen.getAllByText('Stock already exists');
+      expect(errorElements.length).toBeGreaterThan(0);
     });
   });
 
@@ -769,7 +775,7 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
+      const input = screen.getByPlaceholderText('Search stock symbol or company...');
       await user.type(input, '{Enter}');
       expect(onAddAsset).not.toHaveBeenCalled();
     });
@@ -786,8 +792,9 @@ describe('HoldingsTable', () => {
         />
       );
 
-      const input = screen.getByPlaceholderText(/enter stock symbol \(e\.g\. VOO\)/i);
-      await user.type(input, '{Enter}');
+      const input = screen.getByPlaceholderText('Search stock symbol or company...');
+      input.focus();
+      await user.keyboard('{Enter}');
       expect(onAddAsset).not.toHaveBeenCalled();
     });
 

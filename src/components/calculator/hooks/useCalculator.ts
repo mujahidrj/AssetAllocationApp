@@ -5,9 +5,6 @@ import { samplePortfolios } from '../data/samplePortfolios';
 import { db } from '../../../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
-// Replace with your Firebase config
-const finnhubApiKey = import.meta.env.VITE_FINNHUB_API_KEY;
-
 // Helper function to check if a symbol represents cash
 const isCash = (symbol: string): boolean => {
   return symbol.toUpperCase() === 'CASH' || symbol.toUpperCase() === 'USD';
@@ -22,9 +19,20 @@ interface UseCalculatorProps {
 // Helper function to fetch stock info with abort controller
 const fetchStockInfo = async (symbol: string, signal: AbortSignal) => {
   try {
+    // Use Yahoo Finance search API via our proxy
+    const isDevelopment = import.meta.env.DEV;
+    const apiUrl = isDevelopment ? import.meta.env.VITE_API_URL : window.location.origin;
+
     const response = await fetch(
-      `https://finnhub.io/api/v1/search?q=${symbol}&token=${finnhubApiKey}`,
-      { signal }
+      `${apiUrl}/api/search?q=${encodeURIComponent(symbol)}`,
+      {
+        signal,
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      }
     );
 
     if (!response.ok) {
@@ -1255,6 +1263,8 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       setValidationErrors(prev => {
         const newErrors = { ...prev };
         delete newErrors.newStock;
+        delete newErrors.newPosition;
+        delete newErrors.newRebalanceStock;
         return newErrors;
       });
     },
