@@ -3,6 +3,78 @@
  */
 
 /**
+ * Checks if a ticker symbol is an option (call or put)
+ * @param symbol - The stock ticker symbol to check
+ * @param description - Optional description to check for option keywords
+ * @returns true if the ticker is an option, false otherwise
+ */
+export function isOption(symbol: string, description?: string): boolean {
+  const symbolUpper = symbol.toUpperCase();
+  const descUpper = (description || '').toUpperCase();
+  
+  // Check description for option keywords
+  if (descUpper.includes('CALL') || descUpper.includes('PUT') || descUpper.includes('OPTION')) {
+    return true;
+  }
+  
+  // Options typically have long alphanumeric codes with dates and strike prices
+  // Pattern: TICKER + YYMMDD + C/P + STRIKE (e.g., AAPL230120C00150000)
+  // Check for patterns like: 6 digits (date) followed by C or P, then more digits (strike)
+  const optionPattern = /\d{6}[CP]\d+/;
+  if (optionPattern.test(symbolUpper)) {
+    return true;
+  }
+  
+  // Check for C or P suffix that might indicate options (but be careful not to exclude share classes)
+  // Options with C/P suffix usually have longer codes, not just 1-2 characters
+  const baseTicker = getBaseTicker(symbol);
+  if (baseTicker.length > 0 && symbolUpper.length > baseTicker.length + 3) {
+    const suffix = symbolUpper.substring(baseTicker.length);
+    if (suffix.includes('C') || suffix.includes('P')) {
+      // Check if it looks like an option code (has numbers and C/P)
+      if (/\d/.test(suffix) && (suffix.includes('C') || suffix.includes('P'))) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Checks if a ticker symbol is a futures contract
+ * @param symbol - The stock ticker symbol to check
+ * @param description - Optional description to check for futures keywords
+ * @returns true if the ticker is a futures contract, false otherwise
+ */
+export function isFutures(symbol: string, description?: string): boolean {
+  const symbolUpper = symbol.toUpperCase();
+  const descUpper = (description || '').toUpperCase();
+  
+  // Check description for futures keywords
+  if (descUpper.includes('FUTURE') || descUpper.includes('FUTURES') || descUpper.includes('FUTURE CONTRACT')) {
+    return true;
+  }
+  
+  // Futures often end with "=F" (e.g., ES=F, NQ=F, CL=F)
+  if (symbolUpper.endsWith('=F')) {
+    return true;
+  }
+  
+  // Some futures have "F" suffix but we need to distinguish from Frankfurt exchange (.F)
+  // Futures with F suffix usually don't have a dot before F
+  if (symbolUpper.endsWith('F') && !symbolUpper.includes('.')) {
+    // Check if it's a common futures pattern (short ticker + F, like ESF, NQF)
+    const commonFutures = ['ESF', 'NQF', 'CLF', 'GCF', 'ZCF', 'HGF', 'SIF', 'YMF'];
+    if (commonFutures.includes(symbolUpper)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
  * Checks if a ticker symbol is US-based
  * @param symbol - The stock ticker symbol to check
  * @returns true if the ticker is US-based, false otherwise

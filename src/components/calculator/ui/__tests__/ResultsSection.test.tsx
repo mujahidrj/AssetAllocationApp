@@ -514,7 +514,7 @@ describe('ResultsSection', () => {
 
     it('should handle allocations with null shares', () => {
       const allocations: AllocationResult[] = [
-        { name: 'AAPL', percentage: 50, amount: '500.00', shares: null as any },
+        { name: 'AAPL', percentage: 50, amount: '500.00', shares: null },
       ];
       render(<ResultsSection allocations={allocations} />);
 

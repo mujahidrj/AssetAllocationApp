@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faSearch } from '@fortawesome/free-solid-svg-icons';
-import { isUSTicker, isPrimaryTicker, getBaseTicker } from './stockSearchUtils';
+import { isUSTicker, isPrimaryTicker, getBaseTicker, isOption, isFutures } from './stockSearchUtils';
 import styles from './StockSearch.module.css';
 
 interface StockSearchResult {
@@ -100,8 +100,18 @@ export function StockSearch({
       return null;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
+        // Abort errors are expected when requests are cancelled - silently ignore
         return null;
       }
+      // Suppress DOMException and InterceptorError (often from aborted requests handled by MSW)
+      if (error instanceof DOMException) {
+        return null;
+      }
+      // Check for InterceptorError (MSW error when aborting already-handled requests)
+      if (error instanceof Error && error.message?.includes('already been handled')) {
+        return null;
+      }
+      // Silently ignore expected errors - only log truly unexpected ones if needed
       return null;
     }
   }, []);
@@ -175,10 +185,22 @@ export function StockSearch({
       const data = await response.json();
 
       if (data.result && Array.isArray(data.result)) {
-        // Filter to only US stocks first
+        // Filter to only US stocks, excluding options and futures
         const usResults = data.result.filter((item: { symbol?: string; description?: string }) => {
           const symbol = item.symbol || '';
-          return symbol && isUSTicker(symbol);
+          const description = item.description || '';
+
+          // Must be a valid symbol
+          if (!symbol) return false;
+
+          // Exclude options (calls and puts)
+          if (isOption(symbol, description)) return false;
+
+          // Exclude futures contracts
+          if (isFutures(symbol, description)) return false;
+
+          // Must be US-based
+          return isUSTicker(symbol);
         });
 
         // Group results by base ticker
@@ -267,9 +289,22 @@ export function StockSearch({
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        // Ignore abort errors
+        // Abort errors are expected when requests are cancelled - silently ignore
         return;
       }
+      // Suppress DOMException and InterceptorError (often from aborted requests handled by MSW)
+      if (error instanceof DOMException) {
+        setSearchResults([]);
+        setShowResults(false);
+        return;
+      }
+      // Check for InterceptorError (MSW error when aborting already-handled requests)
+      if (error instanceof Error && error.message?.includes('already been handled')) {
+        setSearchResults([]);
+        setShowResults(false);
+        return;
+      }
+      // Only log unexpected errors
       console.error('Error searching stocks:', error);
       setSearchResults([]);
       setShowResults(false);

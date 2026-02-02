@@ -145,7 +145,7 @@ describe('StockSearch', () => {
 
   it('should call onSelect with correct symbol and description when result is selected', () => {
     const onSelect = vi.fn();
-    const { container } = render(<StockSearch {...defaultProps} onSelect={onSelect} />);
+    render(<StockSearch {...defaultProps} onSelect={onSelect} />);
     
     // Manually trigger handleSelect by simulating internal state
     // We'll test this through the component's internal behavior

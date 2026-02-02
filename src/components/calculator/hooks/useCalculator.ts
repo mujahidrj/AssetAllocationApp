@@ -45,9 +45,18 @@ const fetchStockInfo = async (symbol: string, signal: AbortSignal) => {
     return null;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      // Ignore abort errors
+      // Abort errors are expected when requests are cancelled - silently ignore
       return null;
     }
+    // Suppress DOMException and InterceptorError (often from aborted requests handled by MSW)
+    if (error instanceof DOMException) {
+      return null;
+    }
+    // Check for InterceptorError (MSW error when aborting already-handled requests)
+    if (error instanceof Error && error.message?.includes('already been handled')) {
+      return null;
+    }
+    // Only log unexpected errors
     console.error('Error fetching stock info:', error);
     return null;
   }
@@ -58,7 +67,9 @@ const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
   try {
     // In production, use the deployed API URL, in development use the local server
     const isDevelopment = import.meta.env.DEV;
-    const apiUrl = isDevelopment ? import.meta.env.VITE_API_URL : window.location.origin;
+    const apiUrl = isDevelopment
+      ? (import.meta.env.VITE_API_URL || 'http://localhost:3001')
+      : window.location.origin;
 
     const response = await fetch(
       `${apiUrl}/api/stock/${encodeURIComponent(symbol)}`,
@@ -102,8 +113,18 @@ const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
     return null;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
+      // Abort errors are expected when requests are cancelled - silently ignore
       return null;
     }
+    // Suppress DOMException and InterceptorError (often from aborted requests handled by MSW)
+    if (error instanceof DOMException) {
+      return null;
+    }
+    // Check for InterceptorError (MSW error when aborting already-handled requests)
+    if (error instanceof Error && (error.message?.includes('already been handled') || error.name === 'InterceptorError' || error.constructor?.name === 'InterceptorError')) {
+      return null;
+    }
+    // Only log unexpected errors
     console.warn('Error fetching stock price:', error);
     return null;
   }
@@ -280,7 +301,11 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         return newPrices;
       });
     } catch (error) {
-      console.warn('Error fetching stock prices:', error);
+      // Suppress expected errors (abort, DOMException, InterceptorError)
+      if (!(error instanceof DOMException) &&
+        !(error instanceof Error && (error.name === 'AbortError' || error.name === 'InterceptorError' || error.message?.includes('already been handled')))) {
+        console.warn('Error fetching stock prices:', error);
+      }
       // On error, mark symbols as null (fetch failed) so we don't retry indefinitely
       setStockPrices(prev => {
         const newPrices = { ...prev };

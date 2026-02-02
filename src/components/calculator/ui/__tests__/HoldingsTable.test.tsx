@@ -3,8 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { HoldingsTable } from '../HoldingsTable';
 import type { CurrentPosition, Stock } from '../../types';
-import { server } from '../../../../test/server';
-import { http, HttpResponse } from 'msw';
 
 vi.mock('../../../../lib/useMediaQuery', () => ({
   useMediaQuery: vi.fn(() => false),
@@ -939,7 +937,6 @@ describe('HoldingsTable', () => {
     });
 
     it('should handle onSelect from StockSearch to auto-add asset', async () => {
-      const user = userEvent.setup();
       const onAddAsset = vi.fn().mockResolvedValue(undefined);
 
       render(

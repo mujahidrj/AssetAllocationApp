@@ -151,7 +151,8 @@ describe('StockList', () => {
 
   it('should call onAddStock when Add button is clicked', async () => {
     const user = userEvent.setup();
-    const onAddStock = vi.fn((symbol?: string, companyName?: string) => Promise.resolve());
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const onAddStock = vi.fn((_symbol?: string, _companyName?: string) => Promise.resolve());
 
     render(<StockList {...defaultProps} newStockName="AAPL" onAddStock={onAddStock} />);
 
@@ -163,7 +164,8 @@ describe('StockList', () => {
 
   it('should call onAddStock when Enter is pressed in input', async () => {
     const user = userEvent.setup();
-    const onAddStock = vi.fn((symbol?: string, companyName?: string) => Promise.resolve());
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const onAddStock = vi.fn((_symbol?: string, _companyName?: string) => Promise.resolve());
 
     render(<StockList {...defaultProps} newStockName="AAPL" onAddStock={onAddStock} />);
 
@@ -248,7 +250,8 @@ describe('StockList', () => {
 
   it('should not call onAddStock when input is empty and button is clicked', async () => {
     const user = userEvent.setup();
-    const onAddStock = vi.fn((symbol?: string, companyName?: string) => Promise.resolve());
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const onAddStock = vi.fn((_symbol?: string, _companyName?: string) => Promise.resolve());
 
     render(<StockList {...defaultProps} newStockName="" onAddStock={onAddStock} />);
 
@@ -260,7 +263,8 @@ describe('StockList', () => {
 
   it('should not call onAddStock when input is only whitespace', async () => {
     const user = userEvent.setup();
-    const onAddStock = vi.fn((symbol?: string, companyName?: string) => Promise.resolve());
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const onAddStock = vi.fn((_symbol?: string, _companyName?: string) => Promise.resolve());
 
     render(<StockList {...defaultProps} newStockName="   " onAddStock={onAddStock} />);
 
