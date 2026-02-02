@@ -861,5 +861,44 @@ describe('HoldingsTable', () => {
 
       expect(onAddCashToBoth).toHaveBeenCalled();
     });
+
+    it('should update existing position in mobile without calling onAddPosition', async () => {
+      vi.mocked(useMediaQuery).mockReturnValue(true);
+      const user = userEvent.setup();
+      const onAddPosition = vi.fn().mockResolvedValue(undefined);
+      const onUpdatePosition = vi.fn();
+      const existingPositions: CurrentPosition[] = [
+        { symbol: 'FZROX', inputType: 'value', value: 1000, companyName: 'Fidelity ZERO Total Market Index Fund' }
+      ];
+      const targetStocks: Stock[] = [
+        { name: 'FZROX', percentage: 80, companyName: 'Fidelity ZERO Total Market Index Fund' }
+      ];
+
+      render(
+        <HoldingsTable
+          {...defaultProps}
+          positions={existingPositions}
+          targetStocks={targetStocks}
+          stockPrices={{ FZROX: 15.50 }}
+          onAddPosition={onAddPosition}
+          onUpdatePosition={onUpdatePosition}
+        />
+      );
+
+      // Find the current value input in mobile layout
+      const valueInputs = screen.getAllByPlaceholderText('0');
+      const fzroxInput = valueInputs.find(input => {
+        const card = input.closest('[class*="holdingCard"]');
+        return card?.textContent?.includes('FZROX');
+      });
+      expect(fzroxInput).toBeInTheDocument();
+
+      await user.clear(fzroxInput!);
+      await user.type(fzroxInput!, '2000');
+
+      // Should call onUpdatePosition directly, NOT onAddPosition
+      expect(onUpdatePosition).toHaveBeenCalled();
+      expect(onAddPosition).not.toHaveBeenCalled();
+    });
   });
 });
