@@ -49,44 +49,50 @@ export function StockSearch({
     if (!inputRef.current) return;
 
     const inputRect = inputRef.current.getBoundingClientRect();
-    
-    // Use Visual Viewport API on mobile to account for keyboard
-    // visualViewport gives us the visible area excluding the keyboard
     const visualViewport = window.visualViewport;
-    const viewportWidth = visualViewport ? visualViewport.width : (window.innerWidth || document.documentElement.clientWidth);
     
-    // On mobile with keyboard, getBoundingClientRect() returns coordinates relative to layout viewport
-    // but we need coordinates relative to visual viewport (visible area)
+    // Use visual viewport for accurate dimensions (accounts for keyboard)
+    const viewportWidth = visualViewport ? visualViewport.width : (window.innerWidth || document.documentElement.clientWidth);
+    const viewportHeight = visualViewport ? visualViewport.height : (window.innerHeight || document.documentElement.clientHeight);
+    
+    // getBoundingClientRect() returns coordinates relative to the viewport
+    // On mobile with keyboard, this is typically relative to visual viewport already
+    // position: fixed also positions relative to visual viewport
+    // So we can use inputRect directly in most cases
     let inputTop = inputRect.top;
     let inputLeft = inputRect.left;
     
-    if (visualViewport) {
-      // Adjust for visual viewport offset (accounts for keyboard)
-      inputTop = inputRect.top - visualViewport.offsetTop;
-      inputLeft = inputRect.left - visualViewport.offsetLeft;
+    // However, some browsers (especially older iOS Safari) may return layout viewport coordinates
+    // If visual viewport has an offset, we may need to adjust
+    // Try detecting this: if offsetTop is significant and inputTop seems wrong, adjust
+    if (visualViewport && visualViewport.offsetTop > 0) {
+      // Keyboard is open - check if coordinates need adjustment
+      // If inputTop is greater than visual viewport height, it's likely in layout coordinates
+      if (inputTop > viewportHeight + 50) {
+        // Likely layout viewport coordinates, convert to visual
+        inputTop = inputRect.top - visualViewport.offsetTop;
+        inputLeft = inputRect.left - visualViewport.offsetLeft;
+      }
+      // Otherwise, assume coordinates are already correct (most modern browsers)
     }
 
-    // Calculate fixed positioning to escape scrollable containers
-    // Fixed positioning is relative to viewport, not document
-    // Always position above the input, cascading upward (especially important on mobile)
+    // Calculate fixed positioning - always above input, cascading upward
     const resultCount = searchResults.length;
     const itemHeight = 60; // Approximate height per result item
-    const estimatedDropdownHeight = Math.min(250, resultCount * itemHeight + 20); // Dynamic height based on results
+    const estimatedDropdownHeight = Math.min(250, resultCount * itemHeight + 20);
     const spaceAbove = inputTop;
     
-    // Always try to position above first (cascading upward from search box)
-    // Only use available space above, don't go off-screen
+    // Position above input, cascading upward
     const maxAvailableHeight = Math.min(estimatedDropdownHeight, spaceAbove - 16);
     const topPosition = inputTop - maxAvailableHeight - 4;
 
     const style: React.CSSProperties = {
       position: 'fixed',
-      left: `${Math.max(8, inputLeft)}px`, // Keep within viewport with margins
-      width: `${Math.min(inputRect.width, viewportWidth - inputLeft - 8)}px`, // Ensure it fits on screen
-      top: `${Math.max(8, topPosition)}px`, // Position above input, but don't go above viewport
-      maxHeight: `${Math.max(100, maxAvailableHeight)}px`, // Use available space above
+      left: `${Math.max(8, inputLeft)}px`,
+      width: `${Math.min(inputRect.width, viewportWidth - Math.max(8, inputLeft) - 8)}px`,
+      top: `${Math.max(8, topPosition)}px`,
+      maxHeight: `${Math.max(100, maxAvailableHeight)}px`,
       zIndex: 99999,
-      // Ensure dropdown doesn't go off-screen on mobile
       maxWidth: 'calc(100vw - 16px)',
     };
 
@@ -506,10 +512,18 @@ export function StockSearch({
       // This fires when keyboard opens/closes and viewport changes
       if (window.visualViewport) {
         const handleVisualViewportResize = () => {
-          // Recalculate immediately when visual viewport changes (keyboard open/close)
-          requestAnimationFrame(() => {
-            calculateDropdownPosition();
-          });
+          // Recalculate when visual viewport changes (keyboard open/close)
+          // Use multiple delays to catch both the start and end of keyboard animation
+          setTimeout(() => {
+            requestAnimationFrame(() => {
+              calculateDropdownPosition();
+            });
+          }, 50);
+          setTimeout(() => {
+            requestAnimationFrame(() => {
+              calculateDropdownPosition();
+            });
+          }, 200); // Second check after keyboard animation completes
         };
         
         const handleVisualViewportScroll = () => {
@@ -562,10 +576,13 @@ export function StockSearch({
             onFocus={() => {
               if (searchResults.length > 0) {
                 setShowResults(true);
-                // Recalculate position when input gains focus (important for mobile)
-                requestAnimationFrame(() => {
-                  calculateDropdownPosition();
-                });
+                // Recalculate position when input gains focus (important for mobile keyboard)
+                // Use a delay to allow keyboard animation to start
+                setTimeout(() => {
+                  requestAnimationFrame(() => {
+                    calculateDropdownPosition();
+                  });
+                }, 100);
               }
             }}
             className={`${styles.input} ${error ? styles.inputError : ''}`}
