@@ -7,6 +7,7 @@ import styles from './StockSearch.module.css';
 interface StockSearchResult {
   symbol: string;
   description: string;
+  price?: number | null;
 }
 
 interface StockSearchProps {
@@ -16,6 +17,7 @@ interface StockSearchProps {
   error?: string;
   loading?: boolean;
   disabled?: boolean;
+  onEnterPress?: () => void; // Called when Enter is pressed but no results are available
 }
 
 const DEBOUNCE_DELAY = 300; // ms
@@ -28,13 +30,16 @@ export function StockSearch({
   error,
   loading = false,
   disabled = false,
+  onEnterPress,
 }: StockSearchProps) {
   const [searchResults, setSearchResults] = useState<StockSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const abortControllerRef = useRef<AbortController | null>(null);
+  const priceAbortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,12 +63,77 @@ export function StockSearch({
   }, []);
 
 
-  // Helper function to check if a string looks like a valid ticker symbol
-  const isValidTickerFormat = useCallback((str: string): boolean => {
-    const trimmed = str.trim().toUpperCase();
-    // Valid ticker: 1-5 letters/numbers, optionally followed by .A, .B, etc. (US share class)
-    return /^[A-Z0-9]{1,5}(\.[A-Z])?$/.test(trimmed);
+  // Fetch stock price for a single symbol
+  const fetchStockPrice = useCallback(async (symbol: string, signal: AbortSignal): Promise<number | null> => {
+    try {
+      const isDevelopment = import.meta.env.DEV;
+      const apiUrl = isDevelopment ? import.meta.env.VITE_API_URL : window.location.origin;
+
+      const response = await fetch(
+        `${apiUrl}/api/stock/${encodeURIComponent(symbol)}`,
+        {
+          signal,
+          credentials: 'same-origin',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+
+      // Handle both formats: direct { price: ... } and Yahoo Finance nested format
+      if (data?.price) {
+        return data.price;
+      }
+
+      // Fallback: try to extract from Yahoo Finance API response structure
+      if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+        return data.chart.result[0].meta.regularMarketPrice;
+      }
+
+      return null;
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return null;
+      }
+      return null;
+    }
   }, []);
+
+  // Fetch prices for all search results and filter out those without prices
+  const fetchPricesForResults = useCallback(async (results: StockSearchResult[], signal: AbortSignal): Promise<StockSearchResult[]> => {
+    setIsFetchingPrices(true);
+
+    try {
+      // Fetch prices for all symbols in parallel
+      const pricePromises = results.map(result =>
+        fetchStockPrice(result.symbol, signal).then(price => ({
+          ...result,
+          price
+        }))
+      );
+
+      const resultsWithPrices = await Promise.all(pricePromises);
+
+      // Filter out results where price is null (couldn't be fetched)
+      const validResults = resultsWithPrices.filter(result => result.price !== null && result.price !== undefined);
+
+      return validResults;
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return [];
+      }
+      return [];
+    } finally {
+      setIsFetchingPrices(false);
+    }
+  }, [fetchStockPrice]);
 
   // Fetch search results from Yahoo Finance API
   const searchStocks = useCallback(async (query: string) => {
@@ -169,14 +239,27 @@ export function StockSearch({
         // Limit to 10 results
         const finalResults = results.slice(0, 10);
 
-        setSearchResults(finalResults);
-        // Show results dropdown if we have results OR if query is long enough but no results (to show "no results" message)
-        setShowResults(finalResults.length > 0 || query.length >= MIN_SEARCH_LENGTH);
+        // Abort any ongoing price fetch
+        if (priceAbortControllerRef.current) {
+          priceAbortControllerRef.current.abort();
+        }
 
-        // Calculate dropdown position after results are set
-        setTimeout(() => {
-          calculateDropdownPosition();
-        }, 0);
+        priceAbortControllerRef.current = new AbortController();
+
+        // Fetch prices for all results and filter out those without prices
+        const resultsWithPrices = await fetchPricesForResults(finalResults, priceAbortControllerRef.current.signal);
+
+        // Only update if not aborted
+        if (!priceAbortControllerRef.current.signal.aborted) {
+          setSearchResults(resultsWithPrices);
+          // Show results dropdown if we have results OR if query is long enough but no results (to show "no results" message)
+          setShowResults(resultsWithPrices.length > 0 || query.length >= MIN_SEARCH_LENGTH);
+
+          // Calculate dropdown position after results are set
+          setTimeout(() => {
+            calculateDropdownPosition();
+          }, 0);
+        }
       } else {
         // API returned no data - show "no results" if query is long enough
         setSearchResults([]);
@@ -193,7 +276,7 @@ export function StockSearch({
     } finally {
       setIsSearching(false);
     }
-  }, [calculateDropdownPosition]);
+  }, [calculateDropdownPosition, fetchPricesForResults]);
 
   // Debounced search handler
   useEffect(() => {
@@ -249,6 +332,7 @@ export function StockSearch({
           break;
         case 'Enter':
           e.preventDefault();
+          e.stopPropagation(); // Prevent parent handlers from firing
           if (selectedIndex >= 0 && selectedIndex < searchResults.length) {
             handleSelect(searchResults[selectedIndex]);
           } else if (searchResults.length > 0) {
@@ -262,12 +346,29 @@ export function StockSearch({
           setSelectedIndex(-1);
           break;
         default:
-          // Allow other keys (including Enter when no dropdown) to bubble up
+          // Allow other keys to bubble up
           break;
       }
+    } else if (e.key === 'Enter' && !showResults && onEnterPress) {
+      // Only call onEnterPress if there are no results and callback is provided
+      e.preventDefault();
+      e.stopPropagation();
+      onEnterPress();
     }
-    // If no dropdown is open, Enter key will bubble up to parent form handlers
+    // If no dropdown is open and no onEnterPress callback, Enter key will bubble up to parent form handlers
   };
+
+  // Cleanup abort controllers on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (priceAbortControllerRef.current) {
+        priceAbortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Close results when clicking outside
   useEffect(() => {
@@ -334,7 +435,7 @@ export function StockSearch({
             disabled={disabled || loading}
             autoComplete="off"
           />
-          {isSearching && (
+          {(isSearching || isFetchingPrices) && (
             <FontAwesomeIcon icon={faSpinner} spin className={styles.spinnerIcon} />
           )}
         </div>
@@ -353,13 +454,20 @@ export function StockSearch({
                 onClick={() => handleSelect(result)}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
-                <div className={styles.resultSymbol}>{result.symbol}</div>
+                <div className={styles.resultHeader}>
+                  <div className={styles.resultSymbol}>{result.symbol}</div>
+                  {result.price !== null && result.price !== undefined && (
+                    <div className={styles.resultPrice}>
+                      ${result.price.toFixed(2)}
+                    </div>
+                  )}
+                </div>
                 <div className={styles.resultDescription}>{result.description}</div>
               </button>
             ))}
           </div>
         )}
-        {showResults && searchResults.length === 0 && value.length >= MIN_SEARCH_LENGTH && !isSearching && (
+        {showResults && searchResults.length === 0 && value.length >= MIN_SEARCH_LENGTH && !isSearching && !isFetchingPrices && (
           <div
             className={styles.noResults}
             style={dropdownStyle}

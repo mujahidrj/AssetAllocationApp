@@ -155,10 +155,10 @@ export function HoldingsTable({
     await onAddAsset(newStockName.trim());
   };
 
-  const handleSearchSelect = (symbol: string, companyName: string) => {
+  const handleSearchSelect = (symbol: string, _companyName: string) => {
     onNewStockNameChange(symbol);
     // Auto-add when selected from search
-    onAddAsset(symbol);
+    void onAddAsset(symbol);
   };
 
   return (
@@ -394,20 +394,18 @@ export function HoldingsTable({
                       </button>
                     </td>
                     <td colSpan={3} className={styles.addRowInputCell}>
-                      <div onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newStockName.trim() && !loading) {
-                          e.preventDefault();
-                          handleAddAsset();
-                        }
-                      }}>
-                        <StockSearch
-                          value={newStockName}
-                          onChange={onNewStockNameChange}
-                          onSelect={handleSearchSelect}
-                          error={validationErrors.newPosition || validationErrors.newRebalanceStock}
-                          loading={loading}
-                        />
-                      </div>
+                      <StockSearch
+                        value={newStockName}
+                        onChange={onNewStockNameChange}
+                        onSelect={handleSearchSelect}
+                        onEnterPress={() => {
+                          if (newStockName.trim() && !loading) {
+                            handleAddAsset();
+                          }
+                        }}
+                        error={validationErrors.newPosition || validationErrors.newRebalanceStock}
+                        loading={loading}
+                      />
                     </td>
                     <td className={styles.actionsCell}>
                       <button
@@ -655,20 +653,18 @@ export function HoldingsTable({
       {/* Add form - mobile when has holdings, both when empty */}
       {(isMobile && holdingsRows.length > 0) || holdingsRows.length === 0 ? (
         <div className={styles.addFormMobile}>
-          <div onKeyDown={(e) => {
-            if (e.key === 'Enter' && newStockName.trim() && !loading) {
-              e.preventDefault();
-              handleAddAsset();
-            }
-          }}>
-            <StockSearch
-              value={newStockName}
-              onChange={onNewStockNameChange}
-              onSelect={handleSearchSelect}
-              error={validationErrors.newPosition || validationErrors.newRebalanceStock}
-              loading={loading}
-            />
-          </div>
+          <StockSearch
+            value={newStockName}
+            onChange={onNewStockNameChange}
+            onSelect={handleSearchSelect}
+            onEnterPress={() => {
+              if (newStockName.trim() && !loading) {
+                handleAddAsset();
+              }
+            }}
+            error={validationErrors.newPosition || validationErrors.newRebalanceStock}
+            loading={loading}
+          />
           <button
             onClick={handleAddAsset}
             className={styles.addRowButton}

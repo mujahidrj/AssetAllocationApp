@@ -399,11 +399,23 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     setFetchingStock(true);
 
     try {
-      const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      // Fetch both stock info and price in parallel
+      const [companyName, price] = await Promise.all([
+        fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal),
+        fetchStockPrice(trimmedSymbol, abortControllerRef.current.signal)
+      ]);
+
       if (companyName === null) {
         setValidationErrors(prev => ({ ...prev, newStock: `Couldn't find ${trimmedSymbol}` }));
         return;
       }
+
+      // Validate that price can be fetched
+      if (price === null) {
+        setValidationErrors(prev => ({ ...prev, newStock: `Couldn't fetch price for ${trimmedSymbol}. Please check the symbol and try again.` }));
+        return;
+      }
+
       const newStock = {
         name: trimmedSymbol,
         percentage: 0,
@@ -612,11 +624,23 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     setFetchingStock(true);
 
     try {
-      const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      // Fetch both stock info and price in parallel
+      const [companyName, price] = await Promise.all([
+        fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal),
+        fetchStockPrice(trimmedSymbol, abortControllerRef.current.signal)
+      ]);
+
       if (companyName === null) {
         setValidationErrors(prev => ({ ...prev, newPosition: `Couldn't find ${trimmedSymbol}` }));
         return;
       }
+
+      // Validate that price can be fetched
+      if (price === null) {
+        setValidationErrors(prev => ({ ...prev, newPosition: `Couldn't fetch price for ${trimmedSymbol}. Please check the symbol and try again.` }));
+        return;
+      }
+
       const newPosition: CurrentPosition = {
         symbol: trimmedSymbol,
         inputType: 'value',
@@ -754,13 +778,27 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     setFetchingStock(true);
 
     try {
-      // Fetch company name once - validates ticker exists
-      const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      // Fetch both stock info and price in parallel
+      const [companyName, price] = await Promise.all([
+        fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal),
+        fetchStockPrice(trimmedSymbol, abortControllerRef.current.signal)
+      ]);
+
       if (companyName === null) {
         setValidationErrors(prev => ({
           ...prev,
           newPosition: `Couldn't find ${trimmedSymbol}`,
           newRebalanceStock: `Couldn't find ${trimmedSymbol}`
+        }));
+        return;
+      }
+
+      // Validate that price can be fetched
+      if (price === null) {
+        setValidationErrors(prev => ({
+          ...prev,
+          newPosition: `Couldn't fetch price for ${trimmedSymbol}. Please check the symbol and try again.`,
+          newRebalanceStock: `Couldn't fetch price for ${trimmedSymbol}. Please check the symbol and try again.`
         }));
         return;
       }
@@ -893,11 +931,23 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     setFetchingStock(true);
 
     try {
-      const companyName = await fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal);
+      // Fetch both stock info and price in parallel
+      const [companyName, price] = await Promise.all([
+        fetchStockInfo(trimmedSymbol, abortControllerRef.current.signal),
+        fetchStockPrice(trimmedSymbol, abortControllerRef.current.signal)
+      ]);
+
       if (companyName === null) {
         setValidationErrors(prev => ({ ...prev, newRebalanceStock: `Couldn't find ${trimmedSymbol}` }));
         return;
       }
+
+      // Validate that price can be fetched
+      if (price === null) {
+        setValidationErrors(prev => ({ ...prev, newRebalanceStock: `Couldn't fetch price for ${trimmedSymbol}. Please check the symbol and try again.` }));
+        return;
+      }
+
       const newStock: Stock = {
         name: trimmedSymbol,
         percentage: 0,

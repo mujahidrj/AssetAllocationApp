@@ -128,10 +128,24 @@
   background-color: var(--color-bg-secondary, #f3f4f6);
 }
 
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 .resultSymbol {
   font-weight: 600;
   font-size: 14px;
   color: var(--color-text-primary, #111827);
+}
+
+.resultPrice {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text-primary, #111827);
+  white-space: nowrap;
 }
 
 .resultDescription {

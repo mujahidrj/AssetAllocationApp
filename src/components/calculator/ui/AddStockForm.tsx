@@ -33,6 +33,11 @@ export function AddStockForm({ value, onChange, onAdd, error, loading }: AddStoc
             value={value}
             onChange={onChange}
             onSelect={handleSearchSelect}
+            onEnterPress={() => {
+              if (value.trim() && !loading) {
+                onAdd();
+              }
+            }}
             error={error}
             loading={loading}
           />

@@ -130,20 +130,18 @@ export function StockList({
                           </button>
                         </td>
                         <td colSpan={2} className={styles.addRowInputCell}>
-                          <div onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newStockName.trim() && !loading) {
-                              e.preventDefault();
-                              handleAddStock();
-                            }
-                          }}>
-                            <StockSearch
-                              value={newStockName}
-                              onChange={onNewStockNameChange}
-                              onSelect={handleSearchSelect}
-                              error={validationErrors.newStock}
-                              loading={loading}
-                            />
-                          </div>
+                          <StockSearch
+                            value={newStockName}
+                            onChange={onNewStockNameChange}
+                            onSelect={handleSearchSelect}
+                            onEnterPress={() => {
+                              if (newStockName.trim() && !loading) {
+                                handleAddStock();
+                              }
+                            }}
+                            error={validationErrors.newStock}
+                            loading={loading}
+                          />
                         </td>
                         <td className={styles.actionsCell}>
                           <button
@@ -159,20 +157,18 @@ export function StockList({
                     ) : (
                       <>
                         <td colSpan={3} className={styles.addRowInputCell}>
-                          <div onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newStockName.trim() && !loading) {
-                              e.preventDefault();
-                              handleAddStock();
-                            }
-                          }}>
-                            <StockSearch
-                              value={newStockName}
-                              onChange={onNewStockNameChange}
-                              onSelect={handleSearchSelect}
-                              error={validationErrors.newStock}
-                              loading={loading}
-                            />
-                          </div>
+                          <StockSearch
+                            value={newStockName}
+                            onChange={onNewStockNameChange}
+                            onSelect={handleSearchSelect}
+                            onEnterPress={() => {
+                              if (newStockName.trim() && !loading) {
+                                handleAddStock();
+                              }
+                            }}
+                            error={validationErrors.newStock}
+                            loading={loading}
+                          />
                         </td>
                         <td className={styles.actionsCell}>
                           <button
@@ -254,17 +250,16 @@ export function StockList({
       {(isMobile || stocks.length === 0) && (
         <div
           className={styles.addFormMobile}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && newStockName.trim() && !loading) {
-              e.preventDefault();
-              handleAddStock();
-            }
-          }}
         >
           <StockSearch
             value={newStockName}
             onChange={onNewStockNameChange}
             onSelect={handleSearchSelect}
+            onEnterPress={() => {
+              if (newStockName.trim() && !loading) {
+                handleAddStock();
+              }
+            }}
             error={validationErrors.newStock}
             loading={loading}
           />

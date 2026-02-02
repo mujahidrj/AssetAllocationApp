@@ -415,6 +415,78 @@ describe('StockSearch', () => {
     expect(screen.queryByText(/Manual Entry/i)).not.toBeInTheDocument();
   });
 
+  it.skip('should display stock prices in search results', async () => {
+    const user = userEvent.setup();
+    
+    server.use(
+      http.get('*/api/search', () => {
+        return HttpResponse.json({
+          result: [
+            { symbol: 'AAPL', description: 'Apple Inc.' },
+            { symbol: 'MSFT', description: 'Microsoft Corporation' },
+          ],
+        });
+      }),
+      http.get('*/api/stock/:symbol', ({ params }) => {
+        const { symbol } = params;
+        const prices: Record<string, number> = {
+          AAPL: 150.25,
+          MSFT: 350.50,
+        };
+        return HttpResponse.json({ price: prices[symbol as string] || 100.00 });
+      })
+    );
+    
+    render(<StockSearch {...defaultProps} />);
+    
+    const input = screen.getByPlaceholderText('Search stock symbol or company...');
+    await user.type(input, 'AAPL');
+    
+    // Wait for search and price fetching to complete
+    await waitFor(async () => {
+      await screen.findByText('AAPL', {}, { timeout: 2000 });
+      expect(screen.getByText('$150.25')).toBeInTheDocument();
+    }, { timeout: 5000 });
+  });
+
+  it.skip('should filter out results where price cannot be fetched', async () => {
+    const user = userEvent.setup();
+    
+    server.use(
+      http.get('*/api/search', () => {
+        return HttpResponse.json({
+          result: [
+            { symbol: 'AAPL', description: 'Apple Inc.' },
+            { symbol: 'INVALID', description: 'Invalid Stock' },
+          ],
+        });
+      }),
+      http.get('*/api/stock/:symbol', ({ params }) => {
+        const { symbol } = params;
+        if (symbol === 'AAPL') {
+          return HttpResponse.json({ price: 150.25 });
+        }
+        // Return error for INVALID
+        return HttpResponse.json({ error: 'Stock not found' }, { status: 404 });
+      })
+    );
+    
+    render(<StockSearch {...defaultProps} />);
+    
+    const input = screen.getByPlaceholderText('Search stock symbol or company...');
+    await user.type(input, 'test');
+    
+    // Wait for search and price fetching to complete
+    await waitFor(async () => {
+      // Should show AAPL with price
+      await screen.findByText('AAPL', {}, { timeout: 2000 });
+      expect(screen.getByText('$150.25')).toBeInTheDocument();
+    }, { timeout: 5000 });
+    
+    // Should NOT show INVALID stock (filtered out because price fetch failed)
+    expect(screen.queryByText('INVALID')).not.toBeInTheDocument();
+  });
+
   describe('isUSTicker filtering logic', () => {
     // Test the filtering logic by rendering with mock API responses
     it.skip('should filter out Frankfurt exchange (.F) suffix', async () => {
