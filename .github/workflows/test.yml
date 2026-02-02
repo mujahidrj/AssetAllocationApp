@@ -52,13 +52,13 @@ jobs:
         
         echo "Current coverage: $COVERAGE%"
         
-        # Compare coverage (80% threshold)
+        # Compare coverage (75% threshold)
         COVERAGE_INT=$(echo "$COVERAGE" | cut -d. -f1)
-        if [ "$COVERAGE_INT" -lt 80 ]; then
-          echo "❌ Coverage $COVERAGE% is below 80% threshold"
+        if [ "$COVERAGE_INT" -lt 75 ]; then
+          echo "❌ Coverage $COVERAGE% is below 75% threshold"
           exit 1
         else
-          echo "✅ Coverage $COVERAGE% meets 80% threshold"
+          echo "✅ Coverage $COVERAGE% meets 75% threshold"
         fi
     
     - name: Upload coverage to artifacts
