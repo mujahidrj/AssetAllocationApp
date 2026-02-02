@@ -53,27 +53,19 @@ export function StockSearch({
     
     // Use visual viewport for accurate dimensions (accounts for keyboard)
     const viewportWidth = visualViewport ? visualViewport.width : (window.innerWidth || document.documentElement.clientWidth);
-    const viewportHeight = visualViewport ? visualViewport.height : (window.innerHeight || document.documentElement.clientHeight);
     
-    // getBoundingClientRect() returns coordinates relative to the viewport
-    // On mobile with keyboard, this is typically relative to visual viewport already
-    // position: fixed also positions relative to visual viewport
-    // So we can use inputRect directly in most cases
+    // On iOS Safari with keyboard:
+    // - getBoundingClientRect() returns coordinates relative to LAYOUT viewport (full screen)
+    // - position: fixed positions relative to VISUAL viewport (visible area, excluding keyboard)
+    // - We MUST convert layout coordinates to visual coordinates by subtracting offsetTop/offsetLeft
     let inputTop = inputRect.top;
     let inputLeft = inputRect.left;
     
-    // However, some browsers (especially older iOS Safari) may return layout viewport coordinates
-    // If visual viewport has an offset, we may need to adjust
-    // Try detecting this: if offsetTop is significant and inputTop seems wrong, adjust
-    if (visualViewport && visualViewport.offsetTop > 0) {
-      // Keyboard is open - check if coordinates need adjustment
-      // If inputTop is greater than visual viewport height, it's likely in layout coordinates
-      if (inputTop > viewportHeight + 50) {
-        // Likely layout viewport coordinates, convert to visual
-        inputTop = inputRect.top - visualViewport.offsetTop;
-        inputLeft = inputRect.left - visualViewport.offsetLeft;
-      }
-      // Otherwise, assume coordinates are already correct (most modern browsers)
+    if (visualViewport) {
+      // Always convert from layout viewport to visual viewport coordinates for iOS Safari
+      // This is critical when keyboard is open (offsetTop > 0)
+      inputTop = inputRect.top - visualViewport.offsetTop;
+      inputLeft = inputRect.left - visualViewport.offsetLeft;
     }
 
     // Calculate fixed positioning - always above input, cascading upward
