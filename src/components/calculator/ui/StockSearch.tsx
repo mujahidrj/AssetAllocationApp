@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSpinner, faSearch } from '@fortawesome/free-solid-svg-icons';
-import { isUSTicker, isPrimaryTicker, getBaseTicker } from './stockSearchUtils';
+import { isUSTicker, isPrimaryTicker, getBaseTicker, isOption, isFutures } from './stockSearchUtils';
 import styles from './StockSearch.module.css';
 
 interface StockSearchResult {
@@ -175,10 +175,22 @@ export function StockSearch({
       const data = await response.json();
 
       if (data.result && Array.isArray(data.result)) {
-        // Filter to only US stocks first
+        // Filter to only US stocks, excluding options and futures
         const usResults = data.result.filter((item: { symbol?: string; description?: string }) => {
           const symbol = item.symbol || '';
-          return symbol && isUSTicker(symbol);
+          const description = item.description || '';
+
+          // Must be a valid symbol
+          if (!symbol) return false;
+
+          // Exclude options (calls and puts)
+          if (isOption(symbol, description)) return false;
+
+          // Exclude futures contracts
+          if (isFutures(symbol, description)) return false;
+
+          // Must be US-based
+          return isUSTicker(symbol);
         });
 
         // Group results by base ticker
