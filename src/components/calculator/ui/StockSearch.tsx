@@ -51,13 +51,27 @@ export function StockSearch({
     const inputRect = inputRef.current.getBoundingClientRect();
 
     // Calculate fixed positioning to escape scrollable containers
+    // Fixed positioning is relative to viewport, not document
     const style: React.CSSProperties = {
       position: 'fixed',
       left: `${inputRect.left}px`,
       width: `${inputRect.width}px`,
       top: `${inputRect.bottom + 4}px`,
       zIndex: 99999,
+      // Ensure dropdown doesn't go off-screen on mobile
+      maxWidth: 'calc(100vw - 16px)',
     };
+
+    // On mobile, check if dropdown would go off bottom of screen
+    const viewportHeight = window.innerHeight;
+    const estimatedDropdownHeight = 250; // Max height from CSS
+    const spaceBelow = viewportHeight - inputRect.bottom;
+    
+    if (spaceBelow < estimatedDropdownHeight && inputRect.top > estimatedDropdownHeight) {
+      // If not enough space below, position it above the input instead
+      style.top = `${inputRect.top - estimatedDropdownHeight - 4}px`;
+      style.maxHeight = `${inputRect.top - 16}px`; // Limit height to not go above viewport
+    }
 
     setDropdownStyle(style);
   }, []);
@@ -131,10 +145,9 @@ export function StockSearch({
 
       const resultsWithPrices = await Promise.all(pricePromises);
 
-      // Filter out results where price is null (couldn't be fetched)
-      const validResults = resultsWithPrices.filter(result => result.price !== null && result.price !== undefined);
-
-      return validResults;
+      // Return all results, even if price couldn't be fetched
+      // This allows users to add stocks even if price fetch temporarily fails
+      return resultsWithPrices;
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
         return [];
@@ -268,7 +281,7 @@ export function StockSearch({
 
         priceAbortControllerRef.current = new AbortController();
 
-        // Fetch prices for all results and filter out those without prices
+        // Fetch prices for all results (results without prices will still be shown)
         const resultsWithPrices = await fetchPricesForResults(finalResults, priceAbortControllerRef.current.signal);
 
         // Only update if not aborted
@@ -344,12 +357,17 @@ export function StockSearch({
   };
 
   // Handle result selection
-  const handleSelect = (result: StockSearchResult) => {
-    onSelect(result.symbol, result.description);
+  const handleSelect = useCallback((result: StockSearchResult) => {
+    // Close dropdown immediately before calling onSelect to prevent UI glitches
     setShowResults(false);
     setSearchResults([]);
     setSelectedIndex(-1);
-  };
+    // Use setTimeout to ensure state updates complete before calling onSelect
+    // This prevents the dropdown from briefly reappearing
+    setTimeout(() => {
+      onSelect(result.symbol, result.description);
+    }, 0);
+  }, [onSelect]);
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -405,36 +423,58 @@ export function StockSearch({
     };
   }, []);
 
-  // Close results when clicking outside
+  // Close results when clicking outside (handles both mouse and touch events)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
       if (
         inputRef.current &&
-        !inputRef.current.contains(event.target as Node) &&
+        !inputRef.current.contains(target) &&
         resultsRef.current &&
-        !resultsRef.current.contains(event.target as Node)
+        !resultsRef.current.contains(target)
       ) {
         setShowResults(false);
+        setSearchResults([]);
       }
     };
 
+    // Use both mousedown and touchstart for better mobile support
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
     };
   }, []);
 
   // Recalculate position when window resizes, scrolls, or results change
+  // Also recalculate on mobile when virtual keyboard appears/disappears
   useEffect(() => {
     if (showResults && searchResults.length > 0) {
       calculateDropdownPosition();
       const handleResize = () => calculateDropdownPosition();
       const handleScroll = () => calculateDropdownPosition();
+      // Handle mobile virtual keyboard
+      const handleOrientationChange = () => {
+        // Small delay to allow viewport to adjust
+        setTimeout(() => calculateDropdownPosition(), 100);
+      };
+      
       window.addEventListener('resize', handleResize);
       window.addEventListener('scroll', handleScroll, true); // Capture scroll events from all elements
+      window.addEventListener('orientationchange', handleOrientationChange);
+      // Visual viewport API for better mobile keyboard handling
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', handleResize);
+      }
+      
       return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('scroll', handleScroll, true);
+        window.removeEventListener('orientationchange', handleOrientationChange);
+        if (window.visualViewport) {
+          window.visualViewport.removeEventListener('resize', handleResize);
+        }
       };
     }
   }, [showResults, searchResults.length, calculateDropdownPosition]);
