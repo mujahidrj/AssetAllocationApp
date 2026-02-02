@@ -309,6 +309,21 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     }
   }, [mode, rebalanceStocks, currentPositions, fetchMissingPrices]);
 
+  // Clear validation errors when positions are updated (to clear stale "Couldn't find" errors)
+  useEffect(() => {
+    if (mode === 'rebalance' && currentPositions.length > 0) {
+      // Clear newPosition error if all positions have valid symbols
+      setValidationErrors(prev => {
+        if (prev.newPosition && prev.newPosition.includes("Couldn't find")) {
+          const newErrors = { ...prev };
+          delete newErrors.newPosition;
+          return newErrors;
+        }
+        return prev;
+      });
+    }
+  }, [mode, currentPositions]);
+
   const validateAmount = useCallback((value: string) => {
     const num = parseFloat(value);
     if (!value) {
@@ -519,8 +534,20 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return;
     }
 
+    // Check if position already exists - if so, don't add again
     if (currentPositions.some(pos => pos.symbol === trimmedSymbol)) {
-      setValidationErrors(prev => ({ ...prev, newPosition: "Position already exists" }));
+      // Clear any "Couldn't find" errors for this symbol since position already exists
+      // But set "Position already exists" for explicit duplicate adds
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        // Clear "Couldn't find" errors
+        if (newErrors.newPosition && newErrors.newPosition.includes("Couldn't find")) {
+          delete newErrors.newPosition;
+        }
+        // Set "Position already exists" error (for explicit duplicate adds via Add button)
+        newErrors.newPosition = "Position already exists";
+        return newErrors;
+      });
       return;
     }
 
@@ -540,6 +567,32 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         delete newErrors.newPosition;
         return newErrors;
       });
+      return;
+    }
+
+    // If stock is already in rebalanceStocks, we know it's valid - use its company name
+    // This avoids unnecessary API calls and prevents "Couldn't find" errors for known stocks
+    const existingStock = rebalanceStocks.find(stock => stock.name === trimmedSymbol);
+    if (existingStock) {
+      const newPosition: CurrentPosition = {
+        symbol: trimmedSymbol,
+        inputType: 'value',
+        value: 0,
+        companyName: existingStock.companyName
+      };
+      setCurrentPositions(prev => [...prev, newPosition]);
+      setNewStockName("");
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.newPosition;
+        return newErrors;
+      });
+      // Still fetch price if not already fetched
+      if (stockPrices[trimmedSymbol] === undefined) {
+        fetchMissingPrices([trimmedSymbol]).catch(error => {
+          console.warn('Error fetching price for existing stock:', error);
+        });
+      }
       return;
     }
 
@@ -578,7 +631,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       setFetchingStock(false);
       abortControllerRef.current = null;
     }
-  }, [currentPositions]);
+  }, [currentPositions, rebalanceStocks, stockPrices, fetchMissingPrices]);
 
   const removeCurrentPosition = useCallback((index: number) => {
     setCurrentPositions(prev => prev.filter((_, i) => i !== index));
@@ -600,6 +653,16 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         } else if (cleanUpdates.inputType === 'value' && updated[index].shares !== undefined) {
           delete updated[index].shares;
         }
+
+        // Clear any validation errors for this position when updating
+        const symbol = updated[index].symbol;
+        setValidationErrors(prev => {
+          const newErrors = { ...prev };
+          if (newErrors.newPosition && newErrors.newPosition.includes(symbol)) {
+            delete newErrors.newPosition;
+          }
+          return newErrors;
+        });
       }
       return updated;
     });
