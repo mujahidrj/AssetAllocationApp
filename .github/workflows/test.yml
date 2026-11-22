@@ -32,6 +32,10 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
+    - name: Type check
+      run: npx tsc -p tsconfig.app.json --noEmit
+      continue-on-error: true
+
     - name: Run linter
       run: npm run lint || echo "Linter warnings (non-blocking)"
     
