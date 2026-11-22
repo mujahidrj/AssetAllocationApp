@@ -7,7 +7,6 @@ import styles from './StockSearch.module.css';
 interface StockSearchResult {
   symbol: string;
   description: string;
-  price?: number | null;
 }
 
 interface StockSearchProps {
@@ -34,12 +33,10 @@ export function StockSearch({
 }: StockSearchProps) {
   const [searchResults, setSearchResults] = useState<StockSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isFetchingPrices, setIsFetchingPrices] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const abortControllerRef = useRef<AbortController | null>(null);
-  const priceAbortControllerRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -62,88 +59,6 @@ export function StockSearch({
     setDropdownStyle(style);
   }, []);
 
-
-  // Fetch stock price for a single symbol
-  const fetchStockPrice = useCallback(async (symbol: string, signal: AbortSignal): Promise<number | null> => {
-    try {
-      const isDevelopment = import.meta.env.DEV;
-      const apiUrl = isDevelopment ? import.meta.env.VITE_API_URL : window.location.origin;
-
-      const response = await fetch(
-        `${apiUrl}/api/stock/${encodeURIComponent(symbol)}`,
-        {
-          signal,
-          credentials: 'same-origin',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        return null;
-      }
-
-      const data = await response.json();
-
-      // Handle both formats: direct { price: ... } and Yahoo Finance nested format
-      if (data?.price) {
-        return data.price;
-      }
-
-      // Fallback: try to extract from Yahoo Finance API response structure
-      if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
-        return data.chart.result[0].meta.regularMarketPrice;
-      }
-
-      return null;
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        // Abort errors are expected when requests are cancelled - silently ignore
-        return null;
-      }
-      // Suppress DOMException and InterceptorError (often from aborted requests handled by MSW)
-      if (error instanceof DOMException) {
-        return null;
-      }
-      // Check for InterceptorError (MSW error when aborting already-handled requests)
-      if (error instanceof Error && error.message?.includes('already been handled')) {
-        return null;
-      }
-      // Silently ignore expected errors - only log truly unexpected ones if needed
-      return null;
-    }
-  }, []);
-
-  // Fetch prices for all search results and filter out those without prices
-  const fetchPricesForResults = useCallback(async (results: StockSearchResult[], signal: AbortSignal): Promise<StockSearchResult[]> => {
-    setIsFetchingPrices(true);
-
-    try {
-      // Fetch prices for all symbols in parallel
-      const pricePromises = results.map(result =>
-        fetchStockPrice(result.symbol, signal).then(price => ({
-          ...result,
-          price
-        }))
-      );
-
-      const resultsWithPrices = await Promise.all(pricePromises);
-
-      // Filter out results where price is null (couldn't be fetched)
-      const validResults = resultsWithPrices.filter(result => result.price !== null && result.price !== undefined);
-
-      return validResults;
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        return [];
-      }
-      return [];
-    } finally {
-      setIsFetchingPrices(false);
-    }
-  }, [fetchStockPrice]);
 
   // Fetch search results from Yahoo Finance API
   const searchStocks = useCallback(async (query: string) => {
@@ -261,21 +176,11 @@ export function StockSearch({
         // Limit to 10 results
         const finalResults = results.slice(0, 10);
 
-        // Abort any ongoing price fetch
-        if (priceAbortControllerRef.current) {
-          priceAbortControllerRef.current.abort();
-        }
-
-        priceAbortControllerRef.current = new AbortController();
-
-        // Fetch prices for all results and filter out those without prices
-        const resultsWithPrices = await fetchPricesForResults(finalResults, priceAbortControllerRef.current.signal);
-
-        // Only update if not aborted
-        if (!priceAbortControllerRef.current.signal.aborted) {
-          setSearchResults(resultsWithPrices);
+        // Prices are fetched when a fund is added, not for every search result
+        if (!abortControllerRef.current.signal.aborted) {
+          setSearchResults(finalResults);
           // Show results dropdown if we have results OR if query is long enough but no results (to show "no results" message)
-          setShowResults(resultsWithPrices.length > 0 || query.length >= MIN_SEARCH_LENGTH);
+          setShowResults(finalResults.length > 0 || query.length >= MIN_SEARCH_LENGTH);
 
           // Calculate dropdown position after results are set
           setTimeout(() => {
@@ -311,7 +216,7 @@ export function StockSearch({
     } finally {
       setIsSearching(false);
     }
-  }, [calculateDropdownPosition, fetchPricesForResults]);
+  }, [calculateDropdownPosition]);
 
   // Debounced search handler
   useEffect(() => {
@@ -399,9 +304,6 @@ export function StockSearch({
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      if (priceAbortControllerRef.current) {
-        priceAbortControllerRef.current.abort();
-      }
     };
   }, []);
 
@@ -470,7 +372,7 @@ export function StockSearch({
             disabled={disabled || loading}
             autoComplete="off"
           />
-          {(isSearching || isFetchingPrices) && (
+          {isSearching && (
             <FontAwesomeIcon icon={faSpinner} spin className={styles.spinnerIcon} />
           )}
         </div>
@@ -491,18 +393,13 @@ export function StockSearch({
               >
                 <div className={styles.resultHeader}>
                   <div className={styles.resultSymbol}>{result.symbol}</div>
-                  {result.price !== null && result.price !== undefined && (
-                    <div className={styles.resultPrice}>
-                      ${result.price.toFixed(2)}
-                    </div>
-                  )}
                 </div>
                 <div className={styles.resultDescription}>{result.description}</div>
               </button>
             ))}
           </div>
         )}
-        {showResults && searchResults.length === 0 && value.length >= MIN_SEARCH_LENGTH && !isSearching && !isFetchingPrices && (
+        {showResults && searchResults.length === 0 && value.length >= MIN_SEARCH_LENGTH && !isSearching && (
           <div
             className={styles.noResults}
             style={dropdownStyle}

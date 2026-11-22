@@ -66,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         result?: Array<{
           meta?: {
             regularMarketPrice?: number;
+            regularMarketTime?: number;
             symbol?: string;
           }
         }>
@@ -82,10 +83,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Return only the necessary data
+    const meta = data.chart.result[0].meta;
+
+    // Let Vercel's CDN reuse a price for a minute, and serve a slightly older one
+    // for up to five more while it refreshes, so repeat lookups don't hit Yahoo
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+
+    // Return only the necessary data; asOf is when this price was set (ISO time)
     return res.json({
-      symbol: data.chart.result[0].meta.symbol,
-      price: data.chart.result[0].meta.regularMarketPrice
+      symbol: meta.symbol,
+      price: meta.regularMarketPrice,
+      asOf: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : null
     });
   } catch (error) {
     console.error('Error fetching stock data:', error);
