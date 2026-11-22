@@ -5,11 +5,8 @@ import { samplePortfolios } from '../data/samplePortfolios';
 import { db } from '../../../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { parseAmount } from '../../../lib/parseAmount';
+import { isCash, rebalance, splitByTarget, portfolioValue, targetTotal, targetsAddUp } from '../../../lib/portfolioMath';
 
-// Helper function to check if a symbol represents cash
-const isCash = (symbol: string): boolean => {
-  return symbol.toUpperCase() === 'CASH' || symbol.toUpperCase() === 'USD';
-};
 
 interface UseCalculatorProps {
   user: User | null;
@@ -1070,37 +1067,15 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return null;
     }
 
-    // Calculate current portfolio value
-    const positionValues = currentPositions.map(pos => {
-      // Handle cash specially - price is always 1.00
-      if (isCash(pos.symbol)) {
-        if (pos.inputType === 'shares') {
-          return (pos.shares || 0) * 1.00;
-        } else {
-          return pos.value || 0;
-        }
-      }
-      const price = stockPrices[pos.symbol] || 0;
-      if (pos.inputType === 'shares') {
-        return (pos.shares || 0) * price;
-      } else {
-        return pos.value || 0;
-      }
-    });
-
-    const totalPortfolioValue = positionValues.reduce((sum, val) => sum + val, 0);
-
     // If no positions have values yet, don't calculate but also don't show error
-    if (totalPortfolioValue <= 0) {
+    if (portfolioValue(currentPositions, stockPrices) <= 0) {
       return null;
     }
 
-    // Validate percentages sum to 100%
-    const totalPercentage = rebalanceStocks.reduce((sum, stock) => sum + stock.percentage, 0);
-    if (Math.abs(totalPercentage - 100) > 0.01) {
+    if (!targetsAddUp(rebalanceStocks)) {
       setValidationErrors(prev => ({
         ...prev,
-        rebalancePercentages: `Total percentage is ${totalPercentage.toFixed(1)}%. Please adjust to equal 100%`
+        rebalancePercentages: `Total percentage is ${targetTotal(rebalanceStocks).toFixed(1)}%. Please adjust to equal 100%`
       }));
       return null;
     }
@@ -1111,144 +1086,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return newErrors;
     });
 
-    // Create maps of current values and shares by symbol
-    // IMPORTANT: Use the same calculation logic as totalPortfolioValue to ensure consistency
-    const currentValuesMap = new Map<string, number>();
-    const currentSharesMap = new Map<string, number>();
-
-    currentPositions.forEach(pos => {
-      // Handle cash specially - price is always 1.00
-      if (isCash(pos.symbol)) {
-        let currentValue: number;
-        let currentShares: number;
-        if (pos.inputType === 'shares') {
-          currentShares = pos.shares || 0;
-          currentValue = currentShares * 1.00;
-        } else {
-          currentValue = pos.value || 0;
-          currentShares = currentValue / 1.00;
-        }
-        currentValuesMap.set(pos.symbol, currentValue);
-        currentSharesMap.set(pos.symbol, currentShares);
-        return;
-      }
-
-      const price = stockPrices[pos.symbol] ?? null; // null means fetch failed, undefined means not fetched
-      let currentValue: number;
-      let currentShares: number;
-
-      if (pos.inputType === 'shares') {
-        currentShares = pos.shares || 0;
-        // Only calculate value if we have a price
-        currentValue = price != null && price > 0 ? currentShares * price : 0;
-      } else {
-        // Use the actual value from the position
-        currentValue = pos.value || 0;
-        // Only calculate shares if we have a price
-        currentShares = price != null && price > 0 ? currentValue / price : 0;
-      }
-
-      // Always set the value, even if 0 (0 is a valid value meaning no position yet)
-      currentValuesMap.set(pos.symbol, currentValue);
-      currentSharesMap.set(pos.symbol, currentShares);
-    });
-
-    // Create a set of symbols in target allocation
-    const targetSymbols = new Set(rebalanceStocks.map(stock => stock.name));
-
-    // Calculate rebalance results for stocks in target allocation
-    const targetResults: RebalanceResult[] = rebalanceStocks.map(stock => {
-      // Get current value - if not in positions, it's 0 (new position to buy)
-      const currentValue = currentValuesMap.get(stock.name) || 0;
-      const currentShares = currentSharesMap.get(stock.name) || 0;
-      const currentPercentage = totalPortfolioValue > 0 ? (currentValue / totalPortfolioValue) * 100 : 0;
-      const targetValue = totalPortfolioValue * (stock.percentage / 100);
-      const difference = targetValue - currentValue;
-
-      // Handle cash specially - price is always 1.00
-      let price: number | null;
-      let sharesToTrade: number;
-      if (isCash(stock.name)) {
-        price = 1.00;
-        sharesToTrade = Math.abs(difference) > 0.01 ? Math.abs(difference) / 1.00 : 0;
-      } else {
-        // Get price - check for null explicitly since null means fetch failed, undefined means not fetched yet
-        price = stockPrices[stock.name] ?? null;
-        // Calculate shares to trade - only if we have a valid price (not null, not 0, not undefined)
-        sharesToTrade = price != null && price > 0 && Math.abs(difference) > 0.01
-          ? Math.abs(difference) / price
-          : 0;
-      }
-
-      let action: 'buy' | 'sell' | 'hold' = 'hold';
-      if (Math.abs(difference) > 0.01) {
-        action = difference > 0 ? 'buy' : 'sell';
-      }
-
-      return {
-        ...stock,
-        amount: targetValue.toFixed(2), // Target value after rebalancing
-        currentPrice: price != null ? price : null, // Explicitly handle null vs undefined
-        shares: price != null && price > 0 ? targetValue / price : undefined,
-        currentValue,
-        currentPercentage,
-        targetValue,
-        difference, // This is what's displayed in the Amount column (via Math.abs)
-        action,
-        sharesToTrade,
-        currentShares
-      };
-    });
-
-    // Add results for positions that need to be sold (not in target allocation)
-    const sellResults: RebalanceResult[] = currentPositions
-      .filter(pos => !targetSymbols.has(pos.symbol))
-      .map(pos => {
-        const currentValue = currentValuesMap.get(pos.symbol) || 0;
-        const currentShares = currentSharesMap.get(pos.symbol) || 0;
-        const currentPercentage = (currentValue / totalPortfolioValue) * 100;
-
-        // Handle cash specially - price is always 1.00
-        let price: number | null;
-        let sharesToSell: number;
-        if (isCash(pos.symbol)) {
-          price = 1.00;
-          sharesToSell = currentValue / 1.00;
-        } else {
-          price = stockPrices[pos.symbol] ?? null;
-          // These positions should be sold completely
-          // Use price-based calculation if price is available, otherwise use current shares
-          sharesToSell = price != null && price > 0 && currentValue > 0
-            ? currentValue / price
-            : currentShares;
-        }
-        return {
-          name: pos.symbol,
-          percentage: 0, // Not in target allocation
-          companyName: pos.companyName,
-          amount: '0.00',
-          currentPrice: price,
-          shares: undefined,
-          currentValue,
-          currentPercentage,
-          targetValue: 0,
-          difference: -currentValue, // Negative means sell
-          action: 'sell' as const,
-          sharesToTrade: sharesToSell, // Shares to sell
-          currentShares
-        };
-      });
-
-    // Combine and sort results: sells first, then buys, then holds
-    const allResults = [...targetResults, ...sellResults].sort((a, b) => {
-      if (a.action === 'sell' && b.action !== 'sell') return -1;
-      if (a.action !== 'sell' && b.action === 'sell') return 1;
-      if (a.action === 'buy' && b.action === 'hold') return -1;
-      if (a.action === 'hold' && b.action === 'buy') return 1;
-      return 0;
-    });
-
-    return allResults;
+    return rebalance(currentPositions, rebalanceStocks, stockPrices);
   }, [currentPositions, rebalanceStocks, stockPrices]);
 
   // Update rebalance results when positions or stocks change
@@ -1288,31 +1126,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return newErrors;
     });
 
-    const totalAmount = parseAmount(amount);
-
-    return currentStocks.map((stock) => {
-      const allocationAmount = totalAmount * (stock.percentage / 100);
-
-      // Handle cash specially - price is always 1.00, shares = amount
-      if (isCash(stock.name)) {
-        return {
-          ...stock,
-          amount: allocationAmount.toFixed(2),
-          currentPrice: 1.00,
-          shares: allocationAmount
-        };
-      }
-
-      const currentPrice = stockPrices[stock.name];
-      const shares = currentPrice ? allocationAmount / currentPrice : undefined;
-
-      return {
-        ...stock,
-        amount: allocationAmount.toFixed(2),
-        currentPrice,
-        shares
-      };
-    });
+    return splitByTarget(parseAmount(amount), currentStocks, stockPrices);
   }, [amount, currentStocks, validateAmount, validatePercentages, stockPrices]);
 
   // Update allocations whenever necessary values change
@@ -1371,22 +1185,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return 0;
     }
 
-    return currentPositions.reduce((sum, pos) => {
-      // Handle cash specially - price is always 1.00
-      if (isCash(pos.symbol)) {
-        if (pos.inputType === 'shares') {
-          return sum + ((pos.shares || 0) * 1.00);
-        } else {
-          return sum + (pos.value || 0);
-        }
-      }
-      const price = stockPrices[pos.symbol] || 0;
-      if (pos.inputType === 'shares') {
-        return sum + ((pos.shares || 0) * price);
-      } else {
-        return sum + (pos.value || 0);
-      }
-    }, 0);
+    return portfolioValue(currentPositions, stockPrices);
   }, [mode, currentPositions, stockPrices]);
 
   // State object for components
