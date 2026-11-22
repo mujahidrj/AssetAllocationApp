@@ -62,6 +62,8 @@ export interface CalculatorActions {
   removeStock: (index: number) => void;
   updateStockPercentage: (index: number, percentage: string) => void;
   handleSamplePortfolioChange: (portfolioName: string) => void;
+  /** Replace the deposit mix, e.g. with one from a share link. */
+  applyMix: (mix: Stock[]) => void;
   setNewStockName: (value: string) => void;
   setMode: (mode: CalculatorMode) => void;
   addCurrentPosition: (symbol: string) => Promise<void>;

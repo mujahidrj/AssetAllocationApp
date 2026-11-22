@@ -6,6 +6,7 @@ import { db } from '../../../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { parseAmount } from '../../../lib/parseAmount';
 import { isCash, rebalance, splitByTarget, portfolioValue, targetTotal, targetsAddUp } from '../../../lib/portfolioMath';
+import { loadGuestData, saveGuestData } from '../../../lib/deviceStorage';
 
 
 interface UseCalculatorProps {
@@ -128,27 +129,30 @@ const fetchStockPrice = async (symbol: string, signal: AbortSignal) => {
   }
 };
 
+const DEFAULT_MIX: Stock[] = [
+  { name: "FZROX", percentage: 80, companyName: "Fidelity ZERO Total Market Index Fund" },
+  { name: "FZILX", percentage: 20, companyName: "Fidelity ZERO International Index Fund" }
+];
+
+// Marks that a signed-out visitor's data has been read from this device
+const DEVICE = '__device__';
+
 export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   const [amount, setAmount] = useState("");
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [newStockName, setNewStockName] = useState("");
   const [fetchingStock, setFetchingStock] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [localStocks, setLocalStocks] = useState<Stock[]>([
-    { name: "FZROX", percentage: 80, companyName: "Fidelity ZERO Total Market Index Fund" },
-    { name: "FZILX", percentage: 20, companyName: "Fidelity ZERO International Index Fund" }
-  ]);
+  const [localStocks, setLocalStocks] = useState<Stock[]>(() => loadGuestData().stocks ?? DEFAULT_MIX);
   const [allocations, setAllocations] = useState<AllocationResult[] | null>(null);
   const [stockPrices, setStockPrices] = useState<Record<string, number | null>>({});
   const [mode, setMode] = useState<CalculatorMode>('deposit');
   const [currentPositions, setCurrentPositions] = useState<CurrentPosition[]>([]);
-  const [rebalanceStocks, setRebalanceStocks] = useState<Stock[]>([
-    { name: "FZROX", percentage: 80, companyName: "Fidelity ZERO Total Market Index Fund" },
-    { name: "FZILX", percentage: 20, companyName: "Fidelity ZERO International Index Fund" }
-  ]);
+  const [rebalanceStocks, setRebalanceStocks] = useState<Stock[]>(DEFAULT_MIX);
   const [rebalanceResults, setRebalanceResults] = useState<RebalanceResult[] | null>(null);
-  // uid whose saved holdings and targets have finished loading. Saving waits for this,
-  // so the starting values are never written over a user's saved data on sign-in.
+  // uid whose saved holdings and targets have finished loading (DEVICE when signed out).
+  // Saving waits for this, so starting values never overwrite saved data, and a
+  // signed-in user's data is never written to the device after they sign out.
   const [rebalanceLoadedFor, setRebalanceLoadedFor] = useState<string | null>(null);
 
   // Load rebalance data from database
@@ -156,11 +160,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   useEffect(() => {
     setRebalanceLoadedFor(null);
     if (!signedInUid) {
-      setCurrentPositions([]);
-      setRebalanceStocks([
-        { name: "FZROX", percentage: 80, companyName: "Fidelity ZERO Total Market Index Fund" },
-        { name: "FZILX", percentage: 20, companyName: "Fidelity ZERO International Index Fund" }
-      ]);
+      const saved = loadGuestData();
+      setCurrentPositions(saved.positions ?? []);
+      setRebalanceStocks(saved.rebalanceStocks ?? DEFAULT_MIX);
+      setRebalanceLoadedFor(DEVICE);
       return;
     }
 
@@ -200,6 +203,18 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       mounted = false;
     };
   }, [signedInUid]);
+
+  // Save the signed-out visitor's deposit mix on this device
+  useEffect(() => {
+    if (!user) saveGuestData({ stocks: localStocks });
+  }, [user, localStocks]);
+
+  // Save holdings and rebalance targets: on this device when signed out
+  useEffect(() => {
+    if (!user && rebalanceLoadedFor === DEVICE) {
+      saveGuestData({ positions: currentPositions, rebalanceStocks });
+    }
+  }, [user, rebalanceLoadedFor, currentPositions, rebalanceStocks]);
 
   // Save current positions to database
   useEffect(() => {
@@ -1149,6 +1164,14 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     addCash,
     removeStock,
     updateStockPercentage,
+    applyMix: (mix: Stock[]) => {
+      if (user) {
+        void setStocks?.(mix);
+      } else {
+        setLocalStocks(mix);
+      }
+      setValidationErrors({});
+    },
     handleSamplePortfolioChange: (portfolioName: string) => {
       const selectedPortfolio = samplePortfolios.find(p => p.name === portfolioName);
       if (selectedPortfolio) {

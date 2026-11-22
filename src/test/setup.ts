@@ -22,4 +22,7 @@ afterAll(() => {
 afterEach(() => {
   vi.clearAllMocks()
   cleanup()
+  // The app saves to the browser and reads share links from the URL; start each test clean
+  window.localStorage.clear()
+  window.history.replaceState(null, '', '/')
 })

@@ -5,6 +5,7 @@ import { useCalculator } from './calculator/hooks/useCalculator';
 import { Header } from './calculator/ui/Header';
 import { ViewToggle } from './calculator/ui/ViewToggle';
 import { GuestModePrompt } from './calculator/ui/GuestModePrompt';
+import { SharedMixBanner, ShareLinkButton } from './calculator/ui/ShareMix';
 import { AmountInput } from './calculator/ui/AmountInput';
 import { StockList } from './calculator/ui/StockList';
 import { ResultsSection } from './calculator/ui/ResultsSection';
@@ -31,6 +32,12 @@ function RothIRACalculator() {
       <div className={styles.wrapper}>
         <Header />
         <div className={styles.card}>
+          <SharedMixBanner
+            onApply={(mix) => {
+              actions.applyMix(mix);
+              actions.setMode('deposit');
+            }}
+          />
           <ViewToggle mode={state.mode} onModeChange={actions.setMode} />
 
           {user && loading ? (
@@ -44,7 +51,7 @@ function RothIRACalculator() {
                 <GuestModePrompt
                   onPortfolioChange={actions.handleSamplePortfolioChange}
                   portfolios={samplePortfolios}
-                  defaultPortfolio={samplePortfolios[0].name}
+                  defaultPortfolio=""
                 />
               )}
 
@@ -65,6 +72,8 @@ function RothIRACalculator() {
                 onAddCash={actions.addCash}
                 loading={loading || state.loading}
               />
+
+              <ShareLinkButton stocks={state.currentStocks} />
 
               {state.currentStocks.length > 0 && state.amount && (
                 <ResultsSection
