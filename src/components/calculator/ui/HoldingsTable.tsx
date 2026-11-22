@@ -135,6 +135,36 @@ export function HoldingsTable({
     });
   }, [targetStocks, onUpdateTargetPercentage]);
 
+  // Values typed for a fund that's in the targets but not yet held. The position
+  // is added first; the value is applied once the new position shows up in props,
+  // so the latest typed value is never lost to a stale positions list.
+  const pendingPositionValues = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    pendingPositionValues.current.forEach((value, symbol) => {
+      const index = positions.findIndex(p => p.symbol === symbol);
+      if (index !== -1) {
+        pendingPositionValues.current.delete(symbol);
+        onUpdatePosition(index, { inputType: 'value', value });
+      }
+    });
+  }, [positions, onUpdatePosition]);
+
+  const setTargetOnlyValue = (symbol: string, value: number) => {
+    const existingIndex = positions.findIndex(p => p.symbol === symbol);
+    if (existingIndex !== -1) {
+      onUpdatePosition(existingIndex, { inputType: 'value', value });
+      return;
+    }
+    const alreadyAdding = pendingPositionValues.current.has(symbol);
+    pendingPositionValues.current.set(symbol, value);
+    if (!alreadyAdding) {
+      Promise.resolve(onAddPosition(symbol)).catch(() => {
+        pendingPositionValues.current.delete(symbol);
+      });
+    }
+  };
+
   const handleUpdateTarget = (symbol: string, percentage: string) => {
     const index = targetStocks.findIndex(s => s.name === symbol);
     const newPercentage = parseFloat(percentage) || 0;
@@ -270,42 +300,14 @@ export function HoldingsTable({
                                 }));
                                 const numValue = parseFloat(val);
                                 if (!isNaN(numValue) && val !== '' && val !== '.') {
-                                  // Check if position already exists - if so, just update it
-                                  const existingPosIndex = positions.findIndex(p => p.symbol === row.symbol);
-                                  if (existingPosIndex !== -1) {
-                                    onUpdatePosition(existingPosIndex, { inputType: 'value', value: numValue });
-                                  } else {
-                                    // Add position with value only if it doesn't exist
-                                    void onAddPosition(row.symbol).then(() => {
-                                      setTimeout(() => {
-                                        const newPosIndex = positions.findIndex(p => p.symbol === row.symbol);
-                                        if (newPosIndex !== -1) {
-                                          onUpdatePosition(newPosIndex, { inputType: 'value', value: numValue });
-                                        }
-                                      }, 100);
-                                    });
-                                  }
+                                  setTargetOnlyValue(row.symbol, numValue);
                                 }
                               }}
                               onBlur={(e) => {
                                 const val = e.target.value;
                                 const numValue = parseFloat(val) || 0;
                                 if (numValue > 0) {
-                                  // Check if position already exists - if so, just update it
-                                  const existingPosIndex = positions.findIndex(p => p.symbol === row.symbol);
-                                  if (existingPosIndex !== -1) {
-                                    onUpdatePosition(existingPosIndex, { inputType: 'value', value: numValue });
-                                  } else {
-                                    // Add position with value only if it doesn't exist
-                                    void onAddPosition(row.symbol).then(() => {
-                                      setTimeout(() => {
-                                        const newPosIndex = positions.findIndex(p => p.symbol === row.symbol);
-                                        if (newPosIndex !== -1) {
-                                          onUpdatePosition(newPosIndex, { inputType: 'value', value: numValue });
-                                        }
-                                      }, 100);
-                                    });
-                                  }
+                                  setTargetOnlyValue(row.symbol, numValue);
                                 }
                                 setLocalCurrentValues(prev => {
                                   const updated = { ...prev };
@@ -553,42 +555,14 @@ export function HoldingsTable({
                             }));
                             const numValue = parseFloat(val);
                             if (!isNaN(numValue) && val !== '' && val !== '.') {
-                              // Check if position already exists - if so, just update it
-                              const existingPosIndex = positions.findIndex(p => p.symbol === row.symbol);
-                              if (existingPosIndex !== -1) {
-                                onUpdatePosition(existingPosIndex, { inputType: 'value', value: numValue });
-                              } else {
-                                // Add position with value only if it doesn't exist
-                                void onAddPosition(row.symbol).then(() => {
-                                  setTimeout(() => {
-                                    const newPosIndex = positions.findIndex(p => p.symbol === row.symbol);
-                                    if (newPosIndex !== -1) {
-                                      onUpdatePosition(newPosIndex, { inputType: 'value', value: numValue });
-                                    }
-                                  }, 100);
-                                });
-                              }
+                              setTargetOnlyValue(row.symbol, numValue);
                             }
                           }}
                           onBlur={(e) => {
                             const val = e.target.value;
                             const numValue = parseFloat(val) || 0;
                             if (numValue > 0) {
-                              // Check if position already exists - if so, just update it
-                              const existingPosIndex = positions.findIndex(p => p.symbol === row.symbol);
-                              if (existingPosIndex !== -1) {
-                                onUpdatePosition(existingPosIndex, { inputType: 'value', value: numValue });
-                              } else {
-                                // Add position with value only if it doesn't exist
-                                void onAddPosition(row.symbol).then(() => {
-                                  setTimeout(() => {
-                                    const newPosIndex = positions.findIndex(p => p.symbol === row.symbol);
-                                    if (newPosIndex !== -1) {
-                                      onUpdatePosition(newPosIndex, { inputType: 'value', value: numValue });
-                                    }
-                                  }, 100);
-                                });
-                              }
+                              setTargetOnlyValue(row.symbol, numValue);
                             }
                             setLocalCurrentValues(prev => {
                               const updated = { ...prev };

@@ -2026,3 +2026,51 @@ describe('useCalculator - Rebalance Mode', () => {
     });
   });
 });
+
+describe('useCalculator - saved rebalance data on sign-in', () => {
+  it('waits for saved holdings and targets to load before saving anything', async () => {
+    const firestore = await import('firebase/firestore');
+    const savedPositions = [{ symbol: 'SPUS', inputType: 'value', value: 12400 }];
+    const savedStocks = [{ name: 'SPUS', percentage: 100 }];
+
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+
+    vi.mocked(firestore.doc).mockImplementation(((_db: unknown, collection: string, id: string) => `${collection}/${id}`) as never);
+    vi.mocked(firestore.setDoc).mockResolvedValue(undefined as void);
+    vi.mocked(firestore.getDoc).mockImplementation((async (ref: unknown) => {
+      await gate;
+      if (ref === 'userPositions/u1') return { exists: () => true, data: () => ({ positions: savedPositions }) };
+      if (ref === 'userRebalancePercentages/u1') return { exists: () => true, data: () => ({ stocks: savedStocks }) };
+      return { exists: () => false };
+    }) as never);
+
+    try {
+      const { result } = renderHook(() => useCalculator({
+        user: { uid: 'u1' } as User,
+        stocks: [],
+        setStocks: vi.fn(),
+      }));
+
+      // While the saved data is still loading, the starting values must not be written
+      await act(async () => { await Promise.resolve(); });
+      expect(firestore.setDoc).not.toHaveBeenCalled();
+
+      await act(async () => { release(); await gate; });
+
+      await waitFor(() => {
+        expect(result.current.state.currentPositions).toEqual(savedPositions);
+        expect(result.current.state.rebalanceStocks).toEqual(savedStocks);
+      });
+
+      // Any write after loading carries the saved data, never the defaults
+      for (const [ref, data] of vi.mocked(firestore.setDoc).mock.calls) {
+        if (ref === 'userPositions/u1') expect(data).toEqual({ positions: savedPositions });
+        if (ref === 'userRebalancePercentages/u1') expect(data).toEqual({ stocks: savedStocks });
+      }
+    } finally {
+      vi.mocked(firestore.doc).mockImplementation((() => undefined) as never);
+      vi.mocked(firestore.getDoc).mockImplementation((() => Promise.resolve({ exists: () => false })) as never);
+    }
+  });
+});

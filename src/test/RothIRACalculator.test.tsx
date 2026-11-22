@@ -142,6 +142,26 @@ describe('RothIRACalculator', () => {
     }
   })
 
+  it('reads amounts typed with commas and a dollar sign', async () => {
+    const user = userEvent.setup()
+    const amountInput = await screen.findByPlaceholderText(/enter amount/i)
+    const inputs = screen.getAllByRole('spinbutton')
+
+    if (inputs.length >= 2) {
+      await user.clear(inputs[0])
+      await user.type(inputs[0], '60')
+      await user.clear(inputs[1])
+      await user.type(inputs[1], '40')
+      await user.clear(amountInput)
+      await user.type(amountInput, '$10,000')
+
+      // Previously "10,000" was read as $10 and split as $6.00 / $4.00
+      await screen.findByText(/\$6,000\.00/, {}, { timeout: 2000 })
+      expect(screen.getByText(/\$4,000\.00/)).toBeInTheDocument()
+      expect(screen.queryByText(/please enter a valid positive number/i)).not.toBeInTheDocument()
+    }
+  })
+
   it('validates input amount', async () => {
     const amountInput = screen.getByPlaceholderText(/enter amount/i)
 

@@ -1,54 +1,55 @@
-# React + TypeScript + Vite
+# Asset Allocation Calculator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web app that tells you exactly what to buy or sell to keep a portfolio at its target mix.
 
-Currently, two official plugins are available:
+Live: https://asset-allocation-app-nine.vercel.app/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## What it does
 
-## Expanding the ESLint configuration
+- **Deposit / Withdrawal:** type an amount and it's split across your funds by target percentage, with share counts at the latest price.
+- **Rebalance:** enter what you hold and your targets, and it lists the buys and sells that bring each fund back to target.
+- **Model portfolios:** start from a Fidelity, Vanguard, Schwab or Sharia-compliant mix.
+- **Google sign-in:** saves your funds, holdings and targets to your account.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Prices are the last market price from Yahoo Finance. This is a calculator, not financial advice.
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+## Stack
+
+- React 18, TypeScript and Vite, styled with CSS Modules
+- Vercel serverless functions in `api/` that proxy Yahoo Finance search and quotes (`server/server.js` is the same API for local development)
+- Firebase Auth (Google) and Firestore for saved data; security rules are in `firestore.rules`
+- Vitest, Testing Library and MSW for tests, run by GitHub Actions on every pull request
+
+## Running it locally
+
+Requires Node 20 or 22.
+
+```bash
+npm install
+npm run dev        # API server and Vite dev server together
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Other scripts:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+npm test               # run the tests once
+npm run test:coverage  # tests with a coverage report (CI requires 75%)
+npm run lint
+npm run build          # type-check and build for production
+```
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
+## Deploying
+
+- The site deploys to Vercel from `master`; every pull request gets a preview deployment.
+- Firestore rules deploy separately with the Firebase CLI: `firebase deploy --only firestore:rules` (project `asset-allocation-bf70b`, set in `.firebaserc`).
+
+## Project layout
+
+```
+api/                         Vercel functions: search.ts, stock.ts
+server/server.js             local copy of the API
+src/components/              main screen and sign-in button
+src/components/calculator/   calculator hook, UI pieces, model portfolios
+src/lib/                     Firebase setup, auth, shared helpers
+src/test/                    test setup and MSW handlers
 ```
