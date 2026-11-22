@@ -2075,3 +2075,53 @@ describe('useCalculator - saved rebalance data on sign-in', () => {
     }
   });
 });
+
+describe('useCalculator - saving on this device when signed out', () => {
+  it('remembers the deposit mix, holdings and targets between visits', async () => {
+    const mix: Stock[] = [{ name: 'SPUS', percentage: 60 }, { name: 'SPTE', percentage: 40 }];
+    const first = renderHook(() => useCalculator({ user: null, stocks: [], setStocks: vi.fn() }));
+
+    act(() => {
+      first.result.current.actions.applyMix(mix);
+    });
+    await act(async () => {
+      await first.result.current.actions.addCurrentPosition('FZROX');
+    });
+    act(() => {
+      first.result.current.actions.updateCurrentPosition(0, { inputType: 'value', value: 1234 });
+    });
+    first.unmount();
+
+    const second = renderHook(() => useCalculator({ user: null, stocks: [], setStocks: vi.fn() }));
+    await waitFor(() => {
+      expect(second.result.current.state.currentStocks).toEqual(mix);
+      expect(second.result.current.state.currentPositions).toEqual([
+        expect.objectContaining({ symbol: 'FZROX', inputType: 'value', value: 1234 }),
+      ]);
+    });
+  });
+
+  it('does not copy a signed-in user\'s holdings to the device after sign-out', async () => {
+    const firestore = await import('firebase/firestore');
+    vi.mocked(firestore.getDoc).mockImplementation((async () => ({
+      exists: () => true,
+      data: () => ({ positions: [{ symbol: 'SPUS', inputType: 'value', value: 99999 }], stocks: [{ name: 'SPUS', percentage: 100 }] }),
+    })) as never);
+
+    try {
+      const signedIn = { uid: 'u2' } as User;
+      const { result, rerender } = renderHook(
+        ({ user }: { user: User | null }) => useCalculator({ user, stocks: [], setStocks: vi.fn() }),
+        { initialProps: { user: signedIn as User | null } }
+      );
+      await waitFor(() => expect(result.current.state.currentPositions).toHaveLength(1));
+
+      rerender({ user: null });
+      await waitFor(() => expect(result.current.state.currentPositions).toEqual([]));
+
+      expect(window.localStorage.getItem('assetAllocation.guest.v1') ?? '').not.toContain('99999');
+    } finally {
+      vi.mocked(firestore.getDoc).mockImplementation((() => Promise.resolve({ exists: () => false })) as never);
+    }
+  });
+});
