@@ -4,5 +4,11 @@ service cloud.firestore {
     match /userStocks/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    match /userPositions/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /userRebalancePercentages/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
   }
 }
