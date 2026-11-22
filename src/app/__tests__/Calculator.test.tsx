@@ -26,7 +26,8 @@ describe('Calculator', () => {
     expect(within(trades).getByRole('heading', { name: 'Buy these 3' })).toBeInTheDocument();
     // Prices come from the mocked API ($100 for these funds)
     expect(await within(trades).findByText('60.0000 sh')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /copy 3 buys · \$10,000\.00/i })).toBeInTheDocument();
+    // The phone's pinned bar (hidden at desktop width)
+    expect(screen.getByRole('button', { name: /copy 3 buys · \$10,000\.00/i, hidden: true })).toBeInTheDocument();
   });
 
   it('flags an amount it cannot read', async () => {

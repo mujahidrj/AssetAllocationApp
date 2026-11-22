@@ -40,7 +40,9 @@ describe('makePlan', () => {
       ['buy', 'SPTE', 2254.24, '60.6631'],
       ['buy', 'SPWO', 245.76, '9.3730'],
     ]);
-    expect(plan.skips).toEqual([{ symbol: 'SPUS', nowPct: expect.closeTo(57.94, 2), targetPct: 50 }]);
+    expect(plan.skips).toHaveLength(1);
+    expect(plan.skips[0]).toMatchObject({ symbol: 'SPUS', targetPct: 50 });
+    expect(plan.skips[0].nowPct).toBeCloseTo(57.94, 2);
     expect(plan.net).toBe(2500);
   });
 
