@@ -4,6 +4,7 @@ import type { Stock, ValidationErrors, CalculatorState, CalculatorActions, Alloc
 import { samplePortfolios } from '../data/samplePortfolios';
 import { db } from '../../../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { parseAmount } from '../../../lib/parseAmount';
 
 // Helper function to check if a symbol represents cash
 const isCash = (symbol: string): boolean => {
@@ -149,10 +150,15 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     { name: "FZILX", percentage: 20, companyName: "Fidelity ZERO International Index Fund" }
   ]);
   const [rebalanceResults, setRebalanceResults] = useState<RebalanceResult[] | null>(null);
+  // uid whose saved holdings and targets have finished loading. Saving waits for this,
+  // so the starting values are never written over a user's saved data on sign-in.
+  const [rebalanceLoadedFor, setRebalanceLoadedFor] = useState<string | null>(null);
 
   // Load rebalance data from database
+  const signedInUid = user?.uid ?? null;
   useEffect(() => {
-    if (!user) {
+    setRebalanceLoadedFor(null);
+    if (!signedInUid) {
       setCurrentPositions([]);
       setRebalanceStocks([
         { name: "FZROX", percentage: 80, companyName: "Fidelity ZERO Total Market Index Fund" },
@@ -161,7 +167,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return;
     }
 
-    const userId = user.uid;
+    const userId = signedInUid;
     let mounted = true;
 
     async function loadRebalanceData() {
@@ -183,7 +189,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
         if (percentagesSnap.exists()) {
           setRebalanceStocks(percentagesSnap.data().stocks || []);
         }
+
+        setRebalanceLoadedFor(userId);
       } catch (error) {
+        // Leave saving off: writing now could replace data we failed to read
         console.error('Error loading rebalance data:', error);
       }
     }
@@ -193,11 +202,11 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [signedInUid]);
 
   // Save current positions to database
   useEffect(() => {
-    if (!user) return;
+    if (!user || rebalanceLoadedFor !== user.uid) return;
 
     // Clean positions to remove any undefined values before saving
     const cleanedPositions = currentPositions.map(pos => {
@@ -221,11 +230,11 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     setDoc(positionsRef, { positions: cleanedPositions }).catch(error => {
       console.error('Error saving positions:', error);
     });
-  }, [user, currentPositions]);
+  }, [user, rebalanceLoadedFor, currentPositions]);
 
   // Save rebalance stocks to database
   useEffect(() => {
-    if (!user) return;
+    if (!user || rebalanceLoadedFor !== user.uid) return;
 
     // Firestore rejects undefined - omit optional fields when they're undefined
     const cleanedStocks = rebalanceStocks.map(({ name, percentage, companyName }) => {
@@ -239,7 +248,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     setDoc(percentagesRef, { stocks: cleanedStocks }).catch(error => {
       console.error('Error saving rebalance percentages:', error);
     });
-  }, [user, rebalanceStocks]);
+  }, [user, rebalanceLoadedFor, rebalanceStocks]);
 
   // Cleanup function for ongoing fetches
   useEffect(() => {
@@ -358,8 +367,8 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   }, [mode, currentPositions]);
 
   const validateAmount = useCallback((value: string) => {
-    const num = parseFloat(value);
-    if (!value) {
+    const num = parseAmount(value);
+    if (!value.trim()) {
       return "Amount is required";
     }
     if (isNaN(num) || num <= 0) {
@@ -1279,7 +1288,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return newErrors;
     });
 
-    const totalAmount = parseFloat(amount);
+    const totalAmount = parseAmount(amount);
 
     return currentStocks.map((stock) => {
       const allocationAmount = totalAmount * (stock.percentage / 100);

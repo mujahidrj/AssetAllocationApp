@@ -39,6 +39,9 @@ function createStock(name: string, percentage: number): Stock {
   };
 }
 
+// Sharia mixes follow ShariaPortfolio's "Passive Investing: Express Model" slide
+// (Aggressive, Growth, Moderate, Income, Conservative, Sukuk). The slide's Sukuk
+// labels add up to 101%, so SPSK is 42% here instead of 43%.
 export const samplePortfolios: SamplePortfolio[] = [
   {
     name: "Fidelity 2-Fund Portfolio",
@@ -68,7 +71,7 @@ export const samplePortfolios: SamplePortfolio[] = [
     stocks: [
       createStock("SPUS", 40),
       createStock("SPTE", 38),
-      createStock("SPWO", 20),
+      createStock("SPWO", 10),
       createStock("SPSK", 5),
       createStock("SPRE", 5),
       createStock("CASH", 2),
@@ -102,8 +105,8 @@ export const samplePortfolios: SamplePortfolio[] = [
       createStock("SPSK", 47),
       createStock("SPUS", 25),
       createStock("SPRE", 10),
-      createStock("SPTE", 9),
-      createStock("SPWO", 6),
+      createStock("SPTE", 8),
+      createStock("SPWO", 5),
       createStock("GLD", 3),
       createStock("CASH", 2),
     ]
@@ -122,12 +125,12 @@ export const samplePortfolios: SamplePortfolio[] = [
   {
     name: "Sharia Portfolio Sukuk",
     stocks: [
-      createStock("SPSK", 43),
+      createStock("SPSK", 42),
       createStock("AMAPX", 10),
       createStock("SPUS", 10),
       createStock("WISEX", 10),
       createStock("SPRE", 13),
-      createStock("GLD", 6),
+      createStock("GLD", 8),
       createStock("SPWO", 5),
       createStock("CASH", 2),
     ]

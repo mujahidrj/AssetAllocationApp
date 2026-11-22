@@ -637,6 +637,42 @@ describe('HoldingsTable', () => {
       expect(onAddPosition).toHaveBeenCalledWith('GOOGL');
     });
 
+    it('applies the full typed value once the new position arrives, adding it only once', async () => {
+      const user = userEvent.setup();
+      const onAddPosition = vi.fn().mockResolvedValue(undefined);
+      const onUpdatePosition = vi.fn();
+      const targetOnly: Stock[] = [{ name: 'GOOGL', percentage: 20 }];
+      const props = {
+        ...defaultProps,
+        targetStocks: targetOnly,
+        stockPrices: { GOOGL: 100 },
+        totalPortfolioValue: 1000,
+        onAddPosition,
+        onUpdatePosition,
+      };
+
+      const { rerender } = render(<HoldingsTable {...props} positions={[]} />);
+
+      const currentValueInput = screen.getAllByRole('spinbutton')[0];
+      await user.type(currentValueInput, '1000');
+
+      // One add for the whole entry, not one per keystroke
+      expect(onAddPosition).toHaveBeenCalledTimes(1);
+      expect(onUpdatePosition).not.toHaveBeenCalled();
+
+      // The parent adds the position (value 0) and passes it back down
+      rerender(
+        <HoldingsTable
+          {...props}
+          positions={[{ symbol: 'GOOGL', inputType: 'value', value: 0 }]}
+        />
+      );
+
+      await waitFor(() => {
+        expect(onUpdatePosition).toHaveBeenCalledWith(0, { inputType: 'value', value: 1000 });
+      });
+    });
+
     it('should call onRemoveTargetStock when delete clicked on target-only row', async () => {
       const user = userEvent.setup();
       const onRemoveTargetStock = vi.fn();
