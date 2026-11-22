@@ -155,9 +155,10 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
   const [rebalanceLoadedFor, setRebalanceLoadedFor] = useState<string | null>(null);
 
   // Load rebalance data from database
+  const signedInUid = user?.uid ?? null;
   useEffect(() => {
     setRebalanceLoadedFor(null);
-    if (!user) {
+    if (!signedInUid) {
       setCurrentPositions([]);
       setRebalanceStocks([
         { name: "FZROX", percentage: 80, companyName: "Fidelity ZERO Total Market Index Fund" },
@@ -166,7 +167,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
       return;
     }
 
-    const userId = user.uid;
+    const userId = signedInUid;
     let mounted = true;
 
     async function loadRebalanceData() {
@@ -201,7 +202,7 @@ export function useCalculator({ user, stocks, setStocks }: UseCalculatorProps) {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [signedInUid]);
 
   // Save current positions to database
   useEffect(() => {

@@ -2046,8 +2046,9 @@ describe('useCalculator - saved rebalance data on sign-in', () => {
     }) as never);
 
     try {
+      const signedIn = { uid: 'u1' } as User;
       const { result } = renderHook(() => useCalculator({
-        user: { uid: 'u1' } as User,
+        user: signedIn,
         stocks: [],
         setStocks: vi.fn(),
       }));
