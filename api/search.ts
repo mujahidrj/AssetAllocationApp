@@ -78,6 +78,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       description: quote.longname || quote.shortname || quote.symbol || '',
     })).filter(item => item.symbol && item.description);
 
+    // Search results for a query rarely change: let the CDN reuse them for an hour
+    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+
     return res.json({
       result: results
     });

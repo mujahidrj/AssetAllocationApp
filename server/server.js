@@ -30,9 +30,11 @@ app.get('/api/stock/:symbol', async (req, res) => {
     // Extract price from Yahoo Finance API response structure
     // Response format: { chart: { result: [{ meta: { regularMarketPrice: number } }] } }
     if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+      const meta = data.chart.result[0].meta;
       return res.json({
-        symbol: data.chart.result[0].meta.symbol || symbol,
-        price: data.chart.result[0].meta.regularMarketPrice
+        symbol: meta.symbol || symbol,
+        price: meta.regularMarketPrice,
+        asOf: meta.regularMarketTime ? new Date(meta.regularMarketTime * 1000).toISOString() : null
       });
     }
     
