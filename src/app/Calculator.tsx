@@ -13,7 +13,7 @@ import { CloseIcon, CopyIcon } from './icons';
 import { ImportDialog, type ImportChoice, type ImportProblem } from './ImportDialog';
 import { MixCard } from './MixCard';
 import { displayName, sentenceName, type Fund, type ManualPrice, type Verb } from './model';
-import { makePlan, type PriceMap } from './plan';
+import { furthestOff, heldValues, makePlan, valuesAfter, type PriceMap } from './plan';
 import { PortfolioMenu } from './PortfolioMenu';
 import { Sentence } from './Sentence';
 import { matchingTemplate, templates } from './templates';
@@ -147,6 +147,27 @@ export function Calculator() {
     prices,
     wholeShares,
   }), [funds, holdings, tracksHoldings, effectiveVerb, amount, sell, prices, wholeShares]);
+
+  // Off target: worth pointing out rebalancing (never switches the verb by itself)
+  const values = useMemo(() => (tracksHoldings ? heldValues(holdings, prices) : null), [tracksHoldings, holdings, prices]);
+  const hasHoldings = !!values && Object.keys(values).length > 0;
+  const offNow = useMemo(() => (values ? furthestOff(funds, values) : null), [funds, values]);
+  const offAfter = useMemo(() => {
+    // Adding with selling already lands everything on target; rebalancing is the fix itself
+    if (!values || plan.status !== 'ok' || effectiveVerb === 'rebal' || (effectiveVerb === 'add' && sell)) return null;
+    return furthestOff(funds, valuesAfter(values, plan.trades));
+  }, [values, plan, effectiveVerb, sell, funds]);
+  const rebalance = () => { setVerb('rebal'); window.scrollTo?.({ top: 0, behavior: 'smooth' }); };
+
+  /** Picking "just rebalancing" turns holdings on, since it works from them. */
+  const chooseVerb = (next: Verb) => {
+    setVerb(next);
+    if (next === 'rebal' && !tracksHoldings) actions.setTracksHoldings(true);
+  };
+
+  const focusHoldings = () => {
+    document.querySelector<HTMLInputElement>('input[aria-label*="you own, in"]')?.focus();
+  };
 
   // Copied-text fallback goes stale as soon as the trades change
   const tradesKey = tradesText(plan, asOf, wholeShares);
@@ -382,8 +403,8 @@ export function Calculator() {
           <Sentence
             ref={blankRef}
             verb={effectiveVerb}
-            onVerb={setVerb}
-            canRebalance={tracksHoldings}
+            onVerb={chooseVerb}
+            hasHoldings={tracksHoldings}
             amount={amountText}
             onAmount={setAmountText}
             onAmountBlur={() => { if (Number.isFinite(amount) && amount > 0) setAmountText(formatAmountInput(amount)); }}
@@ -481,6 +502,12 @@ export function Calculator() {
               onAddPrice={symbol => setEditingPrice(symbol)}
               textFallback={textFallback}
               onCloseText={() => setTextFallback(null)}
+              hasHoldings={hasHoldings}
+              offNow={offNow}
+              offAfter={offAfter}
+              onRebalance={rebalance}
+              onEnterHoldings={focusHoldings}
+              onImport={() => fileInput.current?.click()}
             />
 
             {(funds.length > 0 || searchOpen) && (
@@ -510,6 +537,8 @@ export function Calculator() {
                 editingPrice={editingPrice}
                 onEditPrice={setEditingPrice}
                 onSetPrice={priceActions.setManualPrice}
+                offTarget={effectiveVerb === 'rebal' ? null : offNow}
+                onRebalance={rebalance}
               />
             )}
           </>

@@ -3,7 +3,7 @@ import styles from './Calculator.module.css';
 import { CloseIcon } from './icons';
 import { drift, money, pct1, priceDate } from './format';
 import { shortName, type Fund, type Holding, type ManualPrice } from './model';
-import { holdingDollars, type PriceMap } from './plan';
+import { holdingDollars, type OffTarget, type PriceMap } from './plan';
 import { FundSearch } from './FundSearch';
 import { parseAmount } from '../lib/parseAmount';
 
@@ -118,10 +118,13 @@ interface MixCardProps {
   editingPrice: string | null;
   onEditPrice: (symbol: string | null) => void;
   onSetPrice: (symbol: string, price: number | null) => void;
+  /** Furthest off target, when worth a rebalance (and not already rebalancing). */
+  offTarget: OffTarget | null;
+  onRebalance: () => void;
 }
 
 export function MixCard(props: MixCardProps) {
-  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice } = props;
+  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance } = props;
   const [dropping, setDropping] = useState(false);
 
   const hasFile = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
@@ -297,6 +300,13 @@ export function MixCard(props: MixCardProps) {
                 </button>
               )}
             </>
+          )}
+          {offTarget && (
+            <span className={styles.furthestOff}>
+              Furthest off: {offTarget.symbol} {drift(offTarget.drift)}
+              {' · '}
+              <button type="button" className={styles.linkButton} onClick={onRebalance}>Rebalance</button>
+            </span>
           )}
           {tracksHoldings && <span className={styles.num} style={{ color: 'var(--text-2)' }}>You own {money(heldTotal)}</span>}
         </div>

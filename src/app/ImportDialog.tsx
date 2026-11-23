@@ -5,7 +5,6 @@ import { money } from './format';
 import { holdingsFromAccount, type ImportedAccount, type ImportedPosition, type ImportResult } from './brokerImport';
 import { displayName, isCashSymbol, type Fund, type Holding, type Portfolio } from './model';
 import { holdingDollars, type PriceMap } from './plan';
-import { sharesText } from './tradeText';
 
 export interface ImportChoice {
   holdings: Record<string, Holding>;
@@ -40,13 +39,16 @@ function bestAccount(accounts: ImportedAccount[], name: string): number {
   return i === -1 ? 0 : i;
 }
 
+/** "210 shares", "40.5 shares", "1 share" */
+const shareCount = (n: number) => `${+n.toFixed(4)} ${n === 1 ? 'share' : 'shares'}`;
+
 const amountText = (p: Pick<ImportedPosition, 'shares' | 'value' | 'cash'>) =>
   p.shares != null && !p.cash
-    ? `${sharesText(p.shares, Number.isInteger(p.shares))}${p.value != null ? ` · ${money(p.value)}` : ''}`
+    ? `${shareCount(p.shares)}${p.value != null ? ` · ${money(p.value)}` : ''}`
     : money(p.value ?? 0);
 
 const wasText = (h: Holding | undefined) =>
-  !h || h.amount <= 0 ? 'was nothing' : h.kind === 'shares' ? `was ${sharesText(h.amount, Number.isInteger(h.amount))}` : `was ${money(h.amount)}`;
+  !h || h.amount <= 0 ? 'was nothing' : h.kind === 'shares' ? `was ${shareCount(h.amount)}` : `was ${money(h.amount)}`;
 
 /**
  * Review step for a broker file: pick the account, see what replaces what you own,

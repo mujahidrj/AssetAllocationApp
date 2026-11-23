@@ -1088,6 +1088,31 @@
   display: none;
 }
 
+/* ---------- Rebalance prompts ---------- */
+
+.emptyAction {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.emptyAction p {
+  flex: 1 1 320px;
+  margin: 0;
+}
+
+.furthestOff {
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.tradeShares .linkButton {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  text-align: right;
+}
+
 /* ---------- Leftover cash, typed prices, shares choice ---------- */
 
 .leftoverRow {

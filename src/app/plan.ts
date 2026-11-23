@@ -260,3 +260,58 @@ function roundToWholeShares(trades: Trade[], ctx: {
 
   return { trades: out, shortOfShare };
 }
+
+/* ---------- Off target ---------- */
+
+export interface OffTarget {
+  symbol: string;
+  nowPct: number;
+  targetPct: number;
+  /** nowPct − targetPct */
+  drift: number;
+}
+
+/** Below this, a rebalancing trade isn't worth suggesting. */
+const MIN_REBALANCE_TRADE = 25;
+
+/**
+ * The fund furthest from its target, when one is far enough off to be worth
+ * rebalancing: 5 or more points away, or a quarter of its own target away (2.5
+ * points for a 10% fund), and at least a $25 trade to fix. Null otherwise.
+ */
+export function furthestOff(funds: Fund[], values: Record<string, number>): OffTarget | null {
+  const total = Object.values(values).reduce((a, b) => a + b, 0);
+  if (total <= 0) return null;
+  const symbols = [...new Set([...funds.map(f => f.symbol), ...Object.keys(values)])];
+  let worst: OffTarget | null = null;
+  symbols.forEach(symbol => {
+    const targetPct = funds.find(f => f.symbol === symbol)?.target ?? 0;
+    const nowPct = ((values[symbol] ?? 0) / total) * 100;
+    const drift = nowPct - targetPct;
+    const far = Math.abs(drift) >= 5 || (targetPct > 0 ? Math.abs(drift) / targetPct >= 0.25 : nowPct > 0);
+    const worthIt = (Math.abs(drift) / 100) * total >= MIN_REBALANCE_TRADE;
+    if (far && worthIt && (!worst || Math.abs(drift) > Math.abs(worst.drift))) worst = { symbol, nowPct, targetPct, drift };
+  });
+  return worst;
+}
+
+/**
+ * Dollar value of each holding, or null when a holding can't be valued (shares
+ * with no price), since any "off target" figure would then be wrong.
+ */
+export function heldValues(holdings: Record<string, Holding>, prices: PriceMap): Record<string, number> | null {
+  const values: Record<string, number> = {};
+  for (const [symbol, h] of Object.entries(holdings)) {
+    if (!(h.amount > 0)) continue;
+    if (h.kind === 'shares' && priceOf(symbol, prices) == null) return null;
+    values[symbol] = holdingDollars(symbol, h, prices);
+  }
+  return values;
+}
+
+/** What each holding is worth once the plan's trades are done. */
+export function valuesAfter(values: Record<string, number>, trades: Trade[]): Record<string, number> {
+  const after = { ...values };
+  trades.forEach(t => { after[t.symbol] = (after[t.symbol] ?? 0) + (t.action === 'buy' ? t.dollars : -t.dollars); });
+  return after;
+}

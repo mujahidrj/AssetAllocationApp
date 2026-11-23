@@ -144,7 +144,7 @@ describe('Calculator', () => {
     const user = userEvent.setup();
     renderApp();
 
-    expect(screen.queryByRole('option', { name: 'just rebalancing' })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'just rebalancing · uses what you own' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'my portfolio' }));
     const menu = screen.getByRole('dialog', { name: 'Portfolios' });
@@ -242,7 +242,7 @@ describe('Calculator', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Next' }));
 
     expect(within(dialog).getByText('210 shares · $10,840.20')).toBeInTheDocument();
-    expect(within(dialog).getByText('40.5000 shares · $1,061.91')).toBeInTheDocument();
+    expect(within(dialog).getByText('40.5 shares · $1,061.91')).toBeInTheDocument();
     expect(within(dialog).getAllByText('was nothing')).toHaveLength(2);
     expect(within(dialog).getByText('Replaces what you own in Roth IRA: 2 funds, $11,902.11.')).toBeInTheDocument();
     await user.click(within(dialog).getByLabelText(/use as the amount i'm adding/i));
@@ -348,5 +348,48 @@ describe('Calculator', () => {
     await user.click(screen.getByRole('button', { name: '+ Add fund' }));
     await user.type(screen.getByLabelText(/add a fund/i), 'SPUS');
     expect(await screen.findByText(/fund search isn’t working right now/i)).toBeInTheDocument();
+  });
+
+  it('points out rebalancing when holdings drift, without switching to it', async () => {
+    seed({
+      funds: [{ symbol: 'SPUS', target: 50 }, { symbol: 'SPTE', target: 40 }, { symbol: 'SPWO', target: 10 }],
+      holdings: {
+        SPUS: { kind: 'dollars', amount: 12400 },
+        SPTE: { kind: 'dollars', amount: 6900 },
+        SPWO: { kind: 'dollars', amount: 2100 },
+      },
+      tracksHoldings: true,
+    });
+    const user = userEvent.setup();
+    renderApp();
+
+    const trades = screen.getByRole('region', { name: /your trades/i });
+    expect(await within(trades).findByText(/SPUS is at 57\.9%, target 50%\./)).toBeInTheDocument();
+    expect(screen.getByLabelText("What you're doing")).toHaveValue('add');
+    expect(screen.getByText(/Furthest off: SPUS \+7\.9/)).toBeInTheDocument();
+
+    // A small deposit leaves it still off: offered as an alternative, not forced
+    await user.type(screen.getByLabelText('Amount'), '500');
+    expect(await within(trades).findByText('SPUS still +6.6 after this')).toBeInTheDocument();
+    await user.click(within(trades).getByRole('button', { name: 'Rebalance instead' }));
+
+    expect(screen.getByLabelText("What you're doing")).toHaveValue('rebal');
+    expect(await within(trades).findByText('−$1,700.00')).toBeInTheDocument();
+    expect(screen.queryByText(/Furthest off/)).not.toBeInTheDocument();
+
+    // Back to adding: the amount typed before is still there
+    await user.selectOptions(screen.getByLabelText("What you're doing"), 'add');
+    expect(screen.getByLabelText('Amount')).toHaveValue('500');
+  });
+
+  it('turns holdings on when rebalancing is picked without them', async () => {
+    seed({ funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+    await user.selectOptions(screen.getByLabelText("What you're doing"), 'rebal');
+    expect(screen.getByRole('switch', { name: /i already own some of these/i })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByText(/Rebalancing works from what you own\./)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Enter it below' }));
+    expect(screen.getByLabelText('VTI you own, in dollars')).toHaveFocus();
   });
 });

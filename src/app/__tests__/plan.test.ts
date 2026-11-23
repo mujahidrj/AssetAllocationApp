@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makePlan, holdingDollars, type PlanInput } from '../plan';
+import { furthestOff, heldValues, makePlan, holdingDollars, valuesAfter, type PlanInput } from '../plan';
 
 const funds = [
   { symbol: 'SPUS', target: 50, name: 'SP Funds S&P 500 Sharia Industry Exclusions ETF' },
@@ -193,5 +193,36 @@ describe('makePlan with whole shares', () => {
     expect(cash.trades).toEqual([['buy', 'SPUS', 47, 2426.14], ['buy', 'CASH', 50, 50]]);
     const unpriced = whole({ prices: { SPUS: 51.62, SPTE: null, SPWO: 26.22 } });
     expect(unpriced.trades[1]).toEqual(['buy', 'SPTE', null, 1000]);
+  });
+});
+
+describe('furthestOff', () => {
+  const values = { SPUS: 12400, SPTE: 6900, SPWO: 2100 };
+
+  it('finds the fund furthest from target when it is 5 or more points away', () => {
+    expect(furthestOff(funds, values)).toMatchObject({ symbol: 'SPUS', targetPct: 50 });
+    expect(furthestOff(funds, values)!.nowPct).toBeCloseTo(57.94, 2);
+  });
+
+  it('also counts a quarter of a small target (2.5 points for a 10% fund)', () => {
+    expect(furthestOff(funds, { SPUS: 5100, SPTE: 4200, SPWO: 700 })).toMatchObject({ symbol: 'SPWO' });
+    expect(furthestOff(funds, { SPUS: 5100, SPTE: 4100, SPWO: 800 })).toBeNull();
+  });
+
+  it('ignores gaps worth less than a $25 trade, and an empty portfolio', () => {
+    expect(furthestOff(funds, { SPUS: 54, SPTE: 37, SPWO: 9 })).toBeNull();
+    expect(furthestOff(funds, {})).toBeNull();
+  });
+
+  it('can check what is left after the trades', () => {
+    const plan = makePlan({ ...base, holdings, tracksHoldings: true, amount: 500 });
+    expect(furthestOff(funds, valuesAfter(values, plan.trades))).toMatchObject({ symbol: 'SPUS' });
+    const enough = makePlan({ ...base, holdings, tracksHoldings: true, amount: 2500 });
+    expect(furthestOff(funds, valuesAfter(values, enough.trades))).toBeNull();
+  });
+
+  it('gives no figures when a holding in shares has no price', () => {
+    expect(heldValues({ X: { kind: 'shares', amount: 5 } }, {})).toBeNull();
+    expect(heldValues(holdings, prices)).toEqual(values);
   });
 });

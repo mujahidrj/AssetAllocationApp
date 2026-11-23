@@ -1,10 +1,10 @@
 import styles from './Calculator.module.css';
 import { CopyIcon } from './icons';
-import { money, pct1, priceDate, priceTime } from './format';
+import { drift, money, pct1, priceDate, priceTime } from './format';
 import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
 import type { Fund, ManualPrice, Verb } from './model';
 import { isCashSymbol, shortName } from './model';
-import type { Plan } from './plan';
+import type { OffTarget, Plan } from './plan';
 import { MixPicker } from './MixPicker';
 
 interface TradesProps {
@@ -28,10 +28,19 @@ interface TradesProps {
   /** The trades as text, shown when copying didn't work. */
   textFallback: string | null;
   onCloseText: () => void;
+  /** Holdings are on and entered. */
+  hasHoldings: boolean;
+  /** Furthest off target now (before any trades), when worth rebalancing. */
+  offNow: OffTarget | null;
+  /** Still that far off after these trades. */
+  offAfter: OffTarget | null;
+  onRebalance: () => void;
+  onEnterHoldings: () => void;
+  onImport: () => void;
 }
 
 export function Trades(props: TradesProps) {
-  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText } = props;
+  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, offAfter, onRebalance, onEnterHoldings, onImport } = props;
   const ok = plan.status === 'ok';
   const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
   const when = priceTime(asOf);
@@ -66,7 +75,21 @@ export function Trades(props: TradesProps) {
         </div>
       )}
       {plan.status === 'needs-amount' && (
-        <div className={styles.empty}><p>Type an amount above and your trades show up here.</p></div>
+        <div className={styles.empty}>
+          {offNow ? (
+            <div className={styles.emptyAction}>
+              <p>
+                {offNow.symbol} is at {pct1(offNow.nowPct)}, target {+offNow.targetPct.toFixed(2)}%.
+                {' '}Type an amount above, or rebalance what you own.
+              </p>
+              <button type="button" className={styles.primary} onClick={onRebalance}>Rebalance now</button>
+            </div>
+          ) : hasHoldings ? (
+            <p>Every fund is within range of its target. Type an amount above to see what to buy.</p>
+          ) : (
+            <p>Type an amount above and your trades show up here.</p>
+          )}
+        </div>
       )}
       {plan.status === 'targets-off' && (
         <div className={styles.empty}>
@@ -74,7 +97,14 @@ export function Trades(props: TradesProps) {
         </div>
       )}
       {plan.status === 'needs-holdings' && (
-        <div className={styles.empty}><p>Enter what you own below to see what to buy and sell.</p></div>
+        <div className={styles.empty}>
+          <p>
+            Rebalancing works from what you own.{' '}
+            <button type="button" className={styles.linkButton} onClick={onEnterHoldings}>Enter it below</button>
+            {' '}or{' '}
+            <button type="button" className={styles.linkButton} onClick={onImport}>import from your broker</button>.
+          </p>
+        </div>
       )}
       {plan.status === 'nothing-to-do' && (
         <div className={styles.empty}><p>Everything is already on target. Nothing to buy or sell.</p></div>
@@ -169,6 +199,14 @@ export function Trades(props: TradesProps) {
             </span>
           </span>
           {zeroFunds.length > 0 && <span className={styles.footItem}>{zeroFunds.join(', ')} at 0%, skipped</span>}
+          {ok && offAfter && (
+            <>
+              <span className={styles.footItem}>{offAfter.symbol} still {drift(offAfter.drift)} after this</span>
+              <span className={styles.footItem}>
+                <button type="button" className={styles.linkButton} onClick={onRebalance}>Rebalance instead</button>
+              </span>
+            </>
+          )}
         </div>
       )}
     </section>
