@@ -1476,6 +1476,10 @@
   text-align: right;
 }
 
+.combinedStats {
+  display: contents;
+}
+
 .combinedRow {
   min-height: 48px;
   border-top: 1px solid var(--border);
@@ -1706,19 +1710,28 @@
   }
 
   .combinedRow {
-    grid-template-columns: repeat(3, auto) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      'fund fund fund value'
-      'target now drift .';
-    gap: 4px 14px;
+      'fund value'
+      'stats stats';
+    gap: 4px 12px;
     padding: 10px 0;
   }
 
   .combinedRow > :nth-child(1) { grid-area: fund; }
-  .combinedRow > :nth-child(2) { grid-area: target; text-align: left; font-size: 13px; }
-  .combinedRow > :nth-child(3) { grid-area: now; text-align: left; font-size: 13px; }
-  .combinedRow > :nth-child(4) { grid-area: drift; text-align: left; font-size: 13px; }
-  .combinedRow > :nth-child(5) { grid-area: value; }
+  .combinedRow > :nth-child(3) { grid-area: value; }
+
+  .combinedStats {
+    grid-area: stats;
+    display: flex;
+    gap: 14px;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .combinedStats > span:empty {
+    display: none;
+  }
 
   .dropHint {
     font-size: 18px;

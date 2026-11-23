@@ -92,9 +92,12 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
               <b className={styles.symbol} style={{ fontSize: 15 }}>{f.symbol}</b>
               <span className={styles.fundName}>{shortName(f)}</span>
             </div>
-            <span className={styles.num}><span className={styles.phoneLabel}>Target </span>{pct1(f.targetPct)}</span>
-            <span className={styles.num}><span className={styles.phoneLabel}>Now </span>{pct1(f.nowPct)}</span>
-            <span className={`${styles.num} ${Math.abs(f.drift) >= 5 ? styles.driftBig : styles.driftSmall}`}>{drift(f.drift)}</span>
+            {/* One grid cell each on desktop; one line under the fund on phones */}
+            <span className={styles.combinedStats}>
+              <span className={styles.num}><span className={styles.phoneLabel}>Target </span>{pct1(f.targetPct)}</span>
+              <span className={styles.num}><span className={styles.phoneLabel}>Now </span>{pct1(f.nowPct)}</span>
+              <span className={`${styles.num} ${Math.abs(f.drift) >= 5 ? styles.driftBig : styles.driftSmall}`}>{drift(f.drift)}</span>
+            </span>
             <span className={`${styles.num} ${styles.combinedValue}`}>
               {unpriced.some(u => u.symbol === f.symbol) && f.value < 0.005 ? <span className={styles.noPrice}>no price</span> : money(f.value)}
             </span>
@@ -109,8 +112,10 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
             <div className={styles.fundCell}>
               <button type="button" className={styles.linkButton} onClick={() => onOpen(p.id)}>{p.name}</button>
             </div>
-            <span /><span />
-            <span className={styles.num}>{pct1(p.share)}</span>
+            <span className={styles.combinedStats}>
+              <span /><span />
+              <span className={styles.num}><span className={styles.phoneLabel}>Share </span>{pct1(p.share)}</span>
+            </span>
             <span className={`${styles.num} ${styles.combinedValue}`}>{money(p.value)}</span>
           </div>
         ))}
