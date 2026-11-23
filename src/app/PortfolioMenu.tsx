@@ -116,8 +116,10 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                   aria-current={p.id === active.id}
                   onClick={() => { onSwitch(p.id); onClose(); }}
                 >
-                  <span className={styles.pickerLabel}>{displayName(p)}</span>
-                  <span className={styles.pickerMix}>{describeMix(p.funds) || 'No funds yet'}</span>
+                  <span className={styles.pickerText}>
+                    <span className={styles.pickerLabel}>{displayName(p)}</span>
+                    <span className={styles.pickerMix}>{describeMix(p.funds) || 'No funds yet'}</span>
+                  </span>
                   <span className={styles.pickerCheck}>{p.id === active.id && <CheckIcon />}</span>
                 </button>
               )

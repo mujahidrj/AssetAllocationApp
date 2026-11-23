@@ -11,7 +11,7 @@ interface MixPickerProps {
   heading: string;
 }
 
-/** The template list: Sharia mixes (grouped), the index-fund mixes, and "Build my own". */
+/** The template list: Sharia templates (grouped), the index-fund templates, and "Build my own". */
 export function MixPicker({ current, onPick, onBuildOwn, heading }: MixPickerProps) {
   const active = matchingTemplate(current);
   const [shariaOpen, setShariaOpen] = useState(active?.group === 'sharia');
@@ -25,8 +25,10 @@ export function MixPicker({ current, onPick, onBuildOwn, heading }: MixPickerPro
       className={`${styles.pickerItem} ${sub ? styles.pickerSub : ''}`}
       onClick={() => onPick(t.funds, t.id)}
     >
-      <span className={styles.pickerLabel}>{t.label}</span>
-      <span className={styles.pickerMix}>{describeMix(t.funds)}</span>
+      <span className={styles.pickerText}>
+        <span className={styles.pickerLabel}>{t.label}</span>
+        <span className={styles.pickerMix}>{describeMix(t.funds)}</span>
+      </span>
       <span className={styles.pickerCheck}>{active?.id === t.id && <CheckIcon />}</span>
     </button>
   );
@@ -35,8 +37,10 @@ export function MixPicker({ current, onPick, onBuildOwn, heading }: MixPickerPro
     <div className={styles.pickerList}>
       <div className={styles.pickerHeading}>{heading}</div>
       <button type="button" className={styles.pickerItem} aria-expanded={shariaOpen} onClick={() => setShariaOpen(o => !o)}>
-        <span className={styles.pickerLabel}>Sharia portfolios</span>
-        <span className={styles.pickerMix}>{sharia.length} portfolios · SP Funds, gold, cash</span>
+        <span className={styles.pickerText}>
+          <span className={styles.pickerLabel}>Sharia portfolios</span>
+          <span className={styles.pickerNote}>{sharia.length} templates · SP Funds, gold, cash</span>
+        </span>
         <span className={styles.pickerCheck} style={{ transform: shariaOpen ? 'rotate(180deg)' : undefined }}><ChevronIcon /></span>
       </button>
       {shariaOpen && sharia.map(t => item(t, true))}

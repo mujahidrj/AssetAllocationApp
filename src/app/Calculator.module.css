@@ -389,12 +389,27 @@
   color: var(--sell);
 }
 
+/* Name on top, funds underneath: a long template (6+ funds) wraps
+   instead of pushing the name off the row. */
+.pickerText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .pickerMix {
   font-family: var(--font-num);
   font-size: 12px;
+  line-height: 1.5;
   color: var(--text-2);
-  text-align: right;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+
+.pickerNote {
+  font-size: 13px;
+  color: var(--text-2);
 }
 
 .pickerCheck {
