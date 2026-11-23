@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import styles from './Calculator.module.css';
 import { AutoIcon, MoonIcon, PersonIcon, ShareIcon, SunIcon } from './icons';
 import type { ThemeMode } from './useTheme';
-import type { SaveState } from './usePortfolio';
+import type { SaveState } from './usePortfolios';
 
 const themeNames: Record<ThemeMode, string> = { auto: 'Match device', light: 'Light', dark: 'Dark' };
 const nextTheme: Record<ThemeMode, ThemeMode> = { auto: 'light', light: 'dark', dark: 'auto' };
