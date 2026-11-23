@@ -2,6 +2,31 @@ import styles from './Calculator.module.css';
 import { ChevronIcon } from './icons';
 import type { Verb } from './model';
 
+/**
+ * A select drawn as a blank in the sentence: the visible text is the chosen option,
+ * so the blank is exactly as wide as its words. The real select sits on top, invisible,
+ * so it still opens the native picker (and the phone's wheel).
+ */
+function BlankSelect<T extends string>({ value, options, onChange, label }: {
+  value: T;
+  options: Array<{ value: T; label: string; disabled?: boolean }>;
+  onChange: (value: T) => void;
+  label: string;
+}) {
+  const current = options.find(o => o.value === value) ?? options[0];
+  return (
+    <span className={`${styles.blank} ${styles.blankSelect}`}>
+      {current.label}
+      <span className={styles.blankCaret}><ChevronIcon /></span>
+      <select aria-label={label} value={value} onChange={e => onChange(e.target.value as T)}>
+        {options.map(o => (
+          <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>
+        ))}
+      </select>
+    </span>
+  );
+}
+
 interface SentenceProps {
   verb: Verb;
   onVerb: (verb: Verb) => void;
@@ -25,16 +50,16 @@ export function Sentence(props: SentenceProps) {
   return (
     <p className={styles.sentence}>
       I'm{' '}
-      <select
-        className={styles.blank}
-        aria-label="What you're doing"
+      <BlankSelect
+        label="What you're doing"
         value={verb}
-        onChange={e => onVerb(e.target.value as Verb)}
-      >
-        <option value="add">adding</option>
-        <option value="out">taking out</option>
-        <option value="rebal" disabled={!canRebalance}>just rebalancing</option>
-      </select>{' '}
+        onChange={onVerb}
+        options={[
+          { value: 'add', label: 'adding' },
+          { value: 'out', label: 'taking out' },
+          { value: 'rebal', label: 'just rebalancing', disabled: !canRebalance },
+        ]}
+      />{' '}
       {hasAmount && (
         <>
           <label className={styles.amountBlank}>
@@ -60,15 +85,15 @@ export function Sentence(props: SentenceProps) {
       {showSell && (
         <>
           {' '}
-          <select
-            className={styles.blank}
-            aria-label="Selling"
+          <BlankSelect
+            label="Selling"
             value={sell ? 'yes' : 'no'}
-            onChange={e => onSell(e.target.value === 'yes')}
-          >
-            <option value="no">without selling</option>
-            <option value="yes">and selling to match</option>
-          </select>
+            onChange={v => onSell(v === 'yes')}
+            options={[
+              { value: 'no', label: 'without selling' },
+              { value: 'yes', label: 'and selling to match' },
+            ]}
+          />
         </>
       )}
       .

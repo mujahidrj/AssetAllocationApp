@@ -211,6 +211,27 @@
   background: var(--accent-soft);
 }
 
+.blankSelect {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.blankSelect select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px; /* stops iOS zooming in */
+}
+
+.blankSelect:focus-within {
+  background: var(--accent-soft);
+}
+
 .blankCaret {
   color: var(--accent);
   margin-left: 4px;
@@ -379,6 +400,11 @@
   font-size: 14px;
   color: var(--text-2);
   flex-grow: 1;
+}
+
+.tradeHeadActions {
+  display: flex;
+  gap: 8px;
 }
 
 .primary {

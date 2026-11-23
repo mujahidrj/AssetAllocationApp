@@ -81,7 +81,7 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
         <h2 className={styles.cardTitle}>{title}</h2>
         <span className={styles.cardSum}>{ok ? tradeSum(plan) : ''}</span>
         {plan.status !== 'needs-mix' && (
-          <span className={styles.tradeHeadActions} style={{ display: 'flex', gap: 8 }}>
+          <span className={styles.tradeHeadActions}>
             <button type="button" className={styles.primary} onClick={onCopy} disabled={!ok}>
               <CopyIcon />{copied ? 'Copied' : 'Copy trades'}
             </button>
