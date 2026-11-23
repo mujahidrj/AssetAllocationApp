@@ -34,4 +34,10 @@ describe('trade text', () => {
     expect(tradesText(plan, null, true)).toContain('Buy CASH     $50.00  (cash)');
     expect(tradesCsv(plan.trades)).toBe('Action,Symbol,Dollars,Shares,Price\nBuy,SPUS,2426.14,47,51.62\nBuy,CASH,50.00,,1.00');
   });
+
+  it('calls the extra from whole-share sells "extra cash raised" when taking money out', () => {
+    const holdings = { SPUS: { kind: 'dollars' as const, amount: 12400 }, SPTE: { kind: 'dollars' as const, amount: 6900 }, SPWO: { kind: 'dollars' as const, amount: 2100 } };
+    const plan = makePlan({ ...base, holdings, tracksHoldings: true, verb: 'out', amount: 1500, wholeShares: true });
+    expect(tradesText(plan, null, true, true)).toContain('Extra cash raised: $24.02 (shares are whole)');
+  });
 });

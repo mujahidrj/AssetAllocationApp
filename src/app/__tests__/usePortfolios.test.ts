@@ -207,9 +207,22 @@ describe('usePortfolios: whole shares, imports and typed prices', () => {
     act(() => result.current.priceActions.setManualPrice('FXAIX', 190.12));
     expect(result.current.workspace.manualPrices?.FXAIX.price).toBe(190.12);
 
-    act(() => result.current.priceActions.addManualPrices({ FXAIX: 1, VTSAX: 120 }));
+    // A file's prices are today's, so they replace older typed ones
+    act(() => result.current.priceActions.addManualPrices({ VTSAX: 120 }));
     expect(result.current.workspace.manualPrices?.FXAIX.price).toBe(190.12);
     expect(result.current.workspace.manualPrices?.VTSAX.price).toBe(120);
+
+    // Typed prices survive adding, copying and deleting portfolios
+    act(() => { result.current.portfolioActions.create(); });
+    act(() => { result.current.portfolioActions.duplicate(); });
+    act(() => { result.current.portfolioActions.remove(result.current.portfolio.id); });
+    expect(Object.keys(result.current.workspace.manualPrices ?? {})).toEqual(['FXAIX', 'VTSAX']);
+    expect(Object.keys(loadDeviceWorkspace()?.manualPrices ?? {})).toEqual(['FXAIX', 'VTSAX']);
+
+    act(() => result.current.priceActions.addManualPrices({ FXAIX: 191 }));
+    expect(result.current.workspace.manualPrices?.FXAIX.price).toBe(191);
+    act(() => result.current.priceActions.restoreManualPrices({ FXAIX: { price: 190.12, at: 'then' }, NEW: null }));
+    expect(result.current.workspace.manualPrices?.FXAIX).toEqual({ price: 190.12, at: 'then' });
     expect(loadDeviceWorkspace()?.manualPrices?.VTSAX.price).toBe(120);
 
     act(() => result.current.priceActions.dropManualPrices(['VTSAX']));

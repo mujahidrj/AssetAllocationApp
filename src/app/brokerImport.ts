@@ -22,6 +22,8 @@ export interface ImportedPosition {
   value: number | null;
   /** Cash, a money market or sweep fund, or pending activity. */
   cash: boolean;
+  /** For cash: how much of it is in which money-market fund (SPAXX, VMFXX…), in case a portfolio targets one. */
+  moneyMarket?: Record<string, number>;
 }
 
 export interface ImportedAccount {
@@ -43,8 +45,9 @@ export interface ImportResult {
 /** Splits CSV text into rows of cells. Handles quotes, doubled quotes, CRLF and a BOM. */
 export function parseCsv(text: string): string[][] {
   const src = text.replace(/^\uFEFF/, '');
-  const firstLines = src.split(/\r?\n/).slice(0, 15).join('\n');
-  const delimiter = !firstLines.includes(',') && firstLines.includes('\t') ? '\t' : ',';
+  // Tab or comma: whichever the first line with either uses more
+  const first = src.split(/\r?\n/).find(l => l.includes(',') || l.includes('\t')) ?? '';
+  const delimiter = (first.match(/\t/g)?.length ?? 0) > (first.match(/,/g)?.length ?? 0) ? '\t' : ',';
 
   const rows: string[][] = [];
   let row: string[] = [];
@@ -115,7 +118,7 @@ function readHeader(cells: string[]): Columns | null {
     price,
     value,
     description: findColumn(cells, h => /^(description|investment name|name|security description|security name|fund name)\b/.test(h)),
-    accountName: findColumn(cells, h => h === 'account name' || h === 'account' || h === 'account nickname'),
+    accountName: findColumn(cells, h => h === 'account name' || h === 'account' || h === 'account nickname' || h.startsWith('account name/')),
     accountNumber: findColumn(cells, h => h === 'account number' || h === 'account no' || h === 'account #'),
   };
 }
@@ -143,7 +146,12 @@ const isSkippable = (rawSymbol: string) =>
   /^-/.test(rawSymbol) ||
   rawSymbol.length > 24;
 
-const cleanSymbol = (raw: string) => raw.replace(/\*+$/, '').trim().toUpperCase().replace('/', '.');
+/** "BRK/B", "BRK.B" → "BRK-B", the form the price lookup uses. */
+const cleanSymbol = (raw: string) => raw.replace(/\*+$/, '').trim().toUpperCase().replace(/[/.]/g, '-');
+
+/** Same fund, however the share class is written: BRK.B, BRK/B, BRK-B. */
+export const sameSymbol = (a: string, b: string) =>
+  a.toUpperCase().replace(/[./-]/g, '') === b.toUpperCase().replace(/[./-]/g, '');
 
 /** "Positions for account Roth IRA ...123 as of 03:45 PM ET, 11/22/2026" → "Roth IRA ...123" */
 function accountTitle(line: string): string | null {
@@ -182,7 +190,7 @@ export function parseBrokerCsv(text: string): ImportResult {
     if (header) {
       const names = row.map(norm);
       // Transaction history (Vanguard puts it under the positions): not holdings
-      if (names.some(h => /\b(date|transaction|action)\b/.test(h))) { cols = null; continue; }
+      if (names.some(h => /^(trade date|settlement date|run date|date|action)$/.test(h) || h.startsWith('transaction'))) { cols = null; continue; }
       cols = header;
       recognized = true;
       if (!broker) {
@@ -195,8 +203,11 @@ export function parseBrokerCsv(text: string): ImportResult {
 
     if (cells.length === 1 && (!cols || row.indexOf(cells[0]) !== cols.symbol)) {
       if (/^positions for/i.test(cells[0])) broker ??= 'Schwab';
-      const t = accountTitle(cells[0]);
-      if (t) { title = t; cols = null; }
+      // A title above a table names the account; a stray line inside a table is skipped
+      if (!cols || /^positions for account/i.test(cells[0])) {
+        const t = accountTitle(cells[0]);
+        if (t) { title = t; cols = null; }
+      }
       continue;
     }
     if (!cols) continue;
@@ -225,7 +236,7 @@ export function parseBrokerCsv(text: string): ImportResult {
       shares = null;
     }
 
-    let name = title ?? 'Your account';
+    let name = title ?? 'This file';
     if (cols.accountName >= 0 && row[cols.accountName]) {
       name = row[cols.accountName];
       const number = cols.accountNumber >= 0 ? row[cols.accountNumber] : '';
@@ -235,6 +246,7 @@ export function parseBrokerCsv(text: string): ImportResult {
     }
 
     const account = accountFor(name);
+    const fundSymbol = cash && /^[A-Z0-9-]{3,8}$/.test(symbol) && !isCashSymbol(symbol) ? symbol : null;
     const position: ImportedPosition = {
       symbol: cash ? 'CASH' : symbol,
       ...(description && description !== '--' ? { description } : {}),
@@ -242,12 +254,17 @@ export function parseBrokerCsv(text: string): ImportResult {
       price: !cash && price != null && price > 0 ? price : null,
       value,
       cash,
+      ...(fundSymbol && value != null ? { moneyMarket: { [fundSymbol]: value } } : {}),
     };
     const same = account.positions.find(p => p.symbol === position.symbol);
     if (same) {
       same.value = (same.value ?? 0) + (position.value ?? 0);
       same.shares = same.shares != null && position.shares != null ? same.shares + position.shares : null;
       same.price ??= position.price;
+      if (position.moneyMarket) {
+        same.moneyMarket = { ...(same.moneyMarket ?? {}) };
+        Object.entries(position.moneyMarket).forEach(([f, v]) => { same.moneyMarket![f] = (same.moneyMarket![f] ?? 0) + v; });
+      }
     } else {
       account.positions.push(position);
     }
@@ -257,7 +274,7 @@ export function parseBrokerCsv(text: string): ImportResult {
   // Cash can net out negative with pending activity; never import less than nothing
   const list = order.map(n => accounts.get(n)!).map(a => ({
     ...a,
-    positions: a.positions.filter(p => !p.cash || (p.value ?? 0) > 0.005),
+    positions: a.positions.filter(p => !p.cash || (p.value ?? 0) > 0.005 || !!p.moneyMarket),
     total: Math.round(a.total * 100) / 100,
   })).filter(a => a.positions.length > 0);
 
@@ -267,27 +284,47 @@ export function parseBrokerCsv(text: string): ImportResult {
 /**
  * Turns one imported account into holdings, keyed by the portfolio's own symbols.
  * Funds go in as share counts when the file has them (so values follow the price),
- * otherwise as dollars. Cash goes in as dollars under the portfolio's cash fund
- * (CASH unless it uses USD). Also returns the file's prices, to fill in for any fund
- * the price lookup can't price.
+ * otherwise as dollars. A money-market fund the portfolio targets goes in as that
+ * fund; the rest of the cash goes in as dollars under the portfolio's cash fund
+ * (CASH unless it uses USD). Also returns the file's prices, to fill in for any
+ * fund the price lookup can't price.
  */
 export function holdingsFromAccount(
   account: ImportedAccount,
-  options: { include: (symbol: string) => boolean; cashSymbol: string },
+  options: {
+    /** Whether a symbol (the portfolio's own spelling) should be imported. */
+    include: (symbol: string) => boolean;
+    cashSymbol: string;
+    /** The portfolio's spelling of a symbol from the file (BRK-B → BRK.B). */
+    symbolFor?: (symbol: string) => string;
+  },
 ): { holdings: Record<string, Holding>; prices: Record<string, number> } {
   const holdings: Record<string, Holding> = {};
   const prices: Record<string, number> = {};
+  const key = (symbol: string) => options.symbolFor?.(symbol) ?? symbol;
+  const addDollars = (symbol: string, amount: number) => {
+    const existing = holdings[symbol];
+    holdings[symbol] = { kind: 'dollars', amount: Math.round(((existing?.kind === 'dollars' ? existing.amount : 0) + amount) * 100) / 100 };
+  };
+
   account.positions.forEach(p => {
-    const key = p.cash ? options.cashSymbol : p.symbol;
-    if (!options.include(key)) return;
-    if (!p.cash && p.shares != null && p.shares > 0) {
-      holdings[key] = { kind: 'shares', amount: Math.round(p.shares * 10000) / 10000 };
+    if (p.cash) {
+      let cash = p.value ?? 0;
+      Object.entries(p.moneyMarket ?? {}).forEach(([fund, value]) => {
+        const k = key(fund);
+        if (k !== options.cashSymbol && options.include(k) && value > 0) { addDollars(k, value); cash -= value; }
+      });
+      if (cash > 0.005 && options.include(options.cashSymbol)) addDollars(options.cashSymbol, cash);
+      return;
+    }
+    const k = key(p.symbol);
+    if (!options.include(k)) return;
+    if (p.shares != null && p.shares > 0) {
+      holdings[k] = { kind: 'shares', amount: Math.round(p.shares * 10000) / 10000 };
       const price = p.price ?? (p.value != null ? p.value / p.shares : null);
-      if (price && price > 0) prices[key] = Math.round(price * 10000) / 10000;
+      if (price && price > 0) prices[k] = Math.round(price * 10000) / 10000;
     } else if (p.value != null && p.value > 0) {
-      const existing = holdings[key];
-      const amount = Math.round(((existing?.kind === 'dollars' ? existing.amount : 0) + p.value) * 100) / 100;
-      holdings[key] = { kind: 'dollars', amount };
+      addDollars(k, p.value);
     }
   });
   return { holdings, prices };

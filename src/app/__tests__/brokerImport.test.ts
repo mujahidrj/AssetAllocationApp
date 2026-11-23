@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { holdingsFromAccount, parseBrokerCsv, parseCsv, parseNumber } from '../brokerImport';
+import { holdingsFromAccount, parseBrokerCsv, parseCsv, parseNumber, sameSymbol } from '../brokerImport';
 import fidelity from './fixtures/fidelity.csv?raw';
 import fidelitySwapped from './fixtures/fidelity_swapped.csv?raw';
 import schwab from './fixtures/schwab.csv?raw';
@@ -103,7 +103,7 @@ describe('parseBrokerCsv', () => {
 describe('holdingsFromAccount', () => {
   it('keeps share counts, puts cash under the portfolio’s cash fund, and returns the file’s prices', () => {
     const roth = parseBrokerCsv(fidelity).accounts[0];
-    expect(holdingsFromAccount(roth, { include: () => true, cashSymbol: 'CASH' })).toEqual({
+    expect(holdingsFromAccount(roth, { include: s => s !== 'SPAXX', cashSymbol: 'CASH' })).toEqual({
       holdings: {
         CASH: { kind: 'dollars', amount: 400.55 },
         SPUS: { kind: 'shares', amount: 210 },
@@ -119,5 +119,51 @@ describe('holdingsFromAccount', () => {
       holdings: { SPUS: { kind: 'dollars', amount: 10840.2 } },
       prices: {},
     });
+  });
+});
+
+describe('holdingsFromAccount with money-market funds and share classes', () => {
+  it('treats a money-market fund the portfolio targets as that fund, not cash', () => {
+    const roth = parseBrokerCsv(fidelity).accounts[0];
+    expect(holdingsFromAccount(roth, { include: () => true, cashSymbol: 'CASH' }).holdings).toEqual({
+      SPAXX: { kind: 'dollars', amount: 412.55 },
+      SPUS: { kind: 'shares', amount: 210 },
+      SPWO: { kind: 'shares', amount: 40.5 },
+    });
+  });
+
+  it('matches share classes however they are written', () => {
+    const result = parseBrokerCsv('Symbol,Quantity,Price,Market Value\nBRK/B,2,$500.00,"$1,000.00"\n');
+    expect(result.accounts[0].positions[0].symbol).toBe('BRK-B');
+    expect(sameSymbol('BRK.B', 'BRK-B')).toBe(true);
+    const { holdings } = holdingsFromAccount(result.accounts[0], {
+      include: s => s === 'BRK.B',
+      cashSymbol: 'CASH',
+      symbolFor: s => (sameSymbol(s, 'BRK.B') ? 'BRK.B' : s),
+    });
+    expect(holdings).toEqual({ 'BRK.B': { kind: 'shares', amount: 2 } });
+  });
+});
+
+describe('parseBrokerCsv with unusual layouts', () => {
+  it('still reads positions when a column has "date" in its name', () => {
+    const csv = 'Symbol,Quantity,Price,Market Value,Ex-Div Date\nVTI,2,$100.00,$200.00,12/20/2026\n';
+    expect(parseBrokerCsv(csv).accounts[0].positions.map(p => p.symbol)).toEqual(['VTI']);
+  });
+
+  it('keeps accounts apart with the older Fidelity "Account Name/Number" column', () => {
+    const csv = 'Account Name/Number,Symbol,Description,Quantity,Last Price,Current Value\n'
+      + 'ROTH IRA 123,SPUS,X,210,$51.62,"$10,840.20"\nIndividual 456,SPUS,X,10,$51.62,$516.20\n';
+    expect(parseBrokerCsv(csv).accounts.map(a => [a.name, a.positions[0].shares])).toEqual([['ROTH IRA 123', 210], ['Individual 456', 10]]);
+  });
+
+  it('skips a stray single-cell line inside a table instead of stopping there', () => {
+    const csv = 'Symbol,Shares\nSPUS,10\n"Equities"\nSPTE,5\n';
+    expect(parseBrokerCsv(csv).accounts[0].positions.map(p => p.symbol)).toEqual(['SPUS', 'SPTE']);
+  });
+
+  it('reads a tab-separated file even when descriptions contain commas', () => {
+    const tsv = 'Symbol\tDescription\tShares\nSPUS\tSP FUNDS, S&P 500\t10\n';
+    expect(parseBrokerCsv(tsv).accounts[0].positions.map(p => [p.symbol, p.shares])).toEqual([['SPUS', 10]]);
   });
 });

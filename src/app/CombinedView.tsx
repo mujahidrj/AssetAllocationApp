@@ -9,7 +9,7 @@ interface CombinedViewProps {
   onOpen: (portfolioId: string) => void;
 }
 
-const reasonText = { 'no-holdings': 'no holdings', 'targets-off': "targets don't add up to 100%" } as const;
+const reasonText = { 'no-holdings': 'no holdings', 'targets-off': "targets don't add up to 100%", 'no-price': 'a fund has no price' } as const;
 
 /** "Roth IRA, HSA" as links that open each portfolio. */
 function PortfolioLinks({ list, onOpen }: { list: Array<{ id: string; name: string }>; onOpen: (id: string) => void }) {
@@ -41,7 +41,13 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
           <h2 className={styles.cardTitle}>Where new money helps most</h2>
         </div>
         {behind.length === 0 ? (
-          <div className={styles.empty}><p>Everything is within a dollar of target overall. Add new money anywhere.</p></div>
+          <div className={styles.empty}>
+            <p>
+              {excluded.length > 0
+                ? 'Nothing is behind target in the portfolios included below.'
+                : 'Everything is within a dollar of target overall. Add new money anywhere.'}
+            </p>
+          </div>
         ) : (
           behind.map(f => (
             <div key={f.symbol} className={styles.behindRow}>
@@ -98,9 +104,7 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
               <span className={styles.num}><span className={styles.phoneLabel}>Now </span>{pct1(f.nowPct)}</span>
               <span className={`${styles.num} ${Math.abs(f.drift) >= 5 ? styles.driftBig : styles.driftSmall}`}>{drift(f.drift)}</span>
             </span>
-            <span className={`${styles.num} ${styles.combinedValue}`}>
-              {unpriced.some(u => u.symbol === f.symbol) && f.value < 0.005 ? <span className={styles.noPrice}>no price</span> : money(f.value)}
-            </span>
+            <span className={`${styles.num} ${styles.combinedValue}`}>{money(f.value)}</span>
           </div>
         ))}
 
@@ -124,7 +128,7 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
           <div className={styles.mixFoot}>
             {unpriced.map(u => (
               <span key={u.symbol}>
-                No price for {u.symbol}, so it counts as $0. Add one in <PortfolioLinks list={u.heldIn} onOpen={onOpen} />.
+                No price for {u.symbol}. Add one in <PortfolioLinks list={u.heldIn} onOpen={onOpen} /> to include it.
               </span>
             ))}
           </div>

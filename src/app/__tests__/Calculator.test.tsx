@@ -392,4 +392,20 @@ describe('Calculator', () => {
     await user.click(screen.getByRole('button', { name: 'Enter it below' }));
     expect(screen.getByLabelText('VTI you own, in dollars')).toHaveFocus();
   });
+
+  it('imports a money-market fund the portfolio targets as that fund', async () => {
+    seed({ name: 'Roth IRA', funds: [{ symbol: 'SPUS', target: 90 }, { symbol: 'SPAXX', target: 10 }] });
+    const user = userEvent.setup();
+    renderApp();
+    fireEvent.change(screen.getByTestId('import-file'), {
+      target: { files: [new File([fidelityCsv], 'positions.csv', { type: 'text/csv' })] },
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Import holdings into Roth IRA' });
+    await user.click(within(dialog).getByRole('button', { name: 'Next' }));
+    expect(within(dialog).getByText('SPAXX')).toBeInTheDocument();
+    expect(within(dialog).getByText('$412.55')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/use as the amount/i)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Replace holdings' }));
+    expect(loadDeviceWorkspace()?.portfolios[0].holdings.SPAXX).toEqual({ kind: 'dollars', amount: 412.55 });
+  });
 });

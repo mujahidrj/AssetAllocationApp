@@ -188,6 +188,57 @@ describe('makePlan with whole shares', () => {
     expect(plan.shortOfShare.map(s => s.symbol)).toEqual(['SPTE', 'SPWO']);
   });
 
+  it('doesn’t sell for money nothing can use', () => {
+    const ab = [{ symbol: 'A', target: 50 }, { symbol: 'B', target: 50 }];
+    const held = { A: { kind: 'dollars' as const, amount: 1000 }, B: { kind: 'dollars' as const, amount: 900 } };
+    // B's share costs $500 but only $50 needs moving: no trades rather than "sell 1 A, $100 left over"
+    const rebal = whole({ funds: ab, holdings: held, tracksHoldings: true, verb: 'rebal', prices: { A: 100, B: 500 } });
+    expect(rebal.plan.status).toBe('short-of-share');
+    expect(rebal.trades).toEqual([]);
+    // Cash held at 0% isn't "sold" just to sit as cash
+    const cash = whole({
+      funds: [{ symbol: 'A', target: 100 }, { symbol: 'CASH', target: 0 }],
+      holdings: { CASH: { kind: 'dollars', amount: 300 }, A: { kind: 'shares', amount: 2 } },
+      tracksHoldings: true,
+      verb: 'rebal',
+      prices: { A: 500 },
+    });
+    expect(cash.trades).toEqual([]);
+  });
+
+  it('keeps an expensive share rather than selling it to fund a much smaller trade', () => {
+    const { plan, trades } = whole({
+      funds: [{ symbol: 'P', target: 50 }, { symbol: 'Q', target: 50 }],
+      holdings: { Q: { kind: 'dollars', amount: 700000 } },
+      tracksHoldings: true,
+      amount: 400000,
+      sell: true,
+      prices: { P: 1, Q: 700000 },
+    });
+    expect(trades).toEqual([['buy', 'P', 400000, 400000]]);
+    expect(plan.leftover).toBe(0);
+  });
+
+  it('raises only what’s needed, in whole shares, when taking money out', () => {
+    const abc = [{ symbol: 'A', target: 34 }, { symbol: 'B', target: 33 }, { symbol: 'C', target: 33 }];
+    const held = Object.fromEntries(['A', 'B', 'C'].map(s => [s, { kind: 'dollars' as const, amount: 2000 }]));
+    const { plan, trades } = whole({ funds: abc, holdings: held, tracksHoldings: true, verb: 'out', amount: 90, prices: { A: 200, B: 200, C: 200 } });
+    expect(trades).toHaveLength(1);
+    expect(-plan.net).toBe(200);
+    expect(plan.leftover).toBe(110);
+  });
+
+  it('keeps sells whole when keeping a share back from selling everything', () => {
+    const { trades } = whole({
+      funds: [{ symbol: 'X', target: 0 }, { symbol: 'Y', target: 100 }],
+      holdings: { X: { kind: 'shares', amount: 3 }, Y: { kind: 'dollars', amount: 100 } },
+      tracksHoldings: true,
+      verb: 'rebal',
+      prices: { X: 0.7, Y: 1 },
+    });
+    expect(trades[0]).toEqual(['sell', 'X', 3, 2.1]);
+  });
+
   it('keeps cash and unpriced funds in exact dollars', () => {
     const cash = whole({ funds: [{ symbol: 'SPUS', target: 98 }, { symbol: 'CASH', target: 2 }] });
     expect(cash.trades).toEqual([['buy', 'SPUS', 47, 2426.14], ['buy', 'CASH', 50, 50]]);

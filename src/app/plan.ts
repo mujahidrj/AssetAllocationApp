@@ -188,11 +188,15 @@ const cents = (n: number) => Math.round(n * 100) / 100;
 const EPS = 1e-9;
 
 /**
- * Whole shares: buys round down and sells round up (never past what you own), so
+ * Whole shares. Buys round down and sells round up (never past what you own), so
  * there's always enough cash for the buys and at least the amount asked for comes
- * out. Leftover cash then buys one more share at a time of whichever fund is
- * furthest behind its target, while it can still afford one. Cash funds and funds
- * without a price keep their exact dollar amounts.
+ * out. Then:
+ * - leftover cash buys more shares of whichever fund is furthest behind its target,
+ *   while it can still afford one;
+ * - sells whose money nothing can use are trimmed back a share at a time (and cash
+ *   isn't "sold" just to sit as cash);
+ * - when taking money out, shares that aren't needed to reach the amount are kept.
+ * Cash funds and funds without a price keep their exact dollar amounts.
  */
 function roundToWholeShares(trades: Trade[], ctx: {
   funds: Fund[];
@@ -202,16 +206,29 @@ function roundToWholeShares(trades: Trade[], ctx: {
   topUp: boolean;
   signedAmount: number;
 }): { trades: Trade[]; shortOfShare: ShortOfShare[] } {
-  const out: Trade[] = [];
+  let out: Trade[] = [];
   const shortOfShare: ShortOfShare[] = [];
+  const targetOf = (symbol: string) => ctx.funds.find(f => f.symbol === symbol)?.target ?? 0;
+  const bought = (symbol: string) => out.find(t => t.symbol === symbol && t.action === 'buy')?.dollars ?? 0;
+  const sold = (symbol: string) => out.find(t => t.symbol === symbol && t.action === 'sell')?.dollars ?? 0;
+  /** How far below its target a fund ends up (negative: above). */
+  const gapAfter = (symbol: string) =>
+    (targetOf(symbol) / 100) * ctx.afterTotal - ((ctx.held?.[symbol] ?? 0) + bought(symbol) - sold(symbol));
+  const net = () => out.reduce((sum, t) => sum + (t.action === 'buy' ? t.dollars : -t.dollars), 0);
+  const setShares = (t: Trade, shares: number) => { t.shares = shares; t.dollars = cents(shares * t.price!); };
+  /** One share fewer, landing on a whole number (selling 272.43 of 272.43 → 272). */
+  const oneLess = (shares: number) => (Math.abs(shares - Math.round(shares)) < 1e-6 ? Math.round(shares) - 1 : Math.floor(shares));
 
   trades.forEach(t => {
-    if (t.price == null || isCashSymbol(t.symbol)) { out.push(t); return; }
+    if (t.price == null || isCashSymbol(t.symbol)) { out.push({ ...t }); return; }
     const exact = t.dollars / t.price;
     if (t.action === 'sell') {
       let shares = Math.ceil(exact - EPS);
-      const owned = ctx.held ? (ctx.held[t.symbol] ?? 0) / t.price : Infinity;
-      if (shares > owned) shares = owned; // selling everything you have, fractions included
+      if (ctx.held) {
+        let owned = (ctx.held[t.symbol] ?? 0) / t.price;
+        if (Math.abs(owned - Math.round(owned)) < 1e-6) owned = Math.round(owned);
+        if (shares > owned) shares = owned; // selling everything you have, fractions included
+      }
       out.push({ ...t, shares, dollars: cents(shares * t.price) });
     } else {
       const shares = Math.floor(exact + EPS);
@@ -221,43 +238,120 @@ function roundToWholeShares(trades: Trade[], ctx: {
   });
 
   if (ctx.topUp) {
-    const net = () => out.reduce((sum, t) => sum + (t.action === 'buy' ? t.dollars : -t.dollars), 0);
     let cash = ctx.signedAmount - net();
     const selling = new Set(out.filter(t => t.action === 'sell').map(t => t.symbol));
-    const candidates = ctx.funds.filter(f => {
-      if (f.target <= 0 || isCashSymbol(f.symbol) || selling.has(f.symbol)) return false;
-      const t = trades.find(x => x.symbol === f.symbol);
-      return t?.price != null;
-    });
-    const priceFor = (symbol: string) => trades.find(x => x.symbol === symbol)!.price!;
-    const after = (symbol: string) =>
-      (ctx.held?.[symbol] ?? 0) + (out.find(t => t.symbol === symbol && t.action === 'buy')?.dollars ?? 0);
+    const priceOfTrade = (symbol: string) => trades.find(x => x.symbol === symbol)?.price ?? null;
+    const candidates = ctx.funds.filter(f =>
+      f.target > 0 && !isCashSymbol(f.symbol) && !selling.has(f.symbol) && priceOfTrade(f.symbol) != null);
 
-    for (let guard = 0; guard < 100000; guard++) {
+    // Spend what's left on whoever is furthest behind, as many shares as fit per step
+    for (let guard = 0; guard < 10000; guard++) {
       let best: Fund | null = null;
       let bestGap = 0;
       for (const f of candidates) {
-        if (priceFor(f.symbol) > cash + EPS) continue;
-        const gap = (f.target / 100) * ctx.afterTotal - after(f.symbol);
+        if (priceOfTrade(f.symbol)! > cash + EPS) continue;
+        const gap = gapAfter(f.symbol);
         if (gap > bestGap + EPS) { best = f; bestGap = gap; }
       }
       if (!best) break;
-      const symbol = best.symbol;
-      const price = priceFor(symbol);
-      const existing = out.find(t => t.symbol === symbol && t.action === 'buy');
-      if (existing) {
-        existing.shares = (existing.shares ?? 0) + 1;
-        existing.dollars = cents(existing.shares * price);
-      } else {
-        const fund = ctx.funds.find(f => f.symbol === symbol);
-        out.push({ symbol, name: fund?.name, action: 'buy', dollars: cents(price), shares: 1, price });
-        const i = shortOfShare.findIndex(s => s.symbol === symbol);
+      const price = priceOfTrade(best.symbol)!;
+      const n = Math.max(1, Math.floor(Math.min(cash, bestGap) / price + EPS));
+      const existing = out.find(t => t.symbol === best!.symbol && t.action === 'buy');
+      if (existing) setShares(existing, (existing.shares ?? 0) + n);
+      else {
+        out.push({ symbol: best.symbol, name: best.name, action: 'buy', dollars: cents(n * price), shares: n, price });
+        const i = shortOfShare.findIndex(x => x.symbol === best!.symbol);
         if (i !== -1) shortOfShare.splice(i, 1);
       }
-      cash -= price;
+      cash -= n * price;
+    }
+
+    // A sell rounded up to a whole share can free more than the buys use (or, with a
+    // costly share, far more). Keep a share back whenever that leaves the portfolio
+    // closer to target, counting idle cash as off target, and buy less if the cash
+    // then runs short.
+    const offBy = (trs: Trade[]) => {
+      const amt = (s: string, a: Trade['action']) => trs.find(t => t.symbol === s && t.action === a)?.dollars ?? 0;
+      const symbols = new Set([...ctx.funds.map(f => f.symbol), ...Object.keys(ctx.held ?? {}), ...trs.map(t => t.symbol)]);
+      let total = 0;
+      symbols.forEach(s => {
+        total += Math.abs((targetOf(s) / 100) * ctx.afterTotal - ((ctx.held?.[s] ?? 0) + amt(s, 'buy') - amt(s, 'sell')));
+      });
+      const idle = ctx.signedAmount - trs.reduce((sum, t) => sum + (t.action === 'buy' ? t.dollars : -t.dollars), 0);
+      return total + Math.max(0, idle);
+    };
+    const keepOneBack = (trs: Trade[], symbol: string): Trade[] | null => {
+      const next = trs.map(t => ({ ...t }));
+      const sell = next.find(t => t.symbol === symbol && t.action === 'sell')!;
+      sell.shares = oneLess(sell.shares ?? 0);
+      sell.dollars = cents(sell.shares * sell.price!);
+      let short = -(ctx.signedAmount - next.reduce((sum, t) => sum + (t.action === 'buy' ? t.dollars : -t.dollars), 0));
+      // Buy less of whatever ends up furthest over (or least behind) its target
+      while (short > EPS) {
+        const buys = next.filter(t => t.action === 'buy' && t.price != null && !isCashSymbol(t.symbol) && (t.shares ?? 0) >= 1);
+        const cashBuy = next.find(t => t.action === 'buy' && isCashSymbol(t.symbol) && t.dollars > 0);
+        if (buys.length === 0 && !cashBuy) return null;
+        if (cashBuy) {
+          const cut = Math.min(cashBuy.dollars, short);
+          cashBuy.dollars = cents(cashBuy.dollars - cut);
+          cashBuy.shares = cashBuy.price ? cashBuy.dollars / cashBuy.price : cashBuy.shares;
+          short -= cut;
+          continue;
+        }
+        const after = (t: Trade) => (targetOf(t.symbol) / 100) * ctx.afterTotal - ((ctx.held?.[t.symbol] ?? 0) + t.dollars);
+        const trim = buys.reduce((x, y) => (after(y) < after(x) ? y : x));
+        const n = Math.min(trim.shares!, Math.max(1, Math.ceil(short / trim.price! - EPS)));
+        trim.shares = trim.shares! - n;
+        trim.dollars = cents(trim.shares * trim.price!);
+        short -= n * trim.price!;
+      }
+      return next.filter(t => t.dollars >= 0.005 || t.action === 'sell');
+    };
+    for (let guard = 0; guard < 1000; guard++) {
+      const current = offBy(out);
+      let best: Trade[] | null = null;
+      let bestOff = current - 0.005;
+      for (const t of out) {
+        if (t.action !== 'sell' || isCashSymbol(t.symbol) || t.price == null || (t.shares ?? 0) < 1 - EPS) continue;
+        const tried = keepOneBack(out, t.symbol);
+        if (!tried) continue;
+        const off = offBy(tried);
+        if (off < bestOff) { best = tried; bestOff = off; }
+      }
+      if (!best) break;
+      out = best;
+    }
+    cash = ctx.signedAmount - net();
+    // A fund that lost its buy entirely is short of a share again
+    candidates.forEach(f => {
+      if (!out.some(t => t.symbol === f.symbol && t.action === 'buy' && t.dollars > 0) && !shortOfShare.some(x => x.symbol === f.symbol)) {
+        const original = trades.find(t => t.symbol === f.symbol && t.action === 'buy');
+        if (original) shortOfShare.push({ symbol: f.symbol, dollars: cents(original.dollars), price: original.price! });
+      }
+    });
+    // ...then cash, which needn't be "sold" just to stay cash
+    out.filter(t => t.action === 'sell' && isCashSymbol(t.symbol)).forEach(t => {
+      const back = Math.min(t.dollars, Math.max(0, cash));
+      t.dollars = cents(t.dollars - back);
+      t.shares = t.price ? t.dollars / t.price : t.shares;
+      cash -= back;
+    });
+  } else {
+    // Taking money out: keep any share that isn't needed to reach the amount, from
+    // the fund that would otherwise end up furthest under its target
+    const needed = -ctx.signedAmount;
+    for (let guard = 0; guard < 10000; guard++) {
+      const raised = -net();
+      const spare = out.filter(t =>
+        t.action === 'sell' && !isCashSymbol(t.symbol) && t.price != null && (t.shares ?? 0) >= 1 - EPS &&
+        raised - (t.shares! - oneLess(t.shares!)) * t.price >= needed - EPS);
+      if (spare.length === 0) break;
+      const keep = spare.reduce((a, b) => (gapAfter(b.symbol) > gapAfter(a.symbol) ? b : a));
+      setShares(keep, oneLess(keep.shares!));
     }
   }
 
+  out = out.filter(t => t.dollars >= 0.005);
   return { trades: out, shortOfShare };
 }
 

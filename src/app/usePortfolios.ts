@@ -233,7 +233,7 @@ export function usePortfolios(user: User | null) {
       setWorkspace(ws => {
         const p = emptyPortfolio(id, options.name ?? nextPortfolioName(ws.portfolios));
         if (options.funds) p.funds = options.funds.map(f => ({ ...f }));
-        return { portfolios: [...ws.portfolios, p], activeId: id };
+        return { ...ws, portfolios: [...ws.portfolios, p], activeId: id };
       });
       return id;
     }, []),
@@ -248,7 +248,7 @@ export function usePortfolios(user: User | null) {
           funds: current.funds.map(f => ({ ...f })),
           ...(current.templateId ? { templateId: current.templateId } : {}),
         };
-        return { portfolios: [...ws.portfolios, copy], activeId: id };
+        return { ...ws, portfolios: [...ws.portfolios, copy], activeId: id };
       });
       return id;
     }, []),
@@ -266,7 +266,7 @@ export function usePortfolios(user: User | null) {
         if (portfolios.length === 0 || portfolios.length === ws.portfolios.length) return ws;
         const at = ws.portfolios.findIndex(p => p.id === id);
         const activeId = ws.activeId === id ? portfolios[Math.min(at, portfolios.length - 1)].id : ws.activeId;
-        return { portfolios, activeId };
+        return { ...ws, portfolios, activeId };
       });
       return removed;
     }, [workspace]),
@@ -276,7 +276,7 @@ export function usePortfolios(user: User | null) {
         if (ws.portfolios.some(p => p.id === saved.portfolio.id)) return ws;
         const portfolios = [...ws.portfolios];
         portfolios.splice(Math.min(saved.index, portfolios.length), 0, saved.portfolio);
-        return { portfolios, activeId: saved.wasActive ? saved.portfolio.id : ws.activeId };
+        return { ...ws, portfolios, activeId: saved.wasActive ? saved.portfolio.id : ws.activeId };
       }), []),
   };
 
@@ -290,16 +290,26 @@ export function usePortfolios(user: User | null) {
         return { ...ws, manualPrices };
       }), []),
 
-    /** Adds several prices at once (from an import), never replacing ones already typed. */
+    /** Adds several prices at once (from an import). They're today's, so they replace older ones. */
     addManualPrices: useCallback((prices: Record<string, number>) =>
       setWorkspace(ws => {
         const at = new Date().toISOString();
         const manualPrices: Record<string, ManualPrice> = { ...(ws.manualPrices ?? {}) };
         let changed = false;
         Object.entries(prices).forEach(([symbol, price]) => {
-          if (!manualPrices[symbol] && price > 0) { manualPrices[symbol] = { price, at }; changed = true; }
+          if (price > 0) { manualPrices[symbol] = { price, at }; changed = true; }
         });
         return changed ? { ...ws, manualPrices } : ws;
+      }), []),
+
+    /** Puts typed prices back as they were (null: there wasn't one). For Undo. */
+    restoreManualPrices: useCallback((before: Record<string, ManualPrice | null>) =>
+      setWorkspace(ws => {
+        const manualPrices: Record<string, ManualPrice> = { ...(ws.manualPrices ?? {}) };
+        Object.entries(before).forEach(([symbol, m]) => {
+          if (m) manualPrices[symbol] = m; else delete manualPrices[symbol];
+        });
+        return { ...ws, manualPrices };
       }), []),
 
     /** Drops typed prices for funds the lookup can price again: the live price wins. */

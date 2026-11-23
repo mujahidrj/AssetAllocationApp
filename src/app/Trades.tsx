@@ -112,8 +112,12 @@ export function Trades(props: TradesProps) {
       {plan.status === 'short-of-share' && (
         <div className={styles.empty}>
           <p>
-            {money(plan.leftover)} won't buy a whole share of anything behind target.
-            {cheapest && <> Cheapest is {cheapest.symbol} at {money(cheapest.price)}.</>}{' '}
+            {verb === 'rebal' && cheapest
+              ? <>Selling what's over target doesn't free up enough for one share of {cheapest.symbol} at {money(cheapest.price)}.</>
+              : <>
+                  {money(plan.leftover)} won't buy a whole share of anything behind target.
+                  {cheapest && <> Cheapest is {cheapest.symbol} at {money(cheapest.price)}.</>}
+                </>}{' '}
             <button type="button" className={styles.linkButton} onClick={() => onWholeShares(false)}>Use fractional shares</button>
           </p>
         </div>

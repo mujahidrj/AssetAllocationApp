@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import styles from './Calculator.module.css';
 import { CloseIcon } from './icons';
 import { money } from './format';
-import { holdingsFromAccount, type ImportedAccount, type ImportedPosition, type ImportResult } from './brokerImport';
+import { holdingsFromAccount, sameSymbol, type ImportedAccount, type ImportedPosition, type ImportResult } from './brokerImport';
 import { displayName, isCashSymbol, type Fund, type Holding, type Portfolio } from './model';
 import { holdingDollars, type PriceMap } from './plan';
 
@@ -75,18 +75,38 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
 
   const account = accounts[Math.min(accountIndex, accounts.length - 1)];
   const cashFund = portfolio.funds.find(f => isCashSymbol(f.symbol));
-  const inPortfolio = (symbol: string) => portfolio.funds.some(f => f.symbol === symbol);
+  /** The portfolio's own spelling of a symbol from the file (BRK-B → BRK.B), if it has the fund. */
+  const mineAs = (symbol: string) => portfolio.funds.find(f => !isCashSymbol(f.symbol) && sameSymbol(f.symbol, symbol))?.symbol ?? null;
 
   const groups = useMemo(() => {
     if (!account) return null;
-    const mine = account.positions.filter(p => (p.cash ? !!cashFund : inPortfolio(p.symbol)));
-    const others = account.positions.filter(p => !p.cash && !inPortfolio(p.symbol));
-    const cash = cashFund ? null : account.positions.find(p => p.cash) ?? null;
+    type Row = { key: string; text: string };
+    const mine: Row[] = [];
+    const others: ImportedPosition[] = [];
+    const inFile = new Set<string>();
+    let cash = 0;
+    let hasCash = false;
+    account.positions.forEach(p => {
+      if (p.cash) {
+        hasCash = true;
+        let rest = p.value ?? 0;
+        // A money-market fund the portfolio targets is that fund, not cash
+        Object.entries(p.moneyMarket ?? {}).forEach(([fund, value]) => {
+          const k = mineAs(fund);
+          if (k && value > 0) { mine.push({ key: k, text: money(value) }); inFile.add(k); rest -= value; }
+        });
+        cash += rest;
+        return;
+      }
+      const k = mineAs(p.symbol);
+      if (k) { mine.push({ key: k, text: amountText(p) }); inFile.add(k); } else others.push(p);
+    });
+    cash = Math.max(0, Math.round(cash * 100) / 100);
+    if (cashFund && hasCash) { mine.push({ key: cashFund.symbol, text: money(cash) }); inFile.add(cashFund.symbol); }
     const missing = portfolio.funds.filter(f =>
-      !account.positions.some(p => (p.cash ? isCashSymbol(f.symbol) : p.symbol === f.symbol)) &&
-      (f.target > 0 || (portfolio.holdings[f.symbol]?.amount ?? 0) > 0));
-    return { mine, others, cash, missing };
-    // inPortfolio only reads portfolio.funds
+      !inFile.has(f.symbol) && (f.target > 0 || (portfolio.holdings[f.symbol]?.amount ?? 0) > 0));
+    return { mine, others, cash: !cashFund && cash > 0.005 ? cash : null, missing };
+    // mineAs only reads portfolio.funds
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account, cashFund, portfolio.funds, portfolio.holdings]);
 
@@ -94,25 +114,36 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
     if (!account) return;
     const cashSymbol = cashFund?.symbol ?? 'CASH';
     const include = (symbol: string) =>
-      symbol === cashSymbol ? !!cashFund : inPortfolio(symbol) || adding.has(symbol);
-    const { holdings, prices: filePrices } = holdingsFromAccount(account, { include, cashSymbol });
-    const addFunds: Fund[] = account.positions
-      .filter(p => !p.cash && adding.has(p.symbol))
+      symbol === cashSymbol ? !!cashFund : portfolio.funds.some(f => f.symbol === symbol) || adding.has(symbol);
+    const { holdings, prices: filePrices } = holdingsFromAccount(account, {
+      include,
+      cashSymbol,
+      symbolFor: s => mineAs(s) ?? s,
+    });
+    const addFunds: Fund[] = (groups?.others ?? [])
+      .filter(p => adding.has(p.symbol))
       .map(p => ({ symbol: p.symbol, target: 0, ...(p.description ? { name: p.description } : {}) }));
     onApply({
       holdings,
       addFunds,
       prices: filePrices,
-      cashAmount: useCash && groups?.cash?.value ? Math.round(groups.cash.value * 100) / 100 : null,
+      cashAmount: useCash && groups?.cash ? groups.cash : null,
     });
   };
 
   const brokerLine = [parsed?.broker, fileName].filter(Boolean).join(' · ');
 
   // What "Replace holdings" will put in
-  const replaced = groups ? [...groups.mine, ...groups.others.filter(p => adding.has(p.symbol))] : [];
-  const replacedValue = replaced.reduce((sum, p) => sum + (p.value ?? 0), 0);
-  const fundCount = replaced.length;
+  const replacedValue = groups && account
+    ? account.positions.reduce((sum, p) => {
+        if (p.cash) {
+          const claimed = Object.entries(p.moneyMarket ?? {}).filter(([f]) => mineAs(f)).reduce((a, [, v]) => a + v, 0);
+          return sum + claimed + (cashFund ? Math.max(0, (p.value ?? 0) - claimed) : 0);
+        }
+        return sum + (mineAs(p.symbol) || adding.has(p.symbol) ? p.value ?? 0 : 0);
+      }, 0)
+    : 0;
+  const fundCount = groups ? groups.mine.length + groups.others.filter(p => adding.has(p.symbol)).length : 0;
 
   const problem = typeof result === 'string' ? result : accounts.length === 0 ? (parsed?.recognized ? 'empty' : 'unreadable') : null;
 
@@ -187,16 +218,13 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
             {(groups.mine.length > 0 || groups.missing.length > 0) && (
               <section>
                 <h3 className={styles.importHeading}>In this portfolio</h3>
-                {groups.mine.map(p => {
-                  const key = p.cash ? cashFund!.symbol : p.symbol;
-                  return (
-                    <div key={key} className={styles.importRow}>
-                      <b className={styles.symbol}>{key}</b>
-                      <span className={styles.num}>{amountText(p)}</span>
-                      <span className={styles.importWas}>{wasText(portfolio.holdings[key])}</span>
-                    </div>
-                  );
-                })}
+                {groups.mine.map(row => (
+                  <div key={row.key} className={styles.importRow}>
+                    <b className={styles.symbol}>{row.key}</b>
+                    <span className={styles.num}>{row.text}</span>
+                    <span className={styles.importWas}>{wasText(portfolio.holdings[row.key])}</span>
+                  </div>
+                ))}
                 {groups.missing.map(f => (
                   <div key={f.symbol} className={styles.importRow}>
                     <b className={styles.symbol}>{f.symbol}</b>
@@ -241,7 +269,7 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
                 <h3 className={styles.importHeading}>Cash</h3>
                 <label className={styles.importRow}>
                   <b className={styles.symbol}>Cash</b>
-                  <span className={styles.num}>{money(groups.cash.value ?? 0)}</span>
+                  <span className={styles.num}>{money(groups.cash)}</span>
                   <span className={styles.importCheck}>
                     <input type="checkbox" checked={useCash} onChange={e => setUseCash(e.target.checked)} />
                     Use as the amount I'm adding

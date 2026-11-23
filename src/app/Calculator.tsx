@@ -148,10 +148,19 @@ export function Calculator() {
     wholeShares,
   }), [funds, holdings, tracksHoldings, effectiveVerb, amount, sell, prices, wholeShares]);
 
+  const targetsOk = funds.length > 0 && Math.abs(funds.reduce((sum, f) => sum + f.target, 0) - 100) <= 0.01;
+
   // Off target: worth pointing out rebalancing (never switches the verb by itself)
   const values = useMemo(() => (tracksHoldings ? heldValues(holdings, prices) : null), [tracksHoldings, holdings, prices]);
   const hasHoldings = !!values && Object.keys(values).length > 0;
-  const offNow = useMemo(() => (values ? furthestOff(funds, values) : null), [funds, values]);
+  const offNow = useMemo(() => {
+    if (!values || !targetsOk) return null;
+    const off = furthestOff(funds, values);
+    if (!off || !wholeShares) return off;
+    // Whole shares can make a rebalance impossible (nothing affordable): don't offer one
+    const rebalPlan = makePlan({ funds, holdings, tracksHoldings, verb: 'rebal', amount: 0, sell, prices, wholeShares });
+    return rebalPlan.status === 'ok' ? off : null;
+  }, [funds, values, targetsOk, wholeShares, holdings, tracksHoldings, sell, prices]);
   const offAfter = useMemo(() => {
     // Adding with selling already lands everything on target; rebalancing is the fix itself
     if (!values || plan.status !== 'ok' || effectiveVerb === 'rebal' || (effectiveVerb === 'add' && sell)) return null;
@@ -170,7 +179,7 @@ export function Calculator() {
   };
 
   // Copied-text fallback goes stale as soon as the trades change
-  const tradesKey = tradesText(plan, asOf, wholeShares);
+  const tradesKey = tradesText(plan, asOf, wholeShares, effectiveVerb === 'out');
   useEffect(() => { setTextFallback(null); }, [tradesKey]);
 
   const combined = useMemo(() => combinePortfolios(workspace.portfolios, prices), [workspace.portfolios, prices]);
@@ -185,7 +194,6 @@ export function Calculator() {
   const colorOf = useCallback((s: string) => fundColors[s] ?? 'var(--fund-5)', [fundColors]);
 
   const missingPrices = symbols.filter(s => priceData.info[s]?.status === 'missing' && !manualPrices[s]);
-  const targetsOk = funds.length > 0 && Math.abs(funds.reduce((sum, f) => sum + f.target, 0) - 100) <= 0.01;
 
   // "From the Vanguard 3-Fund template", or "…, edited" once it no longer matches
   const startedFrom = templates.find(t => t.id === portfolio.templateId);
@@ -208,7 +216,7 @@ export function Calculator() {
   })();
 
   const copyTrades = async () => {
-    const text = tradesText(plan, asOf, wholeShares);
+    const text = tradesText(plan, asOf, wholeShares, effectiveVerb === 'out');
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -298,7 +306,9 @@ export function Calculator() {
     const snapshot = actions.importHoldings(choice.holdings, choice.addFunds);
     // The file's prices stand in only where the lookup can't price a fund
     const fill = Object.fromEntries(Object.entries(choice.prices).filter(([s]) => priceData.info[s]?.status !== 'ok'));
+    const pricesBefore = Object.fromEntries(Object.keys(fill).map(s => [s, manualPrices[s] ?? null]));
     priceActions.addManualPrices(fill);
+    const before = { verb, amountText };
     if (choice.cashAmount) {
       setVerb('add');
       setAmountText(formatAmountInput(choice.cashAmount));
@@ -307,7 +317,14 @@ export function Calculator() {
     showFlash({
       key: 'imported',
       text: broker ? `Holdings imported from ${broker}.` : 'Holdings imported.',
-      action: { label: 'Undo', run: () => actions.restoreHoldings(snapshot) },
+      action: {
+        label: 'Undo',
+        run: () => {
+          actions.restoreHoldings(snapshot);
+          priceActions.restoreManualPrices(pricesBefore);
+          if (choice.cashAmount) { setVerb(before.verb); setAmountText(before.amountText); }
+        },
+      },
       timeout: UNDO_MS,
     });
   };
@@ -373,6 +390,7 @@ export function Calculator() {
         savedTo={savedTo}
         saveState={saveState}
         loadFailed={loadFailed}
+        deviceSaveFailed={deviceSaveFailed}
         onSignIn={() => { void signInWithGoogle(); }}
         onSignOut={() => { void signOut(); }}
         theme={theme.mode}
@@ -598,7 +616,9 @@ export function Calculator() {
             <CopyIcon />
             <span className={styles.copyBarText}>
               {copyBarLabel}
-              {ok && plan.leftover > 0 && !copied && <span className={styles.copyBarSub}>{money(plan.leftover)} left over</span>}
+              {ok && plan.leftover > 0 && !copied && (
+                <span className={styles.copyBarSub}>{money(plan.leftover)} {effectiveVerb === 'out' ? 'extra' : 'left over'}</span>
+              )}
             </span>
           </button>
         </div>

@@ -51,7 +51,7 @@ describe('combinePortfolios', () => {
     expect(none.behind).toEqual([]);
   });
 
-  it('leaves funds without a price out of where new money helps, and says so', () => {
+  it('leaves out a portfolio holding a fund with no price, and says which', () => {
     const r = combinePortfolios([
       P('a', 'Roth IRA', [{ symbol: 'SPUS', target: 100 }], { SPUS: { kind: 'dollars', amount: 1000 } }),
       P('b', 'HSA', [{ symbol: 'SPUS', target: 70 }, { symbol: 'TRUST', target: 30 }], {
@@ -59,7 +59,10 @@ describe('combinePortfolios', () => {
         TRUST: { kind: 'shares', amount: 50 },
       }),
     ], {});
+    // HSA would otherwise look like all SPUS: it's left out until TRUST has a price
     expect(r.unpriced).toEqual([{ symbol: 'TRUST', heldIn: [{ id: 'b', name: 'HSA' }] }]);
-    expect(r.behind.map(f => f.symbol)).not.toContain('TRUST');
+    expect(r.excluded).toEqual([{ id: 'b', name: 'HSA', reason: 'no-price' }]);
+    expect(r.total).toBe(1000);
+    expect(r.behind).toEqual([]);
   });
 });

@@ -118,7 +118,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                     <span className={styles.pickerLabel}>All portfolios</span>
                     <span className={styles.pickerNote}>
                       {all.count < 2
-                        ? 'Add holdings to two portfolios to see them together'
+                        ? 'Needs two portfolios with holdings, prices and targets at 100%'
                         : `${all.count} with holdings · ${money(all.total)}`}
                     </span>
                   </span>

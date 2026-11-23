@@ -39,7 +39,7 @@ export const cheapestShort = (short: ShortOfShare[]) =>
   short.reduce<ShortOfShare | null>((a, b) => (!a || b.price < a.price ? b : a), null);
 
 /** Plain text for the clipboard, columns lined up. */
-export function tradesText(plan: Pick<Plan, 'trades' | 'leftover' | 'shortOfShare'>, asOf: string | null, whole = false): string {
+export function tradesText(plan: Pick<Plan, 'trades' | 'leftover' | 'shortOfShare'>, asOf: string | null, whole = false, takingOut = false): string {
   const rows = plan.trades.map(t => [
     `${t.action === 'buy' ? 'Buy' : 'Sell'} ${t.symbol}`,
     money(t.dollars),
@@ -50,7 +50,9 @@ export function tradesText(plan: Pick<Plan, 'trades' | 'leftover' | 'shortOfShar
   const w0 = Math.max(...rows.map(r => r[0].length));
   const w1 = Math.max(...rows.map(r => r[1].length));
   const lines = rows.map(r => `${r[0].padEnd(w0)}  ${r[1].padStart(w1)}  ${r[2]}`);
-  if (plan.leftover > 0) {
+  if (plan.leftover > 0 && takingOut) {
+    lines.push(`Extra cash raised: ${money(plan.leftover)} (shares are whole)`);
+  } else if (plan.leftover > 0) {
     const short = plan.shortOfShare.length > 0
       ? ` (not enough for 1 share of ${plan.shortOfShare.map(s => `${s.symbol} at ${money(s.price)}`).join(', ')})`
       : '';
