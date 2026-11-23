@@ -172,7 +172,7 @@ export function MixCard(props: MixCardProps) {
                 </div>
                 <span className={styles.nowCell}>
                   {heldTotal > 0 ? (
-                    <>{pct1(now)} <span className={Math.abs(d) >= 5 ? styles.driftBig : styles.driftSmall}>{drift(d)}</span></>
+                    <><span className={styles.phoneLabel}>Now </span>{pct1(now)} <span className={Math.abs(d) >= 5 ? styles.driftBig : styles.driftSmall}>{drift(d)}</span></>
                   ) : '—'}
                 </span>
               </>
