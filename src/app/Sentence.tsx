@@ -101,6 +101,7 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
               <span className={styles.sizer} data-value={amount || AMOUNT_PLACEHOLDER}>
                 <input
                   aria-label="Amount"
+                  size={1}
                   inputMode="decimal"
                   autoComplete="off"
                   placeholder={AMOUNT_PLACEHOLDER}

@@ -262,6 +262,7 @@
 /* Grows with what's typed: an invisible copy of the value sets the width */
 .sizer {
   display: inline-grid;
+  grid-template-columns: minmax(1ch, max-content);
   vertical-align: baseline;
 }
 
@@ -275,7 +276,7 @@
 .sizer input {
   grid-area: 1 / 1;
   width: 100%;
-  min-width: 1ch;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
