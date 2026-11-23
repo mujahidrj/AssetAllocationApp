@@ -193,7 +193,7 @@
   gap: 2px;
 }
 
-.accountName {
+.panelName {
   font-size: 15px;
   font-weight: 600;
 }
@@ -240,7 +240,7 @@
   background: var(--border);
 }
 
-.accountRow {
+.panelRow {
   padding: 10px 12px;
   display: flex;
   align-items: center;

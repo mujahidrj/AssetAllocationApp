@@ -129,12 +129,12 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
               {user ? (
                 <>
                   <div className={styles.accountWho}>
-                    <span className={styles.accountName}>{user.displayName || firstName}</span>
+                    <span className={styles.panelName}>{user.displayName || firstName}</span>
                     <span className={styles.accountSub}>{user.email || 'Signed in with Google'}</span>
                   </div>
                   <AccountStatus saveState={saveState} loadFailed={!!loadFailed} onRetry={onRetry} />
                   <div className={styles.accountRule} />
-                  <div className={styles.accountRow}>
+                  <div className={styles.panelRow}>
                     <span>Appearance</span>
                     <Appearance pref={themePref} onPref={onThemePref} />
                   </div>
@@ -147,7 +147,7 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
               ) : (
                 <>
                   <div className={styles.accountWho}>
-                    <span className={styles.accountName}>
+                    <span className={styles.panelName}>
                       {deviceSaveFailed ? "This browser isn't saving your portfolios" : 'Your portfolios are on this device'}
                     </span>
                     <span className={styles.accountSub}>Sign in to keep them in sync on your phone and computer.</span>
@@ -156,7 +156,7 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
                     </button>
                   </div>
                   <div className={styles.accountRule} />
-                  <div className={styles.accountRow}>
+                  <div className={styles.panelRow}>
                     <span>Appearance</span>
                     <Appearance pref={themePref} onPref={onThemePref} />
                   </div>
