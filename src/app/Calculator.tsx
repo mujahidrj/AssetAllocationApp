@@ -72,10 +72,10 @@ export function Calculator() {
   const missingPrices = symbols.filter(s => priceData.info[s]?.status === 'missing');
   const targetsOk = funds.length > 0 && Math.abs(funds.reduce((sum, f) => sum + f.target, 0) - 100) <= 0.01;
 
-  // "Vanguard 3-Fund mix", or "…, edited" once it no longer matches the template
+  // "From the Vanguard 3-Fund template", or "…, edited" once it no longer matches
   const startedFrom = templates.find(t => t.id === portfolio.templateId);
   const mixSubtitle = startedFrom
-    ? `${startedFrom.group === 'sharia' ? `Sharia ${startedFrom.label}` : startedFrom.label} mix${matchingTemplate(funds)?.id === startedFrom.id ? '' : ', edited'}`
+    ? `From the ${startedFrom.group === 'sharia' ? `Sharia ${startedFrom.label}` : startedFrom.label} template${matchingTemplate(funds)?.id === startedFrom.id ? '' : ', edited'}`
     : undefined;
 
   const helper = (() => {
@@ -193,9 +193,9 @@ export function Calculator() {
       <main className={styles.main}>
         {sharedMix && (
           <div className={styles.banner} role="status">
-            <p>Someone shared a mix: <b className={styles.num}>{sharedMix.map(f => `${f.symbol} ${f.target}`).join(' · ')}</b></p>
+            <p>Someone shared a portfolio: <b className={styles.num}>{sharedMix.map(f => `${f.symbol} ${f.target}`).join(' · ')}</b></p>
             {onlyEmpty ? (
-              <button type="button" className={styles.primary} onClick={() => { applyMix(sharedMix); dismissShared(); }}>Use this mix</button>
+              <button type="button" className={styles.primary} onClick={() => { applyMix(sharedMix); dismissShared(); }}>Use these funds</button>
             ) : (
               <>
                 <button type="button" className={styles.primary} onClick={() => { newPortfolio(sharedMix); dismissShared(); }}>Save as new portfolio</button>
@@ -303,7 +303,9 @@ export function Calculator() {
             prices={priceData.prices}
             missingPrices={missingPrices}
             colorOf={colorOf}
+            title={displayName(portfolio)}
             subtitle={mixSubtitle}
+            onOpenPortfolios={() => { setMenu('list'); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }}
             onTarget={actions.setTarget}
             onHolding={actions.setHolding}
             onTracksHoldings={actions.setTracksHoldings}

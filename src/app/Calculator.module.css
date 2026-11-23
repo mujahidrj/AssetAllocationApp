@@ -549,6 +549,18 @@
   padding: 10px 0;
 }
 
+.pushRight {
+  margin-left: auto;
+}
+
+.cardTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding-bottom: 14px;
+}
+
 .titleBlock {
   display: flex;
   flex-direction: column;

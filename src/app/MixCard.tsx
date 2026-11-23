@@ -68,12 +68,15 @@ interface MixCardProps {
   onAbsorb: (symbol: string) => void;
   searchOpen: boolean;
   onSearchOpen: (open: boolean) => void;
-  /** e.g. "Vanguard 3-Fund mix, edited" */
+  /** The portfolio's name, e.g. "Roth IRA" */
+  title: string;
+  /** e.g. "From the Vanguard 3-Fund template, edited" */
   subtitle?: string;
+  onOpenPortfolios: () => void;
 }
 
 export function MixCard(props: MixCardProps) {
-  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, subtitle } = props;
+  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios } = props;
 
   const total = funds.reduce((sum, f) => sum + f.target, 0);
   const off = funds.length > 0 && Math.abs(total - 100) > 0.01;
@@ -82,13 +85,16 @@ export function MixCard(props: MixCardProps) {
   const heldTotal = funds.reduce((sum, f) => sum + holdingDollars(f.symbol, holdings[f.symbol], prices), 0);
 
   return (
-    <section className={`${styles.card} ${styles.mix} ${tracksHoldings ? styles.withHoldings : ''}`} aria-label="Your mix">
+    <section className={`${styles.card} ${styles.mix} ${tracksHoldings ? styles.withHoldings : ''}`} aria-label="Your portfolio">
       <div className={styles.cardHead}>
         <div className={styles.titleBlock}>
-          <h2 className={styles.cardTitle}>Your mix</h2>
+          <h2 className={styles.cardTitle}>{title}</h2>
           {subtitle && <span className={styles.cardSub}>{subtitle}</span>}
         </div>
-        <button type="button" className={styles.headLink} onClick={onChangeMix}>Change mix</button>
+        <button type="button" className={`${styles.headLink} ${styles.pushRight}`} onClick={onOpenPortfolios}>Switch or add portfolio</button>
+      </div>
+      <div className={styles.cardTools}>
+        <button type="button" className={styles.headLink} onClick={onChangeMix}>Use a template</button>
         <button type="button" className={styles.headLink} onClick={() => onSearchOpen(!searchOpen)} aria-expanded={searchOpen}>+ Add fund</button>
         <button
           type="button"
@@ -103,7 +109,7 @@ export function MixCard(props: MixCardProps) {
       </div>
 
       {funds.length > 0 && (
-        <div className={styles.mixBar} role="img" aria-label={`Mix: ${funds.filter(f => f.target > 0).map(f => `${f.symbol} ${f.target}%`).join(', ')}`}>
+        <div className={styles.mixBar} role="img" aria-label={`Targets: ${funds.filter(f => f.target > 0).map(f => `${f.symbol} ${f.target}%`).join(', ')}`}>
           {funds.filter(f => f.target > 0).map(f => (
             <span key={f.symbol} style={{ width: `${(f.target / Math.max(total, 100)) * 100}%`, background: colorOf(f.symbol) }} />
           ))}

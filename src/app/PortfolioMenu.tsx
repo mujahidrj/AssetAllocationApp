@@ -89,7 +89,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
         className={styles.menu}
         style={{ left, top }}
         role="dialog"
-        aria-label={step === 'list' ? 'Portfolios' : 'Change mix'}
+        aria-label={step === 'list' ? 'Portfolios' : 'Templates'}
         onKeyDown={onKeyDown}
       >
         {step === 'list' ? (
@@ -117,7 +117,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                   onClick={() => { onSwitch(p.id); onClose(); }}
                 >
                   <span className={styles.pickerLabel}>{displayName(p)}</span>
-                  <span className={styles.pickerMix}>{describeMix(p.funds) || 'No mix yet'}</span>
+                  <span className={styles.pickerMix}>{describeMix(p.funds) || 'No funds yet'}</span>
                   <span className={styles.pickerCheck}>{p.id === active.id && <CheckIcon />}</span>
                 </button>
               )
@@ -127,7 +127,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
             </button>
             <div className={styles.pickerFoot}>
               <button type="button" className={styles.pickerItem} onClick={() => setStep('mix')}>
-                <span className={styles.pickerLabel}>Change mix…</span>
+                <span className={styles.pickerLabel}>Use a template…</span>
                 <span className={styles.pickerCheck} style={{ transform: 'rotate(-90deg)' }}><ChevronIcon /></span>
               </button>
               <button type="button" className={styles.pickerItem} onClick={startRename}>
@@ -135,7 +135,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
               </button>
               {active.funds.length > 0 && (
                 <button type="button" className={styles.pickerItem} onClick={() => { onDuplicate(); onClose(); }}>
-                  <span className={styles.pickerLabel}>New portfolio with this mix</span>
+                  <span className={styles.pickerLabel}>Copy to a new portfolio</span>
                 </button>
               )}
               {portfolios.length > 1 && (

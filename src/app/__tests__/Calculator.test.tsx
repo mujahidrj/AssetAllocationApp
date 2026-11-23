@@ -10,15 +10,15 @@ const seed = (p: Partial<Portfolio>) => saveDeviceWorkspace({ portfolios: [{ ...
 const renderApp = () => render(<Calculator />);
 
 describe('Calculator', () => {
-  it('starts by asking for a mix, then splits new money by target', async () => {
+  it('starts by asking for a starting point, then splits new money by target', async () => {
     const user = userEvent.setup();
     renderApp();
 
-    expect(screen.getByRole('heading', { name: /pick a mix to start/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /pick a starting point/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /vanguard 3-fund/i }));
 
     expect(screen.getByRole('button', { name: 'my portfolio' })).toBeInTheDocument();
-    expect(screen.getByText('Vanguard 3-Fund mix')).toBeInTheDocument();
+    expect(screen.getByText('From the Vanguard 3-Fund template')).toBeInTheDocument();
     expect(screen.getByText(/type an amount above/i)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Amount'), '10,000');
@@ -114,8 +114,8 @@ describe('Calculator', () => {
     const user = userEvent.setup();
     renderApp();
 
-    expect(screen.getByText(/someone shared a mix/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /use this mix/i }));
+    expect(screen.getByText(/someone shared a portfolio/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /use these funds/i }));
     expect(screen.getByLabelText('SPUS target percent')).toHaveValue('60');
     expect(window.location.search).toBe('');
   });
@@ -147,7 +147,7 @@ describe('Calculator', () => {
     const menu = screen.getByRole('dialog', { name: 'Portfolios' });
     await user.click(within(menu).getByRole('button', { name: '+ New portfolio' }));
 
-    expect(screen.getByRole('heading', { name: /pick a mix to start/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /pick a starting point/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Roth IRA' }));
     expect(screen.getByRole('button', { name: 'my Roth IRA' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /schwab 3-fund/i }));
@@ -176,5 +176,20 @@ describe('Calculator', () => {
     await user.clear(field);
     await user.type(field, "Sam's IRA{Enter}");
     expect(screen.getByRole('button', { name: "Sam's IRA" })).toBeInTheDocument();
+  });
+
+  it('shows the portfolio name on the card, with a way to switch or add portfolios', async () => {
+    saveDeviceWorkspace({
+      portfolios: [{ ...emptyPortfolio('a', 'Roth IRA'), funds: [{ symbol: 'VTI', target: 100 }] }, { ...emptyPortfolio('b', 'HSA'), funds: [{ symbol: 'BND', target: 100 }] }],
+      activeId: 'a',
+    });
+    const user = userEvent.setup();
+    renderApp();
+
+    expect(screen.getByRole('heading', { name: 'Roth IRA' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Switch or add portfolio' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: /HSA/ }));
+    expect(screen.getByRole('heading', { name: 'HSA' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'my HSA' })).toBeInTheDocument();
   });
 });

@@ -92,7 +92,7 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
   const add = (symbol: string, name?: string) => {
     const s = symbol.trim().toUpperCase();
     if (existing.includes(s)) {
-      setNote(`${s} is already in your mix.`);
+      setNote(`${s} is already in this portfolio.`);
       return;
     }
     onAdd(s, name);

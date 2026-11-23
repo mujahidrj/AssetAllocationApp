@@ -72,7 +72,7 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
   const title =
     ok ? tradeTitle(plan.trades)
       : plan.status === 'targets-off' ? 'Targets need to add up to 100%'
-      : plan.status === 'needs-mix' ? 'Pick a mix to start'
+      : plan.status === 'needs-mix' ? 'Pick a starting point'
       : 'Your trades';
 
   return (
@@ -92,7 +92,7 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
 
       {plan.status === 'needs-mix' && (
         <div className={styles.empty}>
-          <MixPicker current={funds} heading="Start with a mix" onPick={onPickMix} onBuildOwn={onBuildOwn} />
+          <MixPicker current={funds} heading="Start from a template" onPick={onPickMix} onBuildOwn={onBuildOwn} />
         </div>
       )}
       {plan.status === 'needs-amount' && (
@@ -100,11 +100,11 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
       )}
       {plan.status === 'targets-off' && (
         <div className={styles.empty}>
-          <p>Your targets add up to {+plan.targetTotal.toFixed(2)}%. Fix them in Your mix below and the trades come back.</p>
+          <p>Your targets add up to {+plan.targetTotal.toFixed(2)}%. Fix them below and the trades come back.</p>
         </div>
       )}
       {plan.status === 'needs-holdings' && (
-        <div className={styles.empty}><p>Enter what you own in Your mix below to see what to buy and sell.</p></div>
+        <div className={styles.empty}><p>Enter what you own below to see what to buy and sell.</p></div>
       )}
       {plan.status === 'nothing-to-do' && (
         <div className={styles.empty}><p>Everything is already on target. Nothing to buy or sell.</p></div>
@@ -121,7 +121,7 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
                   <span className={styles.swatch} style={{ background: colorOf(t.symbol) }} />
                   <div style={{ minWidth: 0 }}>
                     <div className={styles.symbol}>{t.symbol}</div>
-                    <div className={styles.fundName}>{fund ? shortName(fund) : 'Not in your mix'}</div>
+                    <div className={styles.fundName}>{fund ? shortName(fund) : 'Not in this portfolio'}</div>
                   </div>
                 </div>
                 <span className={styles.tradeShares}>
