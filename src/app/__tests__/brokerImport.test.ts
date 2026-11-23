@@ -15,7 +15,7 @@ const summary = (text: string) =>
 
 describe('parseCsv and parseNumber', () => {
   it('handles quotes, doubled quotes, commas inside quotes, CRLF and a BOM', () => {
-    expect(parseCsv('﻿a,"b, c","say ""hi"""\r\n1,2,3')).toEqual([['a', 'b, c', 'say "hi"'], ['1', '2', '3']]);
+    expect(parseCsv('\uFEFFa,"b, c","say ""hi"""\r\n1,2,3')).toEqual([['a', 'b, c', 'say "hi"'], ['1', '2', '3']]);
   });
 
   it('reads tab-separated text too', () => {

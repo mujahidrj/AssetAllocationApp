@@ -42,7 +42,7 @@ export interface ImportResult {
 
 /** Splits CSV text into rows of cells. Handles quotes, doubled quotes, CRLF and a BOM. */
 export function parseCsv(text: string): string[][] {
-  const src = text.replace(/^﻿/, '');
+  const src = text.replace(/^\uFEFF/, '');
   const firstLines = src.split(/\r?\n/).slice(0, 15).join('\n');
   const delimiter = !firstLines.includes(',') && firstLines.includes('\t') ? '\t' : ',';
 
@@ -211,7 +211,7 @@ export function parseBrokerCsv(text: string): ImportResult {
     const cash = isCashRow(rawSymbol, symbol, description);
 
     if (!cash) {
-      if (!/^[A-Z0-9.\-]{1,12}$/.test(symbol)) continue;
+      if (!/^[A-Z0-9.-]{1,12}$/.test(symbol)) continue;
       if ((shares ?? 0) < 0 || (value ?? 0) < 0) continue; // short positions
       if (value == null && shares != null && price != null) value = shares * price;
       // A share count or price that doesn't match the value means mislabelled columns
