@@ -403,7 +403,7 @@ export function Calculator() {
         onSignIn={() => { void signInWithGoogle(); }}
         onSignOut={() => { void signOut(); }}
         theme={theme.mode}
-        onTheme={theme.setMode}
+        onToggleTheme={theme.toggle}
         onShare={share}
         canShare={targetsOk && !showingAll}
       />

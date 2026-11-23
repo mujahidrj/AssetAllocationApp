@@ -102,43 +102,6 @@
   white-space: nowrap;
 }
 
-.themeGroup {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.themeSeg {
-  width: 30px;
-  height: 28px;
-  border-radius: var(--radius);
-  border: 1px solid transparent;
-  background: none;
-  color: var(--text-3);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.themeSegOn {
-  background: var(--raised);
-  border-color: var(--border);
-  color: var(--text);
-}
-
-.themeCycle {
-  display: none;
-  align-items: center;
-  gap: 4px;
-}
-
-.flash {
-  font-size: 12px;
-  color: var(--text-2);
-}
-
 .phoneOnly {
   display: none;
 }
@@ -1529,17 +1492,12 @@
   }
 
   .desktopOnly,
-  .themeGroup,
   .saved {
     display: none;
   }
 
   .phoneOnly {
     display: inline-flex;
-  }
-
-  .themeCycle {
-    display: flex;
   }
 
   .shareFallback {
@@ -1671,7 +1629,6 @@
   .menu .pickerItem {
     min-height: 52px;
   }
-
 
   .toast {
     bottom: calc(96px + env(safe-area-inset-bottom));

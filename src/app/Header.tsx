@@ -1,15 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import styles from './Calculator.module.css';
-import { AutoIcon, MoonIcon, PersonIcon, ShareIcon, SunIcon } from './icons';
+import { MoonIcon, PersonIcon, ShareIcon, SunIcon } from './icons';
 import type { ThemeMode } from './useTheme';
 import type { SaveState } from './usePortfolios';
-
-const themeNames: Record<ThemeMode, string> = { auto: 'Match device', light: 'Light', dark: 'Dark' };
-const nextTheme: Record<ThemeMode, ThemeMode> = { auto: 'light', light: 'dark', dark: 'auto' };
-
-const ThemeIcon = ({ mode }: { mode: ThemeMode }) =>
-  mode === 'auto' ? <AutoIcon /> : mode === 'light' ? <SunIcon /> : <MoonIcon />;
 
 interface HeaderProps {
   user: User | null;
@@ -22,16 +16,15 @@ interface HeaderProps {
   onSignIn: () => void;
   onSignOut: () => void;
   theme: ThemeMode;
-  onTheme: (mode: ThemeMode) => void;
+  onToggleTheme: () => void;
   /** Copies the share link; resolves to the link if copying failed. */
   onShare: () => Promise<string | null>;
   canShare: boolean;
 }
 
-export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed, onSignIn, onSignOut, theme, onTheme, onShare, canShare }: HeaderProps) {
+export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed, onSignIn, onSignOut, theme, onToggleTheme, onShare, canShare }: HeaderProps) {
   const [shared, setShared] = useState(false);
   const [fallback, setFallback] = useState<string | null>(null);
-  const [flash, setFlash] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -47,12 +40,6 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
     setFallback(null);
     setShared(true);
     later(() => setShared(false), 1600);
-  };
-
-  const cycleTheme = () => {
-    onTheme(nextTheme[theme]);
-    setFlash(true);
-    later(() => setFlash(false), 1200);
   };
 
   const savedText =
@@ -97,27 +84,16 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
           </>
         )}
 
-        <div className={styles.themeGroup} role="group" aria-label="Theme">
-          {(['auto', 'light', 'dark'] as const).map(m => (
-            <button
-              key={m}
-              type="button"
-              title={themeNames[m]}
-              aria-label={themeNames[m]}
-              aria-pressed={theme === m}
-              className={`${styles.themeSeg} ${theme === m ? styles.themeSegOn : ''}`}
-              onClick={() => onTheme(m)}
-            >
-              <ThemeIcon mode={m} />
-            </button>
-          ))}
-        </div>
-        <span className={styles.themeCycle}>
-          {flash && <span className={styles.flash}>{theme === 'auto' ? 'Match phone' : themeNames[theme]}</span>}
-          <button type="button" className={styles.iconButton} onClick={cycleTheme} aria-label={`Theme: ${themeNames[theme]}`}>
-            <ThemeIcon mode={theme} />
-          </button>
-        </span>
+        {/* Shows where one click takes you: the moon in light mode, the sun in dark */}
+        <button
+          type="button"
+          className={styles.iconButton}
+          onClick={onToggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        >
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </button>
       </div>
       {fallback && (
         <div className={styles.shareFallback}>

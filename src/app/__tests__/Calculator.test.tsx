@@ -153,14 +153,20 @@ describe('Calculator', () => {
     expect(screen.queryByLabelText('VTI target percent')).not.toBeInTheDocument();
   });
 
-  it('switches between light and dark', async () => {
+  it('switches between light and dark with one click, and remembers it', async () => {
+    window.localStorage.setItem('assetAllocation.theme', 'light');
     const user = userEvent.setup();
     renderApp();
-    await user.click(screen.getByRole('button', { name: 'Dark' }));
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(screen.queryByRole('button', { name: /match device/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Switch to dark mode' }));
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(window.localStorage.getItem('assetAllocation.theme')).toBe('dark');
-    await user.click(screen.getByRole('button', { name: 'Light' }));
+
+    await user.click(screen.getByRole('button', { name: 'Switch to light mode' }));
     expect(document.documentElement.dataset.theme).toBe('light');
+    expect(window.localStorage.getItem('assetAllocation.theme')).toBe('light');
   });
 
   it('offers a mix from a share link', async () => {
