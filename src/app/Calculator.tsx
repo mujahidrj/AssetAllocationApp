@@ -7,21 +7,23 @@ import { formatAmountInput, money } from './format';
 import { Header } from './Header';
 import { CopyIcon } from './icons';
 import { MixCard } from './MixCard';
-import { MixPicker } from './MixPicker';
-import type { Fund, Verb } from './model';
+import { displayName, sentenceName, type Fund, type Verb } from './model';
 import { makePlan } from './plan';
+import { PortfolioMenu } from './PortfolioMenu';
 import { Sentence } from './Sentence';
-import { matchingTemplate } from './templates';
+import { matchingTemplate, templates } from './templates';
 import { Trades, tradesCsv, tradesText } from './Trades';
-import { usePortfolio } from './usePortfolio';
+import { usePortfolios, type RemovedPortfolio } from './usePortfolios';
 import { usePrices } from './usePrices';
 import { useTheme } from './useTheme';
 import { stocksFromFunds } from './storage';
 
+const NAME_SUGGESTIONS = ['Roth IRA', 'Traditional IRA', '401(k)', 'Taxable account', 'HSA', "Spouse's IRA"];
+
 export function Calculator() {
   const { user, signInWithGoogle, signOut } = useAuth();
-  const { portfolio, actions, saveState, savedTo } = usePortfolio(user);
-  const { funds, holdings, tracksHoldings } = portfolio;
+  const { workspace, portfolio, actions, portfolioActions, saveState, savedTo } = usePortfolios(user);
+  const { funds, holdings, tracksHoldings, sell } = portfolio;
   const theme = useTheme();
 
   const symbols = useMemo(() => {
@@ -33,15 +35,18 @@ export function Calculator() {
 
   const [verb, setVerb] = useState<Verb>('add');
   const [amountText, setAmountText] = useState('');
-  const [sell, setSell] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [menu, setMenu] = useState<null | 'list' | 'mix'>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [namingId, setNamingId] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState<RemovedPortfolio | null>(null);
   const [sharedMix, setSharedMix] = useState<Fund[] | null>(() =>
     readSharedMix()?.map(s => ({ symbol: s.name, target: s.percentage })) ?? null
   );
+  const blankRef = useRef<HTMLButtonElement>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => () => clearTimeout(copyTimer.current), []);
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => { clearTimeout(copyTimer.current); clearTimeout(toastTimer.current); }, []);
 
   const effectiveVerb: Verb = !tracksHoldings && verb === 'rebal' ? 'add' : verb;
   const amount = parseAmount(amountText);
@@ -67,12 +72,11 @@ export function Calculator() {
   const missingPrices = symbols.filter(s => priceData.info[s]?.status === 'missing');
   const targetsOk = funds.length > 0 && Math.abs(funds.reduce((sum, f) => sum + f.target, 0) - 100) <= 0.01;
 
-  const template = matchingTemplate(funds);
-  const mixLabel = funds.length === 0
-    ? 'pick a mix'
-    : template
-      ? (template.group === 'sharia' ? `the ${template.label} Sharia mix` : `the ${template.label}`)
-      : 'my mix';
+  // "Vanguard 3-Fund mix", or "…, edited" once it no longer matches the template
+  const startedFrom = templates.find(t => t.id === portfolio.templateId);
+  const mixSubtitle = startedFrom
+    ? `${startedFrom.group === 'sharia' ? `Sharia ${startedFrom.label}` : startedFrom.label} mix${matchingTemplate(funds)?.id === startedFrom.id ? '' : ', edited'}`
+    : undefined;
 
   const helper = (() => {
     if (amountInvalid) return { text: 'Type an amount like 2,500 or $2,500.50.', error: true };
@@ -103,7 +107,7 @@ export function Calculator() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'trades.csv';
+    a.download = `${displayName(portfolio).replace(/[^\w-]+/g, '-').toLowerCase()}-trades.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -119,20 +123,46 @@ export function Calculator() {
   };
 
   /** Applying a mix keeps funds you hold, at 0%, so they can be sold. */
-  const applyMix = (next: Fund[]) => {
+  const applyMix = (next: Fund[], templateId?: string) => {
     const held = tracksHoldings
       ? Object.entries(holdings).filter(([s, h]) => h.amount > 0 && !next.some(f => f.symbol === s)).map(([s]) => {
           const existing = funds.find(f => f.symbol === s);
           return { symbol: s, target: 0, ...(existing?.name ? { name: existing.name } : {}) };
         })
       : [];
-    actions.applyMix([...next, ...held]);
+    actions.applyMix([...next, ...held], templateId);
   };
 
   const buildOwn = () => {
     actions.applyMix(funds.filter(f => (holdings[f.symbol]?.amount ?? 0) > 0).map(f => ({ ...f, target: 0 })));
     setSearchOpen(true);
   };
+
+  const newPortfolio = (mix?: Fund[]) => {
+    const id = portfolioActions.create(mix ? { funds: mix } : {});
+    setNamingId(id);
+    setSearchOpen(false);
+  };
+
+  const deletePortfolio = (id: string) => {
+    const removed = portfolioActions.remove(id);
+    if (!removed) return;
+    setDeleted(removed);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setDeleted(null), 8000);
+  };
+
+  const undoDelete = () => {
+    if (deleted) portfolioActions.restore(deleted);
+    setDeleted(null);
+    clearTimeout(toastTimer.current);
+  };
+
+  const closeMenu = useCallback(() => setMenu(null), []);
+
+  // Share-link choices: with one empty portfolio there's nothing to protect
+  const onlyEmpty = workspace.portfolios.length === 1 && funds.length === 0;
+  const dismissShared = () => { setSharedMix(null); clearSharedMixFromUrl(); };
 
   const ok = plan.status === 'ok';
   const buyCount = plan.trades.filter(t => t.action === 'buy').length;
@@ -143,6 +173,8 @@ export function Calculator() {
     : sellCount === 0 ? `Copy ${buyCount} ${buyCount === 1 ? 'buy' : 'buys'} · ${money(plan.net)}`
     : buyCount === 0 ? `Copy ${sellCount} ${sellCount === 1 ? 'sell' : 'sells'} · ${money(-plan.net)}`
     : `Copy ${plan.trades.length} trades`;
+
+  const naming = namingId === portfolio.id;
 
   return (
     <div className={styles.page}>
@@ -161,26 +193,57 @@ export function Calculator() {
       <main className={styles.main}>
         {sharedMix && (
           <div className={styles.banner} role="status">
-            <p>Someone shared a mix with you: <b className={styles.num}>{sharedMix.map(f => `${f.symbol} ${f.target}%`).join(' · ')}</b></p>
-            <button type="button" className={styles.primary} onClick={() => { applyMix(sharedMix); setSharedMix(null); clearSharedMixFromUrl(); }}>Use this mix</button>
-            <button type="button" className={styles.ghost} style={{ height: 40 }} onClick={() => { setSharedMix(null); clearSharedMixFromUrl(); }}>No thanks</button>
+            <p>Someone shared a mix: <b className={styles.num}>{sharedMix.map(f => `${f.symbol} ${f.target}`).join(' · ')}</b></p>
+            {onlyEmpty ? (
+              <button type="button" className={styles.primary} onClick={() => { applyMix(sharedMix); dismissShared(); }}>Use this mix</button>
+            ) : (
+              <>
+                <button type="button" className={styles.primary} onClick={() => { newPortfolio(sharedMix); dismissShared(); }}>Save as new portfolio</button>
+                <button type="button" className={styles.ghost} style={{ height: 40 }} onClick={() => { applyMix(sharedMix); dismissShared(); }}>
+                  Use in {sentenceName(portfolio.name)}
+                </button>
+              </>
+            )}
+            <button type="button" className={styles.ghost} style={{ height: 40 }} onClick={dismissShared}>No thanks</button>
           </div>
         )}
 
-        <Sentence
-          verb={effectiveVerb}
-          onVerb={setVerb}
-          canRebalance={tracksHoldings}
-          amount={amountText}
-          onAmount={setAmountText}
-          onAmountBlur={() => { if (Number.isFinite(amount) && amount > 0) setAmountText(formatAmountInput(amount)); }}
-          mixLabel={mixLabel}
-          onMixClick={() => setPickerOpen(o => !o)}
-          mixOpen={pickerOpen}
-          showSell={tracksHoldings && effectiveVerb === 'add'}
-          sell={sell}
-          onSell={setSell}
-        />
+        <div className={styles.sentenceWrap}>
+          <Sentence
+            ref={blankRef}
+            verb={effectiveVerb}
+            onVerb={setVerb}
+            canRebalance={tracksHoldings}
+            amount={amountText}
+            onAmount={setAmountText}
+            onAmountBlur={() => { if (Number.isFinite(amount) && amount > 0) setAmountText(formatAmountInput(amount)); }}
+            portfolioLabel={sentenceName(portfolio.name)}
+            onPortfolioClick={() => setMenu(m => (m ? null : 'list'))}
+            menuOpen={menu !== null}
+            showSell={tracksHoldings && effectiveVerb === 'add'}
+            sell={sell}
+            onSell={actions.setSell}
+          />
+          {menu && (
+            <PortfolioMenu
+              portfolios={workspace.portfolios}
+              activeId={portfolio.id}
+              anchor={blankRef.current}
+              startOnMix={menu === 'mix'}
+              onClose={closeMenu}
+              onSwitch={id => { portfolioActions.switchTo(id); setSearchOpen(false); }}
+              onNew={() => newPortfolio()}
+              onDuplicate={() => {
+                const id = portfolioActions.duplicate();
+                setNamingId(id);
+              }}
+              onRename={portfolioActions.rename}
+              onDelete={deletePortfolio}
+              onPickMix={applyMix}
+              onBuildOwn={buildOwn}
+            />
+          )}
+        </div>
         <p className={`${styles.helper} ${helper.error ? styles.helperError : ''}`}>
           {helper.text}{' '}
           {helper.addOwn && (
@@ -191,8 +254,31 @@ export function Calculator() {
           )}
         </p>
 
-        {pickerOpen && (
-          <MixPicker current={funds} onPick={applyMix} onBuildOwn={buildOwn} onClose={() => setPickerOpen(false)} />
+        {naming && (
+          <form
+            className={`${styles.card} ${styles.nameCard}`}
+            onSubmit={e => { e.preventDefault(); setNamingId(null); }}
+          >
+            <label className={styles.nameLabel}>
+              Name this portfolio
+              <input
+                className={styles.nameInput}
+                autoFocus
+                onFocus={e => e.currentTarget.select()}
+                placeholder="Name it, e.g. Roth IRA"
+                value={portfolio.name}
+                onChange={e => portfolioActions.rename(portfolio.id, e.target.value)}
+              />
+            </label>
+            <div className={styles.chips}>
+              {NAME_SUGGESTIONS.map(n => (
+                <button key={n} type="button" className={styles.chip} onClick={() => { portfolioActions.rename(portfolio.id, n); setNamingId(null); }}>
+                  {n}
+                </button>
+              ))}
+              <button type="submit" className={styles.headLink}>Done</button>
+            </div>
+          </form>
         )}
 
         <Trades
@@ -217,12 +303,13 @@ export function Calculator() {
             prices={priceData.prices}
             missingPrices={missingPrices}
             colorOf={colorOf}
+            subtitle={mixSubtitle}
             onTarget={actions.setTarget}
             onHolding={actions.setHolding}
             onTracksHoldings={actions.setTracksHoldings}
             onAddFund={(s, n) => { actions.addFund(s, n); setSearchOpen(false); }}
             onRemoveFund={actions.removeFund}
-            onChangeMix={() => { setPickerOpen(true); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }}
+            onChangeMix={() => { setMenu('mix'); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }}
             onScale={actions.scaleTo100}
             onAbsorb={actions.absorbRemainder}
             searchOpen={searchOpen}
@@ -232,6 +319,13 @@ export function Calculator() {
 
         <p className={styles.footnote}>A calculator, not financial advice.</p>
       </main>
+
+      {deleted && (
+        <div className={styles.toast} role="status">
+          Deleted {displayName(deleted.portfolio)}.
+          <button type="button" className={styles.toastUndo} onClick={undoDelete}>Undo</button>
+        </div>
+      )}
 
       {plan.status !== 'needs-mix' && (
         <div className={styles.copyBar}>

@@ -180,25 +180,45 @@
 }
 
 /* ---------- Sentence ---------- */
+.sentenceWrap {
+  position: relative;
+}
+
 .sentence {
   margin: 0;
   font-family: var(--font-serif);
   font-weight: 500;
   font-size: 36px;
-  line-height: 1.55;
+  line-height: 1.5;
   letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums tabular-nums;
+  text-wrap: balance;
 }
 
+/* Words that never break apart, so the sentence wraps at sensible places */
+.keep {
+  white-space: nowrap;
+}
+
+/*
+ * Every blank is the same box (same font, size and line-height), so every orange
+ * underline sits at the same height.
+ */
 .blank {
-  appearance: none;
-  -webkit-appearance: none;
+  position: relative;
+  display: inline-block;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0 0.08em 0 0.06em;
   border: 0;
   border-bottom: 2px solid var(--accent);
-  border-radius: 0;
+  border-radius: 3px 3px 0 0;
   background: none;
-  padding: 0 4px;
   font: inherit;
+  line-height: 1.1;
+  letter-spacing: inherit;
   color: var(--text);
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -206,19 +226,13 @@
   border-bottom-color: var(--accent-hover);
 }
 
-.blank:focus-visible {
+.blank:focus-visible,
+.blank:focus-within {
   outline: none;
   background: var(--accent-soft);
 }
 
-.blankSelect {
-  position: relative;
-  display: inline-flex;
-  align-items: baseline;
-  white-space: nowrap;
-}
-
-.blankSelect select {
+.blank select {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -228,43 +242,53 @@
   font-size: 16px; /* stops iOS zooming in */
 }
 
-.blankSelect:focus-within {
-  background: var(--accent-soft);
-}
-
 .blankCaret {
+  width: 0.34em;
+  height: 0.23em;
+  margin-left: 0.14em;
+  vertical-align: 0.12em;
   color: var(--accent);
-  margin-left: 4px;
-  vertical-align: 0.15em;
 }
 
 .amountBlank {
-  display: inline-flex;
-  align-items: baseline;
-  border-bottom: 2px solid var(--accent);
-  padding: 0 4px;
-  font-family: var(--font-num);
-  font-size: 0.84em;
+  cursor: text;
 }
 
-.amountBlank:focus-within {
-  background: var(--accent-soft);
-}
-
-.amountBlank span {
+.dollar {
   color: var(--text-2);
+  margin-right: 0.02em;
 }
 
-.amountBlank input {
+/* Grows with what's typed: an invisible copy of the value sets the width */
+.sizer {
+  display: inline-grid;
+  vertical-align: baseline;
+}
+
+.sizer::after {
+  content: attr(data-value);
+  visibility: hidden;
+  white-space: pre;
+  grid-area: 1 / 1;
+}
+
+.sizer input {
+  grid-area: 1 / 1;
+  width: 100%;
+  min-width: 1ch;
+  margin: 0;
+  padding: 0;
   border: 0;
   outline: 0;
   background: none;
   font: inherit;
-  padding: 0;
-  min-width: 3ch;
+  line-height: inherit;
+  letter-spacing: inherit;
+  font-variant-numeric: inherit;
+  color: var(--text);
 }
 
-.amountBlank input::placeholder {
+.sizer input::placeholder {
   color: var(--text-3);
 }
 
@@ -293,10 +317,14 @@
   color: var(--accent-hover);
 }
 
-/* ---------- Mix picker ---------- */
-.picker {
-  margin-top: 16px;
-  max-width: 440px;
+/* ---------- Portfolio menu and template list ---------- */
+.menu {
+  position: absolute;
+  z-index: 40;
+  width: 380px;
+  max-width: 100%;
+  max-height: 70vh;
+  overflow-y: auto;
   background: var(--raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
@@ -304,21 +332,20 @@
   padding: 6px;
 }
 
-.pickerInline {
-  margin: 0;
-  max-width: none;
-  box-shadow: none;
-  border: 0;
-  padding: 0;
-  background: none;
+.menuBackdrop {
+  display: none;
+}
+
+.pickerList {
+  display: flex;
+  flex-direction: column;
 }
 
 .pickerHeading {
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-3);
   padding: 10px 12px 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
 }
 
 .pickerItem {
@@ -334,17 +361,28 @@
   text-align: left;
 }
 
-.pickerItem:hover {
+.pickerItem:hover,
+.pickerItem:focus-visible {
   background: var(--surface);
-}
-
-.pickerItemOn {
-  background: var(--accent-soft);
+  outline: none;
 }
 
 .pickerLabel {
   flex-grow: 1;
   font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pickerAction {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.pickerDanger {
+  color: var(--sell);
 }
 
 .pickerMix {
@@ -352,15 +390,134 @@
   font-size: 12px;
   color: var(--text-2);
   text-align: right;
+  white-space: nowrap;
+}
+
+.pickerCheck {
+  width: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  justify-content: center;
+  color: var(--text);
 }
 
 .pickerSub {
-  padding-left: 16px;
+  padding-left: 24px;
 }
 
 .pickerFoot {
   border-top: 1px solid var(--border);
   margin-top: 4px;
+  padding-top: 4px;
+}
+
+.pickerBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  padding: 8px 12px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.renameRow {
+  padding: 4px 6px;
+}
+
+.renameRow input {
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--raised);
+  font-size: 15px;
+  font-weight: 500;
+  outline: 0;
+}
+
+/* ---------- Naming a new portfolio ---------- */
+.nameCard {
+  margin-top: 24px;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nameLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.nameInput {
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  font-size: 16px;
+  outline: 0;
+}
+
+.nameInput:focus {
+  border-color: var(--accent);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* ---------- Undo toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--radius-card);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+}
+
+.toastUndo {
+  border: 0;
+  background: none;
+  padding: 6px 8px;
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* ---------- Cards ---------- */
@@ -386,6 +543,16 @@
   gap: 12px;
   min-height: 64px;
   padding: 10px 0;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+}
+
+.cardSub {
+  font-size: 13px;
+  color: var(--text-3);
 }
 
 .cardTitle {
@@ -874,6 +1041,7 @@
 
   .sentence {
     font-size: 26px;
+    line-height: 1.45;
   }
 
   .helper {
@@ -966,6 +1134,39 @@
   .phoneLabel {
     display: inline;
     color: var(--text-3);
+  }
+
+  .menuBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .menu {
+    position: fixed;
+    left: 0 !important;
+    right: 0;
+    top: auto !important;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    max-height: 80vh;
+    border-radius: 14px 14px 0 0;
+    padding: 8px 8px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .menu .pickerItem {
+    min-height: 52px;
+  }
+
+  .toast {
+    bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .nameCard {
+    padding: 14px 16px;
   }
 
   .copyBar {

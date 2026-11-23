@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Calculator } from '../Calculator';
-import { saveDevicePortfolio, loadDevicePortfolio } from '../storage';
+import { saveDeviceWorkspace, loadDeviceWorkspace } from '../storage';
+import { emptyPortfolio, type Portfolio } from '../model';
+
+const seed = (p: Partial<Portfolio>) => saveDeviceWorkspace({ portfolios: [{ ...emptyPortfolio('p1'), ...p }], activeId: 'p1' });
 
 const renderApp = () => render(<Calculator />);
 
@@ -14,7 +17,8 @@ describe('Calculator', () => {
     expect(screen.getByRole('heading', { name: /pick a mix to start/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /vanguard 3-fund/i }));
 
-    expect(screen.getByRole('button', { name: /the vanguard 3-fund/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'my portfolio' })).toBeInTheDocument();
+    expect(screen.getByText('Vanguard 3-Fund mix')).toBeInTheDocument();
     expect(screen.getByText(/type an amount above/i)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Amount'), '10,000');
@@ -32,14 +36,14 @@ describe('Calculator', () => {
 
   it('flags an amount it cannot read', async () => {
     const user = userEvent.setup();
-    saveDevicePortfolio({ funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
+    seed({ funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
     renderApp();
     await user.type(screen.getByLabelText('Amount'), '10,00');
     expect(screen.getByText(/type an amount like 2,500/i)).toBeInTheDocument();
   });
 
   it('buys only what is behind target once holdings are entered', async () => {
-    saveDevicePortfolio({
+    seed({
       funds: [{ symbol: 'SPUS', target: 50 }, { symbol: 'SPTE', target: 40 }, { symbol: 'SPWO', target: 10 }],
       holdings: {
         SPUS: { kind: 'dollars', amount: 12400 },
@@ -66,7 +70,7 @@ describe('Calculator', () => {
   });
 
   it('offers quick fixes when targets do not add up', async () => {
-    saveDevicePortfolio({ funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'BND', target: 40 }], holdings: {}, tracksHoldings: false });
+    seed({ funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'BND', target: 40 }], holdings: {}, tracksHoldings: false });
     const user = userEvent.setup();
     renderApp();
 
@@ -78,11 +82,11 @@ describe('Calculator', () => {
 
     await user.click(screen.getByRole('button', { name: 'Put 10% in VTI' }));
     expect(screen.getByText('Total 100%')).toBeInTheDocument();
-    expect(loadDevicePortfolio()?.funds.map(f => f.target)).toEqual([60, 40]);
+    expect(loadDeviceWorkspace()?.portfolios[0].funds.map(f => f.target)).toEqual([60, 40]);
   });
 
   it('adds and removes funds', async () => {
-    saveDevicePortfolio({ funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
+    seed({ funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
     const user = userEvent.setup();
     renderApp();
 
@@ -110,14 +114,14 @@ describe('Calculator', () => {
     const user = userEvent.setup();
     renderApp();
 
-    expect(screen.getByText(/someone shared a mix with you/i)).toBeInTheDocument();
+    expect(screen.getByText(/someone shared a mix/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /use this mix/i }));
     expect(screen.getByLabelText('SPUS target percent')).toHaveValue('60');
     expect(window.location.search).toBe('');
   });
 
   it('copies the trades and the share link', async () => {
-    saveDevicePortfolio({ funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
+    seed({ funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
     renderApp();
@@ -130,5 +134,47 @@ describe('Calculator', () => {
 
     await user.click(screen.getAllByRole('button', { name: 'Share link' })[0]);
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(`${window.location.origin}/?mix=VTI:100`));
+  });
+
+  it('keeps several named portfolios, with undo on delete', async () => {
+    seed({ funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+
+    expect(screen.queryByRole('option', { name: 'just rebalancing' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'my portfolio' }));
+    const menu = screen.getByRole('dialog', { name: 'Portfolios' });
+    await user.click(within(menu).getByRole('button', { name: '+ New portfolio' }));
+
+    expect(screen.getByRole('heading', { name: /pick a mix to start/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Roth IRA' }));
+    expect(screen.getByRole('button', { name: 'my Roth IRA' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /schwab 3-fund/i }));
+    expect(screen.getByLabelText('SCHB target percent')).toHaveValue('60');
+
+    await user.click(screen.getByRole('button', { name: 'my Roth IRA' }));
+    const list = screen.getByRole('dialog', { name: 'Portfolios' });
+    expect(within(list).getByRole('button', { name: /My portfolio\s*VTI 100/ })).toBeInTheDocument();
+    await user.click(within(list).getByRole('button', { name: 'Delete Roth IRA' }));
+
+    expect(screen.getByRole('button', { name: 'my portfolio' })).toBeInTheDocument();
+    expect(screen.getByText(/Deleted Roth IRA\./)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByRole('button', { name: 'my Roth IRA' })).toBeInTheDocument();
+    expect(loadDeviceWorkspace()?.portfolios.map(p => p.name)).toEqual(['', 'Roth IRA']);
+  });
+
+  it('renames the open portfolio from the menu', async () => {
+    seed({ funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'my portfolio' }));
+    await user.click(screen.getByRole('button', { name: 'Rename' }));
+    const field = screen.getByLabelText('Portfolio name');
+    await user.clear(field);
+    await user.type(field, "Sam's IRA{Enter}");
+    expect(screen.getByRole('button', { name: "Sam's IRA" })).toBeInTheDocument();
   });
 });

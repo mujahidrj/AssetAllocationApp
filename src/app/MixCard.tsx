@@ -68,10 +68,12 @@ interface MixCardProps {
   onAbsorb: (symbol: string) => void;
   searchOpen: boolean;
   onSearchOpen: (open: boolean) => void;
+  /** e.g. "Vanguard 3-Fund mix, edited" */
+  subtitle?: string;
 }
 
 export function MixCard(props: MixCardProps) {
-  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen } = props;
+  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, subtitle } = props;
 
   const total = funds.reduce((sum, f) => sum + f.target, 0);
   const off = funds.length > 0 && Math.abs(total - 100) > 0.01;
@@ -82,7 +84,10 @@ export function MixCard(props: MixCardProps) {
   return (
     <section className={`${styles.card} ${styles.mix} ${tracksHoldings ? styles.withHoldings : ''}`} aria-label="Your mix">
       <div className={styles.cardHead}>
-        <h2 className={styles.cardTitle}>Your mix</h2>
+        <div className={styles.titleBlock}>
+          <h2 className={styles.cardTitle}>Your mix</h2>
+          {subtitle && <span className={styles.cardSub}>{subtitle}</span>}
+        </div>
         <button type="button" className={styles.headLink} onClick={onChangeMix}>Change mix</button>
         <button type="button" className={styles.headLink} onClick={() => onSearchOpen(!searchOpen)} aria-expanded={searchOpen}>+ Add fund</button>
         <button

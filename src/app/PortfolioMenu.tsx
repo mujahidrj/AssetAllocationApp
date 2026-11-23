@@ -1,0 +1,166 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import styles from './Calculator.module.css';
+import { CheckIcon, ChevronIcon } from './icons';
+import { displayName, type Fund, type Portfolio } from './model';
+import { MixPicker } from './MixPicker';
+import { describeMix } from './templates';
+
+interface PortfolioMenuProps {
+  portfolios: Portfolio[];
+  activeId: string;
+  /** The sentence blank it opens from; the menu sits under it and focus returns to it. */
+  anchor: HTMLElement | null;
+  onClose: () => void;
+  onSwitch: (id: string) => void;
+  onNew: () => void;
+  onDuplicate: () => void;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  onPickMix: (funds: Fund[], templateId: string) => void;
+  onBuildOwn: () => void;
+  /** Open straight on the template list. */
+  startOnMix?: boolean;
+}
+
+/**
+ * Opens from the portfolio blank in the sentence: switch portfolio, start a new one,
+ * and change, rename, copy or delete the open one. A popover on desktop, a bottom
+ * sheet on phones.
+ */
+export function PortfolioMenu(props: PortfolioMenuProps) {
+  const { portfolios, activeId, anchor, onClose, onSwitch, onNew, onDuplicate, onRename, onDelete, onPickMix, onBuildOwn, startOnMix } = props;
+  const [step, setStep] = useState<'list' | 'mix'>(startOnMix ? 'mix' : 'list');
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [left, setLeft] = useState(0);
+  const [top, setTop] = useState(0);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const active = portfolios.find(p => p.id === activeId) ?? portfolios[0];
+
+  // Sit under the blank, kept inside the column
+  useLayoutEffect(() => {
+    if (!anchor) return;
+    const wrap = menuRef.current?.offsetParent as HTMLElement | null;
+    const width = menuRef.current?.offsetWidth ?? 360;
+    const a = anchor.getBoundingClientRect();
+    const w = wrap?.getBoundingClientRect();
+    if (!w) return;
+    setLeft(Math.max(0, Math.min(a.left - w.left, w.width - width)));
+    setTop(a.bottom - w.top + 8);
+  }, [anchor, step]);
+
+  // Close on Escape or a click outside, and give focus back to the blank
+  useEffect(() => {
+    const close = () => { onClose(); anchor?.focus(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !renaming) close(); };
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t) || anchor?.contains(t)) return;
+      onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [anchor, onClose, renaming]);
+
+  // Move through the rows with the arrow keys
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? []);
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next = e.key === 'ArrowDown' ? items[Math.min(i + 1, items.length - 1)] : items[Math.max(i - 1, 0)];
+    next?.focus();
+    e.preventDefault();
+  };
+
+  const startRename = () => { setDraft(active.name); setRenaming(true); };
+  const saveRename = () => { onRename(active.id, draft); setRenaming(false); };
+
+  return (
+    <>
+      <div className={styles.menuBackdrop} onClick={onClose} aria-hidden="true" />
+      <div
+        ref={menuRef}
+        className={styles.menu}
+        style={{ left, top }}
+        role="dialog"
+        aria-label={step === 'list' ? 'Portfolios' : 'Change mix'}
+        onKeyDown={onKeyDown}
+      >
+        {step === 'list' ? (
+          <>
+            <div className={styles.pickerHeading}>Portfolios</div>
+            {portfolios.map(p => (
+              p.id === active.id && renaming ? (
+                <form key={p.id} className={styles.renameRow} onSubmit={e => { e.preventDefault(); saveRename(); }}>
+                  <input
+                    autoFocus
+                    aria-label="Portfolio name"
+                    placeholder="Name it, e.g. Roth IRA"
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setRenaming(false); } }}
+                    onBlur={saveRename}
+                  />
+                </form>
+              ) : (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={styles.pickerItem}
+                  aria-current={p.id === active.id}
+                  onClick={() => { onSwitch(p.id); onClose(); }}
+                >
+                  <span className={styles.pickerLabel}>{displayName(p)}</span>
+                  <span className={styles.pickerMix}>{describeMix(p.funds) || 'No mix yet'}</span>
+                  <span className={styles.pickerCheck}>{p.id === active.id && <CheckIcon />}</span>
+                </button>
+              )
+            ))}
+            <button type="button" className={styles.pickerItem} onClick={() => { onNew(); onClose(); }}>
+              <span className={`${styles.pickerLabel} ${styles.pickerAction}`}>+ New portfolio</span>
+            </button>
+            <div className={styles.pickerFoot}>
+              <button type="button" className={styles.pickerItem} onClick={() => setStep('mix')}>
+                <span className={styles.pickerLabel}>Change mix…</span>
+                <span className={styles.pickerCheck} style={{ transform: 'rotate(-90deg)' }}><ChevronIcon /></span>
+              </button>
+              <button type="button" className={styles.pickerItem} onClick={startRename}>
+                <span className={styles.pickerLabel}>Rename</span>
+              </button>
+              {active.funds.length > 0 && (
+                <button type="button" className={styles.pickerItem} onClick={() => { onDuplicate(); onClose(); }}>
+                  <span className={styles.pickerLabel}>New portfolio with this mix</span>
+                </button>
+              )}
+              {portfolios.length > 1 && (
+                <button type="button" className={styles.pickerItem} onClick={() => { onDelete(active.id); onClose(); }}>
+                  <span className={`${styles.pickerLabel} ${styles.pickerDanger}`}>Delete {displayName(active)}</span>
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            {!startOnMix && (
+              <button type="button" className={styles.pickerBack} onClick={() => setStep('list')}>
+                <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}><ChevronIcon /></span> {displayName(active)}
+              </button>
+            )}
+            <MixPicker
+              current={active.funds}
+              heading="Start from a template"
+              onPick={(funds, id) => { onPickMix(funds, id); onClose(); }}
+              onBuildOwn={() => { onBuildOwn(); onClose(); }}
+            />
+          </>
+        )}
+      </div>
+    </>
+  );
+}

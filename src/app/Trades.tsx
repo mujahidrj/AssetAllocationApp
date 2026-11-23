@@ -60,7 +60,7 @@ interface TradesProps {
   copied: boolean;
   onCopy: () => void;
   onCsv: () => void;
-  onPickMix: (funds: Fund[]) => void;
+  onPickMix: (funds: Fund[], templateId: string) => void;
   onBuildOwn: () => void;
 }
 
@@ -92,7 +92,7 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
 
       {plan.status === 'needs-mix' && (
         <div className={styles.empty}>
-          <MixPicker inline current={funds} onPick={onPickMix} onBuildOwn={onBuildOwn} />
+          <MixPicker current={funds} heading="Start with a mix" onPick={onPickMix} onBuildOwn={onBuildOwn} />
         </div>
       )}
       {plan.status === 'needs-amount' && (
