@@ -16,7 +16,8 @@ const Caret = () => (
  */
 function BlankSelect<T extends string>({ value, options, onChange, label }: {
   value: T;
-  options: Array<{ value: T; label: string }>;
+  /** `menuLabel` is what the picker lists, when it says more than the blank. */
+  options: Array<{ value: T; label: string; menuLabel?: string }>;
   onChange: (value: T) => void;
   label: string;
 }) {
@@ -25,7 +26,7 @@ function BlankSelect<T extends string>({ value, options, onChange, label }: {
     <span className={styles.blank}>
       {current.label}<Caret />
       <select aria-label={label} value={value} onChange={e => onChange(e.target.value as T)}>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {options.map(o => <option key={o.value} value={o.value}>{o.menuLabel ?? o.label}</option>)}
       </select>
     </span>
   );
@@ -34,33 +35,33 @@ function BlankSelect<T extends string>({ value, options, onChange, label }: {
 interface SentenceProps {
   verb: Verb;
   onVerb: (verb: Verb) => void;
-  canRebalance: boolean;
+  /** Holdings are on; without them, "just rebalancing" says it uses what you own. */
+  hasHoldings: boolean;
   amount: string;
   onAmount: (value: string) => void;
   onAmountBlur: () => void;
   portfolioLabel: string;
   onPortfolioClick: () => void;
   menuOpen: boolean;
-  showSell: boolean;
-  sell: boolean;
-  onSell: (sell: boolean) => void;
+  /** Showing all portfolios together: "Here are [all my portfolios] together." */
+  all?: boolean;
 }
 
 const AMOUNT_PLACEHOLDER = '2,500';
 
 /**
- * "I'm [adding] [$2,500] to [my Roth IRA] [without selling]."
+ * "I'm [adding] [$2,500] to [my Roth IRA]."
  * Words are kept in groups that never break apart, so on a phone it wraps as
- * "I'm adding $2,500 / to my Roth IRA / without selling."
+ * "I'm adding $2,500 / to my Roth IRA."
  */
 export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Sentence(props, portfolioRef) {
-  const { verb, onVerb, canRebalance, amount, onAmount, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, showSell, sell, onSell } = props;
+  const { verb, onVerb, hasHoldings, amount, onAmount, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, all } = props;
   const hasAmount = verb !== 'rebal';
 
-  const verbOptions: Array<{ value: Verb; label: string }> = [
+  const verbOptions: Array<{ value: Verb; label: string; menuLabel?: string }> = [
     { value: 'add', label: 'adding' },
     { value: 'out', label: 'taking out' },
-    ...(canRebalance ? [{ value: 'rebal' as const, label: 'just rebalancing' }] : []),
+    { value: 'rebal', label: 'just rebalancing', ...(hasHoldings ? {} : { menuLabel: 'just rebalancing · uses what you own' }) },
   ];
 
   const portfolioBlank = (
@@ -76,17 +77,14 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
     </button>
   );
 
-  const sellBlank = (
-    <BlankSelect
-      label="Selling"
-      value={sell ? 'yes' : 'no'}
-      onChange={v => onSell(v === 'yes')}
-      options={[
-        { value: 'no', label: 'without selling' },
-        { value: 'yes', label: "and selling what's over" },
-      ]}
-    />
-  );
+  if (all) {
+    return (
+      <p className={styles.sentence}>
+        <span className={styles.keep}>Here are {portfolioBlank}</span>{' '}
+        <span className={styles.keep}>together.</span>
+      </p>
+    );
+  }
 
   return (
     <p className={styles.sentence}>
@@ -116,16 +114,10 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
       </span>{' '}
       {hasAmount ? (
         <span className={styles.keep}>
-          {verb === 'out' ? 'from' : 'to'} {portfolioBlank}{showSell ? '' : '.'}
+          {verb === 'out' ? 'from' : 'to'} {portfolioBlank}.
         </span>
       ) : (
         <span className={styles.keep}>{portfolioBlank}.</span>
-      )}
-      {showSell && (
-        <>
-          {' '}
-          <span className={styles.keep}>{sellBlank}.</span>
-        </>
       )}
     </p>
   );

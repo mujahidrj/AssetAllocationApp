@@ -102,43 +102,6 @@
   white-space: nowrap;
 }
 
-.themeGroup {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.themeSeg {
-  width: 30px;
-  height: 28px;
-  border-radius: var(--radius);
-  border: 1px solid transparent;
-  background: none;
-  color: var(--text-3);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.themeSegOn {
-  background: var(--raised);
-  border-color: var(--border);
-  color: var(--text);
-}
-
-.themeCycle {
-  display: none;
-  align-items: center;
-  gap: 4px;
-}
-
-.flash {
-  font-size: 12px;
-  color: var(--text-2);
-}
-
 .phoneOnly {
   display: none;
 }
@@ -532,7 +495,35 @@
   color: var(--btn-fg);
   font-size: 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  white-space: nowrap;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+.toastText {
+  line-height: 1.4;
+}
+
+.toastUndo,
+.toastClose {
+  flex-shrink: 0;
+}
+
+.toastClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.toastClose:hover {
+  opacity: 1;
 }
 
 .toastUndo {
@@ -585,6 +576,13 @@
 .titleBlock {
   display: flex;
   flex-direction: column;
+}
+
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
 }
 
 .cardSub {
@@ -1053,6 +1051,435 @@
   display: none;
 }
 
+/* ---------- Rebalance prompts ---------- */
+
+.emptyAction {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.emptyAction p {
+  flex: 1 1 320px;
+  margin: 0;
+}
+
+.furthestOff {
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.tradeShares .linkButton {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  text-align: right;
+}
+
+/* A quiet note under the trades: buying alone leaves something off target */
+.sellNote {
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.sellNote p {
+  margin: 0;
+}
+
+.sellTax {
+  margin-top: 4px !important;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+/* ---------- Leftover cash, typed prices, shares choice ---------- */
+
+.leftoverRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.leftoverRow .tradeAmount {
+  color: var(--text-2);
+}
+
+.textFallback {
+  border-top: 1px solid var(--border);
+  padding: 14px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.textFallback label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.textFallback textarea {
+  width: 100%;
+  font-family: var(--font-num);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--text);
+  resize: vertical;
+}
+
+/* "Fractional shares ▾" in the footer: the words are the control, the real select sits on top */
+.footSelect {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.footSelect select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px; /* no zoom on iOS */
+}
+
+.footSelect:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.addPrice {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.yourPrice {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.yourPrice .linkButton {
+  font-family: var(--font-num);
+  font-weight: 500;
+}
+
+.priceEditor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 16px;
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--raised);
+}
+
+.priceEditorLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.priceField {
+  width: 140px;
+}
+
+.priceEditorHint {
+  flex-basis: 100%;
+  order: 3;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.priceEditorActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ---------- Import ---------- */
+
+.dropping {
+  position: relative;
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.dropHint {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  font-family: var(--font-serif);
+  font-size: 22px;
+  pointer-events: none;
+}
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 19, 17, 0.38);
+}
+
+.dialog {
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  padding: 0 24px 20px;
+  outline: none;
+}
+
+.dialogHead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px 0 12px;
+}
+
+.dialogBody {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 15px;
+}
+
+.dialogBody p {
+  margin: 0;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.howTo {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.accountPick {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.accountRow {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.accountName {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountRow .num {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.importHeading {
+  margin: 0 0 4px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.importRow {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.importRow .num {
+  font-size: 13px;
+}
+
+.importWas {
+  font-size: 13px;
+  color: var(--text-3);
+  text-align: right;
+}
+
+.importCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.importCheck input,
+.accountRow input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.importNote {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.importSummary {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-weight: 500;
+}
+
+/* ---------- All portfolios ---------- */
+
+.pickerAll {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+}
+
+.pickerItem:disabled {
+  cursor: default;
+}
+
+.pickerItem:disabled .pickerLabel {
+  color: var(--text-3);
+}
+
+.behindRow {
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.behindRow .fundName {
+  white-space: normal;
+}
+
+.behindStats {
+  font-family: var(--font-num);
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.barLabel {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.barLabel + .mixBar {
+  margin-top: 6px;
+}
+
+.combinedHead,
+.combinedRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 72px 64px 120px;
+  gap: 12px;
+  align-items: center;
+}
+
+.combinedHead {
+  margin-top: 16px;
+  padding-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.combinedHead > :nth-child(n + 2),
+.combinedRow > :nth-child(n + 2) {
+  text-align: right;
+}
+
+.combinedStats {
+  display: contents;
+}
+
+.combinedRow {
+  min-height: 48px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.copyBarText {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.copyBarSub {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
 @media (max-width: 720px) {
   .headerInner {
     min-height: 52px;
@@ -1065,17 +1492,12 @@
   }
 
   .desktopOnly,
-  .themeGroup,
   .saved {
     display: none;
   }
 
   .phoneOnly {
     display: inline-flex;
-  }
-
-  .themeCycle {
-    display: flex;
   }
 
   .shareFallback {
@@ -1210,6 +1632,84 @@
 
   .toast {
     bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  .toastLow {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .leftoverRow .tradeAmount {
+    font-size: 16px;
+  }
+
+  .priceEditor {
+    padding: 12px;
+  }
+
+  .dialogBackdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .dialog {
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    border: 0;
+    padding: 0 16px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .importRow {
+    grid-template-columns: 64px minmax(0, 1fr);
+    padding: 8px 0;
+    row-gap: 2px;
+  }
+
+  .importRow > :nth-child(3) {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .accountRow {
+    grid-template-columns: 20px minmax(0, 1fr);
+    padding: 8px 0;
+    row-gap: 2px;
+  }
+
+  .accountRow .num {
+    grid-column: 2;
+  }
+
+  .combinedHead {
+    display: none;
+  }
+
+  .combinedRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'fund value'
+      'stats stats';
+    gap: 4px 12px;
+    padding: 10px 0;
+  }
+
+  .combinedRow > :nth-child(1) { grid-area: fund; }
+  .combinedRow > :nth-child(3) { grid-area: value; }
+
+  .combinedStats {
+    grid-area: stats;
+    display: flex;
+    gap: 14px;
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .combinedStats > span:empty {
+    display: none;
+  }
+
+  .dropHint {
+    font-size: 18px;
   }
 
   .nameCard {

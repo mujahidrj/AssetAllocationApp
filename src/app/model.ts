@@ -29,12 +29,25 @@ export interface Portfolio {
   sell: boolean;
   /** The template the mix started from, if any. */
   templateId?: string;
+  /** Trade whole shares only. Off (fractional) unless chosen. */
+  wholeShares?: boolean;
+  /** Said to be a retirement account (selling inside it isn't taxed). Unset: guessed from the name. */
+  retirement?: boolean;
+}
+
+/** A price the person typed (or that came from a broker file) for a fund the lookup can't price. */
+export interface ManualPrice {
+  price: number;
+  /** When it was entered, ISO date-time. */
+  at: string;
 }
 
 /** Everything a person has saved: their portfolios and which one is open. */
 export interface Workspace {
   portfolios: Portfolio[];
   activeId: string;
+  /** Typed prices by symbol, shared by every portfolio. Used only when the lookup has none. */
+  manualPrices?: Record<string, ManualPrice>;
 }
 
 export const newPortfolioId = () =>
@@ -92,7 +105,7 @@ export const CASH_SYMBOLS = ['CASH', 'USD'];
 export const isCashSymbol = (symbol: string) => CASH_SYMBOLS.includes(symbol.toUpperCase());
 
 /** Short display names for funds the app knows, used when a full name is long. */
-export function shortName(fund: Fund): string {
+export function shortName(fund: Pick<Fund, 'symbol' | 'name'>): string {
   if (isCashSymbol(fund.symbol)) return 'Cash';
   const name = fund.name ?? '';
   return name
@@ -101,3 +114,8 @@ export function shortName(fund: Fund): string {
     .replace(/\s+(ETF|Fund|Index Fund)$/i, '')
     .trim() || fund.symbol;
 }
+
+const RETIREMENT_NAME = /\b(roth|ira|401\s?\(?k\)?|403\s?\(?b\)?|457|hsa|tsp|sep|simple|pension|retirement|rrsp|tfsa|isa|sipp)\b/i;
+
+/** Whether selling inside this portfolio is tax-free: as the person said, or guessed from its name. */
+export const isRetirement = (p: Pick<Portfolio, 'name' | 'retirement'>) => p.retirement ?? RETIREMENT_NAME.test(p.name);

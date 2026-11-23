@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makePlan, holdingDollars, type PlanInput } from '../plan';
+import { furthestOff, heldValues, makePlan, holdingDollars, offTargets, valuesAfter, type PlanInput } from '../plan';
 
 const funds = [
   { symbol: 'SPUS', target: 50, name: 'SP Funds S&P 500 Sharia Industry Exclusions ETF' },
@@ -115,5 +115,173 @@ describe('makePlan', () => {
     expect(holdingDollars('SPUS', { kind: 'shares', amount: 10 }, prices)).toBeCloseTo(516.2, 10);
     expect(holdingDollars('XYZ', { kind: 'shares', amount: 10 }, {})).toBe(0);
     expect(holdingDollars('CASH', { kind: 'shares', amount: 10 }, {})).toBe(10);
+  });
+
+  it('never leaves cash over with fractional shares', () => {
+    const plan = makePlan({ ...base, holdings, tracksHoldings: true, sell: true });
+    expect(plan.leftover).toBe(0);
+    expect(plan.shortOfShare).toEqual([]);
+  });
+});
+
+describe('makePlan with whole shares', () => {
+  const whole = (input: Partial<PlanInput>) => {
+    const plan = makePlan({ ...base, wholeShares: true, ...input });
+    return { plan, trades: plan.trades.map(t => [t.action, t.symbol, t.shares, t.dollars]) };
+  };
+
+  it('rounds buys down, then spends what is left on whoever is furthest behind', () => {
+    const { plan, trades } = whole({});
+    // 24.2 / 26.9 / 9.5 shares round down to 24 / 26 / 9; the $59 left buys one more SPTE
+    expect(trades).toEqual([['buy', 'SPUS', 24, 1238.88], ['buy', 'SPTE', 27, 1003.32], ['buy', 'SPWO', 9, 235.98]]);
+    expect(plan.net).toBe(2478.18);
+    expect(plan.leftover).toBe(21.82);
+    expect(plan.leftover).toBeLessThan(prices.SPWO);
+  });
+
+  it('works with holdings, buying only what is behind', () => {
+    const { plan, trades } = whole({ holdings, tracksHoldings: true });
+    expect(trades).toEqual([['buy', 'SPTE', 60, 2229.6], ['buy', 'SPWO', 10, 262.2]]);
+    expect(plan.leftover).toBe(8.2);
+  });
+
+  it('rounds sells up so the buys are always covered', () => {
+    const { plan, trades } = whole({ holdings, tracksHoldings: true, sell: true });
+    expect(trades).toEqual([['sell', 'SPUS', 9, 464.58], ['buy', 'SPTE', 72, 2675.52], ['buy', 'SPWO', 11, 288.42]]);
+    expect(plan.leftover).toBe(0.64);
+  });
+
+  it('raises at least the amount asked for when taking money out', () => {
+    const { plan, trades } = whole({ holdings, tracksHoldings: true, verb: 'out', amount: 1500 });
+    expect(trades).toEqual([['sell', 'SPUS', 28, 1445.36], ['sell', 'SPWO', 3, 78.66]]);
+    expect(-plan.net).toBeGreaterThanOrEqual(1500);
+    expect(plan.leftover).toBe(24.02);
+  });
+
+  it('rebalances with whole shares, keeping the change as cash', () => {
+    const { plan, trades } = whole({ holdings, tracksHoldings: true, verb: 'rebal' });
+    expect(trades).toEqual([['sell', 'SPUS', 33, 1703.46], ['buy', 'SPTE', 45, 1672.2], ['buy', 'SPWO', 1, 26.22]]);
+    expect(plan.leftover).toBe(5.04);
+  });
+
+  it('never sells more than you own', () => {
+    const { trades } = whole({
+      funds: [{ symbol: 'SPUS', target: 0 }, { symbol: 'SPTE', target: 100 }],
+      holdings: { SPUS: { kind: 'shares', amount: 2.5 }, SPTE: { kind: 'shares', amount: 1 } },
+      tracksHoldings: true,
+      verb: 'rebal',
+    });
+    expect(trades[0]).toEqual(['sell', 'SPUS', 2.5, 129.05]);
+  });
+
+  it('says when the amount is too small for a single share', () => {
+    const { plan } = whole({ amount: 20 });
+    expect(plan.status).toBe('short-of-share');
+    expect(plan.leftover).toBe(20);
+    expect(plan.shortOfShare.map(s => s.symbol)).toEqual(['SPUS', 'SPTE', 'SPWO']);
+  });
+
+  it('lists funds that missed out on a share next to the ones that got one', () => {
+    const { plan, trades } = whole({ amount: 60 });
+    expect(trades).toEqual([['buy', 'SPUS', 1, 51.62]]);
+    expect(plan.leftover).toBe(8.38);
+    expect(plan.shortOfShare.map(s => s.symbol)).toEqual(['SPTE', 'SPWO']);
+  });
+
+  it('doesn’t sell for money nothing can use', () => {
+    const ab = [{ symbol: 'A', target: 50 }, { symbol: 'B', target: 50 }];
+    const held = { A: { kind: 'dollars' as const, amount: 1000 }, B: { kind: 'dollars' as const, amount: 900 } };
+    // B's share costs $500 but only $50 needs moving: no trades rather than "sell 1 A, $100 left over"
+    const rebal = whole({ funds: ab, holdings: held, tracksHoldings: true, verb: 'rebal', prices: { A: 100, B: 500 } });
+    expect(rebal.plan.status).toBe('short-of-share');
+    expect(rebal.trades).toEqual([]);
+    // Cash held at 0% isn't "sold" just to sit as cash
+    const cash = whole({
+      funds: [{ symbol: 'A', target: 100 }, { symbol: 'CASH', target: 0 }],
+      holdings: { CASH: { kind: 'dollars', amount: 300 }, A: { kind: 'shares', amount: 2 } },
+      tracksHoldings: true,
+      verb: 'rebal',
+      prices: { A: 500 },
+    });
+    expect(cash.trades).toEqual([]);
+  });
+
+  it('keeps an expensive share rather than selling it to fund a much smaller trade', () => {
+    const { plan, trades } = whole({
+      funds: [{ symbol: 'P', target: 50 }, { symbol: 'Q', target: 50 }],
+      holdings: { Q: { kind: 'dollars', amount: 700000 } },
+      tracksHoldings: true,
+      amount: 400000,
+      sell: true,
+      prices: { P: 1, Q: 700000 },
+    });
+    expect(trades).toEqual([['buy', 'P', 400000, 400000]]);
+    expect(plan.leftover).toBe(0);
+  });
+
+  it('raises only what’s needed, in whole shares, when taking money out', () => {
+    const abc = [{ symbol: 'A', target: 34 }, { symbol: 'B', target: 33 }, { symbol: 'C', target: 33 }];
+    const held = Object.fromEntries(['A', 'B', 'C'].map(s => [s, { kind: 'dollars' as const, amount: 2000 }]));
+    const { plan, trades } = whole({ funds: abc, holdings: held, tracksHoldings: true, verb: 'out', amount: 90, prices: { A: 200, B: 200, C: 200 } });
+    expect(trades).toHaveLength(1);
+    expect(-plan.net).toBe(200);
+    expect(plan.leftover).toBe(110);
+  });
+
+  it('keeps sells whole when keeping a share back from selling everything', () => {
+    const { trades } = whole({
+      funds: [{ symbol: 'X', target: 0 }, { symbol: 'Y', target: 100 }],
+      holdings: { X: { kind: 'shares', amount: 3 }, Y: { kind: 'dollars', amount: 100 } },
+      tracksHoldings: true,
+      verb: 'rebal',
+      prices: { X: 0.7, Y: 1 },
+    });
+    expect(trades[0]).toEqual(['sell', 'X', 3, 2.1]);
+  });
+
+  it('keeps cash and unpriced funds in exact dollars', () => {
+    const cash = whole({ funds: [{ symbol: 'SPUS', target: 98 }, { symbol: 'CASH', target: 2 }] });
+    expect(cash.trades).toEqual([['buy', 'SPUS', 47, 2426.14], ['buy', 'CASH', 50, 50]]);
+    const unpriced = whole({ prices: { SPUS: 51.62, SPTE: null, SPWO: 26.22 } });
+    expect(unpriced.trades[1]).toEqual(['buy', 'SPTE', null, 1000]);
+  });
+});
+
+describe('furthestOff', () => {
+  const values = { SPUS: 12400, SPTE: 6900, SPWO: 2100 };
+
+  it('finds the fund furthest from target when it is 5 or more points away', () => {
+    expect(furthestOff(funds, values)).toMatchObject({ symbol: 'SPUS', targetPct: 50 });
+    expect(furthestOff(funds, values)!.nowPct).toBeCloseTo(57.94, 2);
+  });
+
+  it('also counts a quarter of a small target (2.5 points for a 10% fund)', () => {
+    expect(furthestOff(funds, { SPUS: 5100, SPTE: 4200, SPWO: 700 })).toMatchObject({ symbol: 'SPWO' });
+    expect(furthestOff(funds, { SPUS: 5100, SPTE: 4100, SPWO: 800 })).toBeNull();
+  });
+
+  it('ignores gaps worth less than a $25 trade, and an empty portfolio', () => {
+    expect(furthestOff(funds, { SPUS: 54, SPTE: 37, SPWO: 9 })).toBeNull();
+    expect(furthestOff(funds, {})).toBeNull();
+  });
+
+  it('can check what is left after the trades', () => {
+    const plan = makePlan({ ...base, holdings, tracksHoldings: true, amount: 500 });
+    expect(furthestOff(funds, valuesAfter(values, plan.trades))).toMatchObject({ symbol: 'SPUS' });
+    const enough = makePlan({ ...base, holdings, tracksHoldings: true, amount: 2500 });
+    expect(furthestOff(funds, valuesAfter(values, enough.trades))).toBeNull();
+  });
+
+  it('gives no figures when a holding in shares has no price', () => {
+    expect(heldValues({ X: { kind: 'shares', amount: 5 } }, {})).toBeNull();
+    expect(heldValues(holdings, prices)).toEqual(values);
+  });
+});
+
+describe('offTargets', () => {
+  it('lists every fund that is well off, furthest first', () => {
+    const three = [{ symbol: 'SPUS', target: 40 }, { symbol: 'SPTE', target: 40 }, { symbol: 'SPWO', target: 20 }];
+    expect(offTargets(three, { SPUS: 6000, SPTE: 3000, SPWO: 1000 }).map(o => o.symbol)).toEqual(['SPUS', 'SPTE', 'SPWO']);
+    expect(offTargets(three, { SPUS: 4000, SPTE: 4000, SPWO: 2000 })).toEqual([]);
   });
 });

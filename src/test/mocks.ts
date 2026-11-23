@@ -6,11 +6,15 @@ vi.mock('../lib/firebase', () => ({
   db: {},
 }));
 
+const authMock = vi.hoisted(() => ({
+  user: null,
+  loading: false,
+  signInWithGoogle: () => Promise.resolve(),
+  signOut: () => Promise.resolve(),
+  problem: null,
+  clearProblem: () => {},
+}));
+
 vi.mock('../lib/useAuth', () => ({
-  useAuth: () => ({
-    user: null,
-    loading: false,
-    signInWithGoogle: vi.fn(),
-    signOut: vi.fn(),
-  }),
+  useAuth: () => authMock,
 }));

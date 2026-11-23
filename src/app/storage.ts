@@ -2,7 +2,7 @@ import { doc, getDoc, setDoc, type DocumentData } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { loadGuestData } from '../lib/deviceStorage';
 import type { CurrentPosition, Stock } from '../components/calculator/types';
-import { emptyPortfolio, newPortfolioId, sameMix, type Fund, type Holding, type Portfolio, type Workspace } from './model';
+import { emptyPortfolio, newPortfolioId, sameMix, type Fund, type Holding, type ManualPrice, type Portfolio, type Workspace } from './model';
 
 /* ---------- Conversions to and from the shapes saved before this screen ---------- */
 
@@ -67,8 +67,28 @@ function cleanPortfolio(raw: unknown, fallbackId: string): Portfolio | null {
     tracksHoldings: p.tracksHoldings === true,
     sell: p.sell === true,
     ...(typeof p.templateId === 'string' ? { templateId: p.templateId } : {}),
+    ...(p.wholeShares === true ? { wholeShares: true } : {}),
+    ...(typeof p.retirement === 'boolean' ? { retirement: p.retirement } : {}),
   };
 }
+
+/** Keeps only well-formed typed prices. */
+export function cleanManualPrices(raw: unknown): Record<string, ManualPrice> {
+  const out: Record<string, ManualPrice> = {};
+  if (typeof raw !== 'object' || raw === null) return out;
+  Object.entries(raw as Record<string, unknown>).forEach(([symbol, v]) => {
+    const m = v as Partial<ManualPrice> | null;
+    if (m && typeof m.price === 'number' && Number.isFinite(m.price) && m.price > 0 && typeof m.at === 'string') {
+      out[symbol] = { price: m.price, at: m.at };
+    }
+  });
+  return out;
+}
+
+const withPrices = (ws: Workspace, raw: unknown): Workspace => {
+  const manualPrices = cleanManualPrices(raw);
+  return Object.keys(manualPrices).length > 0 ? { ...ws, manualPrices } : ws;
+};
 
 function cleanWorkspace(raw: unknown): Workspace | null {
   if (typeof raw !== 'object' || raw === null) return null;
@@ -78,7 +98,7 @@ function cleanWorkspace(raw: unknown): Workspace | null {
     .filter((p): p is Portfolio => p !== null);
   if (portfolios.length === 0) return null;
   const activeId = portfolios.some(p => p.id === data.activeId) ? (data.activeId as string) : portfolios[0].id;
-  return { portfolios, activeId };
+  return withPrices({ portfolios, activeId }, data.manualPrices);
 }
 
 /* ---------- This device ---------- */
@@ -119,11 +139,13 @@ export function loadDeviceWorkspace(): Workspace | null {
   return single({ ...emptyPortfolio('p1'), funds: fundsFromStocks(old.stocks), holdings, tracksHoldings: anyHeld(holdings) });
 }
 
-export function saveDeviceWorkspace(ws: Workspace): void {
+/** Returns false when the browser won't store it (private browsing, storage full or blocked). */
+export function saveDeviceWorkspace(ws: Workspace): boolean {
   try {
     window.localStorage.setItem(DEVICE_KEY, JSON.stringify(ws));
+    return true;
   } catch {
-    // Private browsing or storage full: the app still works, it just won't remember
+    return false;
   }
 }
 
@@ -159,10 +181,12 @@ export async function loadCloudWorkspace(uid: string): Promise<Workspace | null>
         tracksHoldings: p.tracksHoldings,
         sell: p.sell,
         templateId: p.templateId,
+        wholeShares: p.wholeShares,
+        retirement: p.retirement,
       }, id)!;
     });
     const activeId = portfolios.some(p => p.id === stocksData.activeId) ? stocksData.activeId as string : portfolios[0].id;
-    return { portfolios, activeId };
+    return withPrices({ portfolios, activeId }, stocksData.manualPrices);
   }
 
   const holdings = holdingsFromPositions(positionsData.positions as CurrentPosition[] | undefined);
@@ -187,8 +211,11 @@ export async function saveCloudWorkspace(uid: string, ws: Workspace): Promise<vo
         tracksHoldings: p.tracksHoldings,
         sell: p.sell,
         ...(p.templateId ? { templateId: p.templateId } : {}),
+        ...(p.wholeShares ? { wholeShares: true } : {}),
+        ...(typeof p.retirement === 'boolean' ? { retirement: p.retirement } : {}),
       })),
       activeId: ws.activeId,
+      manualPrices: ws.manualPrices ?? {},
     }),
     setDoc(doc(db, 'userPositions', uid), {
       positions: positionsFromHoldings(first.holdings),
@@ -205,6 +232,10 @@ export async function saveCloudWorkspace(uid: string, ws: Workspace): Promise<vo
  */
 export function mergeDeviceIntoAccount(account: Workspace, device: Workspace | null): { workspace: Workspace; added: number } {
   if (!device) return { workspace: account, added: 0 };
+  // Typed prices: the account's win, the device fills gaps
+  const devicePrices = device.manualPrices ?? {};
+  const prices = { ...devicePrices, ...(account.manualPrices ?? {}) };
+  if (Object.keys(prices).length > 0) account = { ...account, manualPrices: prices };
   const extra = device.portfolios
     .filter(d => d.funds.some(f => f.target > 0))
     .filter(d => !account.portfolios.some(a => sameMix(a.funds, d.funds)))

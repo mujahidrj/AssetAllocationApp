@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { drift, formatAmountInput, money, pct1, pctTarget, priceTime, shares } from '../format';
+import { drift, formatAmountInput, money, pct1, pctTarget, priceDate, priceTime, shares } from '../format';
 
 describe('format', () => {
   it('formats money with a true minus sign', () => {
@@ -29,5 +29,14 @@ describe('format', () => {
     expect(priceTime('2026-11-20T19:41:00.000Z', new Date('2026-11-20T20:00:00Z'))).toBe('As of 2:41 PM ET');
     expect(priceTime(null)).toBeNull();
     expect(priceTime('not a date')).toBeNull();
+  });
+});
+
+describe('priceDate', () => {
+  it('shows the date a price was typed, and its age after a week', () => {
+    const now = new Date('2026-11-22T17:00:00Z').getTime();
+    expect(priceDate('2026-11-20T17:00:00Z', now)).toBe('Nov 20');
+    expect(priceDate('2026-11-13T17:00:00Z', now)).toBe('Nov 13 (9 days old)');
+    expect(priceDate('not a date', now)).toBe('');
   });
 });

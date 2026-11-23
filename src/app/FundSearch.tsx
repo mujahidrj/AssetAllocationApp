@@ -24,6 +24,7 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
   const [searching, setSearching] = useState(false);
   const [active, setActive] = useState(-1);
   const [note, setNote] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,14 +38,21 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
     setSearching(true);
     const timer = setTimeout(() => {
       fetch(`${apiBase()}/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal, headers: { Accept: 'application/json' } })
-        .then(r => (r.ok ? r.json() : { result: [] }))
+        .then(r => {
+          if (!r.ok) throw new Error(`Search failed: ${r.status}`);
+          return r.json();
+        })
         .then((data: { result?: Array<{ symbol?: string; description?: string }> }) => {
           setResults(cleanResults(data.result ?? []));
+          setFailed(false);
           setActive(-1);
           setOpen(true);
         })
         .catch(() => {
-          if (!controller.signal.aborted) setResults([]);
+          if (controller.signal.aborted) return;
+          setResults([]);
+          setFailed(true);
+          setOpen(true);
         })
         .finally(() => {
           if (!controller.signal.aborted) setSearching(false);
@@ -123,7 +131,13 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
       <button type="button" className={styles.ghost} style={{ height: 40 }} onClick={() => add('CASH', 'Cash')}>+ Cash</button>
       {showList && (
         <ul className={styles.results} id="fund-results" role="listbox">
-          {results.length === 0 && <li className={styles.searchNote}>No US funds or stocks match “{query.trim()}”.</li>}
+          {results.length === 0 && (
+            <li className={styles.searchNote}>
+              {failed
+                ? 'Fund search isn’t working right now. Type the exact symbol and press Enter.'
+                : `No US funds or stocks match “${query.trim()}”.`}
+            </li>
+          )}
           {results.map((r, i) => (
             <li key={r.symbol} role="option" aria-selected={i === active}>
               <button

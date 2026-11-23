@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isCashSymbol } from './model';
 
 export interface PriceInfo {
@@ -66,8 +66,12 @@ export function usePrices(symbols: string[]) {
 
   const refresh = useCallback(() => load(symbols), [load, key]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const priceMap: Record<string, number | null> = {};
-  symbols.forEach(s => { priceMap[s] = isCashSymbol(s) ? 1 : prices[s]?.price ?? null; });
+  // Same object until a price changes, so anything built on it can be memoized
+  const priceMap = useMemo(() => {
+    const map: Record<string, number | null> = {};
+    symbols.forEach(s => { map[s] = isCashSymbol(s) ? 1 : prices[s]?.price ?? null; });
+    return map;
+  }, [prices, key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loading = symbols.some(s => prices[s]?.status === 'loading');
   const asOfTimes = symbols.map(s => prices[s]?.asOf).filter((t): t is string => !!t).sort();

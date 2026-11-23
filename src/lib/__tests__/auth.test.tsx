@@ -44,10 +44,25 @@ import { AuthProvider } from '../auth';
 import { useAuth } from '../useAuth';
 
 function TestComponent() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, problem } = useAuth();
   return (
-    <button onClick={() => signInWithGoogle()}>Sign In</button>
+    <>
+      <button onClick={() => signInWithGoogle()}>Sign In</button>
+      <output>{problem ?? 'none'}</output>
+    </>
   );
+}
+
+async function signInFailingWith(code: string) {
+  mockSignInWithPopup.mockRejectedValueOnce(Object.assign(new Error(code), { code }));
+  render(
+    <AuthProvider>
+      <TestComponent />
+    </AuthProvider>
+  );
+  await userEvent.setup().click(screen.getByRole('button', { name: /sign in/i }));
+  expect(mockSignInWithPopup).toHaveBeenCalled();
+  return screen.getByRole('status');
 }
 
 describe('AuthProvider', () => {
@@ -58,59 +73,18 @@ describe('AuthProvider', () => {
     vi.clearAllMocks();
   });
 
-  it('should not show alert when user closes popup (auth/popup-closed-by-user)', async () => {
-    mockSignInWithPopup.mockRejectedValueOnce(
-      Object.assign(new Error('Popup closed'), { code: 'auth/popup-closed-by-user' })
-    );
+  it('says nothing when the person closes the sign-in window', async () => {
+    expect(await signInFailingWith('auth/popup-closed-by-user')).toHaveTextContent('none');
+  });
 
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /sign in/i }));
-
-    expect(mockSignInWithPopup).toHaveBeenCalled();
+  it.each([
+    ['auth/popup-blocked', 'popup-blocked'],
+    ['auth/unauthorized-domain', 'unauthorized-domain'],
+    ['auth/network-request-failed', 'network'],
+    ['auth/configuration-not-found', 'not-configured'],
+    ['auth/internal-error', 'sign-in-failed'],
+  ])('reports %s as %s for the screen to explain, never with alert()', async (code, problem) => {
+    expect(await signInFailingWith(code)).toHaveTextContent(problem);
     expect(alertSpy).not.toHaveBeenCalled();
-  });
-
-  it('should show alert when auth/configuration-not-found error occurs', async () => {
-    mockSignInWithPopup.mockRejectedValueOnce(
-      Object.assign(new Error('Config not found'), { code: 'auth/configuration-not-found' })
-    );
-
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /sign in/i }));
-
-    expect(alertSpy).toHaveBeenCalledWith(
-      'Authentication is not properly configured. Please contact the administrator.'
-    );
-  });
-
-  it('should show generic alert for other auth errors', async () => {
-    mockSignInWithPopup.mockRejectedValueOnce(
-      Object.assign(new Error('Network error'), { code: 'auth/network-request-failed' })
-    );
-
-    render(
-      <AuthProvider>
-        <TestComponent />
-      </AuthProvider>
-    );
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: /sign in/i }));
-
-    expect(alertSpy).toHaveBeenCalledWith(
-      'An error occurred while signing in. Please try again later.'
-    );
   });
 });

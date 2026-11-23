@@ -1,47 +1,38 @@
 import { useEffect, useState } from 'react';
 
-export type ThemeMode = 'auto' | 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark';
 
 export const THEME_KEY = 'assetAllocation.theme';
 
-function readMode(): ThemeMode {
+/** The saved choice, or on a first visit whatever the device prefers. */
+function initialMode(): ThemeMode {
   try {
     const saved = window.localStorage.getItem(THEME_KEY);
-    if (saved === 'light' || saved === 'dark' || saved === 'auto') return saved;
+    if (saved === 'light' || saved === 'dark') return saved;
   } catch {
     // ignore
   }
-  return 'auto';
+  const prefersDark = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return prefersDark ? 'dark' : 'light';
 }
 
-const darkQuery = () =>
-  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-    ? window.matchMedia('(prefers-color-scheme: dark)')
-    : null;
-
-/** Light, dark, or matching the device. The choice is remembered on this device. */
+/** Light or dark, switched with one click and remembered on this device. */
 export function useTheme() {
-  const [mode, setMode] = useState<ThemeMode>(readMode);
-  const [deviceDark, setDeviceDark] = useState(() => darkQuery()?.matches ?? false);
+  const [mode, setMode] = useState<ThemeMode>(initialMode);
 
   useEffect(() => {
-    const query = darkQuery();
-    if (!query) return;
-    const onChange = (e: MediaQueryListEvent) => setDeviceDark(e.matches);
-    query.addEventListener?.('change', onChange);
-    return () => query.removeEventListener?.('change', onChange);
-  }, []);
+    document.documentElement.dataset.theme = mode;
+  }, [mode]);
 
-  const resolved: 'light' | 'dark' = mode === 'auto' ? (deviceDark ? 'dark' : 'light') : mode;
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = resolved;
+  const toggle = () => {
+    const next: ThemeMode = mode === 'dark' ? 'light' : 'dark';
+    setMode(next);
     try {
-      window.localStorage.setItem(THEME_KEY, mode);
+      window.localStorage.setItem(THEME_KEY, next);
     } catch {
       // ignore
     }
-  }, [mode, resolved]);
+  };
 
-  return { mode, setMode, resolved };
+  return { mode, toggle };
 }

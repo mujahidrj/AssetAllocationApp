@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   type User,
   GoogleAuthProvider,
@@ -7,11 +7,13 @@ import {
 } from 'firebase/auth';
 import { type FirebaseError } from 'firebase/app';
 import { auth } from './firebase';
-import { AuthContext } from './authContext';
+import { AuthContext, type AuthProblem } from './authContext';
+import { authProblemFor } from './authProblem';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [problem, setProblem] = useState<AuthProblem | null>(null);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -27,19 +29,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     provider.setCustomParameters({
       prompt: 'select_account',
     });
+    setProblem(null);
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
-      const firebaseError = error as FirebaseError;
-      if (firebaseError.code === 'auth/popup-closed-by-user') {
-        return;
-      }
-      console.error('Error signing in with Google:', error);
-      if (firebaseError.code === 'auth/configuration-not-found') {
-        alert('Authentication is not properly configured. Please contact the administrator.');
-      } else {
-        alert('An error occurred while signing in. Please try again later.');
-      }
+      const code = (error as FirebaseError)?.code;
+      const next = authProblemFor(code);
+      if (next) console.error('Error signing in with Google:', error);
+      setProblem(next);
     }
   };
 
@@ -48,14 +45,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await firebaseSignOut(auth);
     } catch (error) {
       console.error('Error signing out:', error);
+      setProblem('sign-out-failed');
     }
   };
+
+  const clearProblem = useCallback(() => setProblem(null), []);
 
   const value = {
     user,
     loading,
     signInWithGoogle,
     signOut,
+    problem,
+    clearProblem,
   };
 
   return (

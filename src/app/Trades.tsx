@@ -1,15 +1,47 @@
 import styles from './Calculator.module.css';
 import { CopyIcon } from './icons';
-import { money, pct1, priceTime, shares as fmtShares } from './format';
-import { tradeSum, tradeTitle } from './tradeText';
-import type { Fund } from './model';
-import { shortName } from './model';
-import type { Plan } from './plan';
+import { money, pct1, priceDate, priceTime } from './format';
+import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
+import type { Fund, ManualPrice, Verb } from './model';
+import { isCashSymbol, shortName } from './model';
+import type { OffTarget, Plan, Trade } from './plan';
 import { MixPicker } from './MixPicker';
+
+export interface SellChoice {
+  /** What buying alone would leave off target, furthest first. */
+  off: OffTarget[];
+  /** Selling is on (the trades shown include the sells). */
+  selling: boolean;
+  /** The sells that would fix it. */
+  sells: Trade[];
+  /** Selling in a portfolio that isn't a retirement account: mention tax. */
+  taxNote: boolean;
+}
+
+/** "SPUS would still be at 56.6% after this. Target is 50%." */
+function offText(off: OffTarget[]): string {
+  if (off.length === 1) {
+    const [o] = off;
+    return o.targetPct > 0
+      ? `${o.symbol} would still be at ${pct1(o.nowPct)} after this. Target is ${+o.targetPct.toFixed(2)}%.`
+      : `${o.symbol} isn't in your targets and would still be ${pct1(o.nowPct)} of this portfolio after this.`;
+  }
+  if (off.length === 2) return `${off[0].symbol} and ${off[1].symbol} would still be off target after this.`;
+  return `${off.length} funds would still be off target after this.`;
+}
+
+/** "Selling $1,450.00 of SPUS so everything lands on target." */
+function sellingText(sells: Trade[], whole: boolean): string {
+  const what = sells.length === 1 ? `${money(sells[0].dollars)} of ${sells[0].symbol}`
+    : sells.length === 2 ? `${money(sells[0].dollars)} of ${sells[0].symbol} and ${money(sells[1].dollars)} of ${sells[1].symbol}`
+    : `from ${sells.length} funds`;
+  return `Selling ${what} so everything lands ${whole ? 'as close to target as whole shares allow' : 'on target'}.`;
+}
 
 interface TradesProps {
   plan: Plan;
   funds: Fund[];
+  verb: Verb;
   colorOf: (symbol: string) => string;
   asOf: string | null;
   pricesLoading: boolean;
@@ -19,17 +51,41 @@ interface TradesProps {
   onCsv: () => void;
   onPickMix: (funds: Fund[], templateId: string) => void;
   onBuildOwn: () => void;
+  wholeShares: boolean;
+  onWholeShares: (whole: boolean) => void;
+  /** Typed prices in use, by symbol. */
+  manualPrices: Record<string, ManualPrice>;
+  onAddPrice: (symbol: string) => void;
+  /** The trades as text, shown when copying didn't work. */
+  textFallback: string | null;
+  onCloseText: () => void;
+  /** Holdings are on and entered. */
+  hasHoldings: boolean;
+  /** Furthest off target now (before any trades), when worth rebalancing. */
+  offNow: OffTarget | null;
+  onRebalance: () => void;
+  /** Adding, and buying alone would leave something well off target: offer to sell too. */
+  sellChoice: SellChoice | null;
+  onSell: (sell: boolean) => void;
+  /** "It's a retirement account": no more tax note for this portfolio. */
+  onRetirement: () => void;
+  onEnterHoldings: () => void;
+  onImport: () => void;
 }
 
-export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn }: TradesProps) {
+export function Trades(props: TradesProps) {
+  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, sellChoice, onSell, onRetirement } = props;
   const ok = plan.status === 'ok';
   const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
   const when = priceTime(asOf);
+  const typed = Object.entries(manualPrices).filter(([s]) => funds.some(f => f.symbol === s) || plan.trades.some(t => t.symbol === s));
+  const cheapest = cheapestShort(plan.shortOfShare);
 
   const title =
     ok ? tradeTitle(plan.trades)
       : plan.status === 'targets-off' ? 'Targets need to add up to 100%'
       : plan.status === 'needs-mix' ? 'Pick a starting point'
+      : plan.status === 'short-of-share' ? 'Not enough for one share'
       : 'Your trades';
 
   return (
@@ -53,7 +109,21 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
         </div>
       )}
       {plan.status === 'needs-amount' && (
-        <div className={styles.empty}><p>Type an amount above and your trades show up here.</p></div>
+        <div className={styles.empty}>
+          {offNow ? (
+            <div className={styles.emptyAction}>
+              <p>
+                {offNow.symbol} is at {pct1(offNow.nowPct)}, target {+offNow.targetPct.toFixed(2)}%.
+                {' '}Type an amount above, or rebalance what you own.
+              </p>
+              <button type="button" className={styles.primary} onClick={onRebalance}>Rebalance now</button>
+            </div>
+          ) : hasHoldings ? (
+            <p>Every fund is within range of its target. Type an amount above to see what to buy.</p>
+          ) : (
+            <p>Type an amount above and your trades show up here.</p>
+          )}
+        </div>
       )}
       {plan.status === 'targets-off' && (
         <div className={styles.empty}>
@@ -61,10 +131,30 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
         </div>
       )}
       {plan.status === 'needs-holdings' && (
-        <div className={styles.empty}><p>Enter what you own below to see what to buy and sell.</p></div>
+        <div className={styles.empty}>
+          <p>
+            Rebalancing works from what you own.{' '}
+            <button type="button" className={styles.linkButton} onClick={onEnterHoldings}>Enter it below</button>
+            {' '}or{' '}
+            <button type="button" className={styles.linkButton} onClick={onImport}>import from your broker</button>.
+          </p>
+        </div>
       )}
       {plan.status === 'nothing-to-do' && (
         <div className={styles.empty}><p>Everything is already on target. Nothing to buy or sell.</p></div>
+      )}
+      {plan.status === 'short-of-share' && (
+        <div className={styles.empty}>
+          <p>
+            {verb === 'rebal' && cheapest
+              ? <>Selling what's over target doesn't free up enough for one share of {cheapest.symbol} at {money(cheapest.price)}.</>
+              : <>
+                  {money(plan.leftover)} won't buy a whole share of anything behind target.
+                  {cheapest && <> Cheapest is {cheapest.symbol} at {money(cheapest.price)}.</>}
+                </>}{' '}
+            <button type="button" className={styles.linkButton} onClick={() => onWholeShares(false)}>Use fractional shares</button>
+          </p>
+        </div>
       )}
 
       {ok && (
@@ -82,7 +172,11 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
                   </div>
                 </div>
                 <span className={styles.tradeShares}>
-                  {t.shares != null ? `${fmtShares(t.shares)} shares` : pricesLoading ? '…' : 'no price'}
+                  {isCashSymbol(t.symbol) ? 'cash'
+                    : t.shares != null ? sharesText(t.shares, wholeShares)
+                    : pricesLoading ? '…'
+                    : fund ? <button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add a price to see shares</button>
+                    : 'no price'}
                 </span>
                 <span className={styles.tradeAmount}>{t.action === 'sell' ? money(-t.dollars) : money(t.dollars)}</span>
               </div>
@@ -94,6 +188,55 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
               {s.symbol} · already {pct1(s.nowPct)}, target {+s.targetPct.toFixed(2)}%
             </div>
           ))}
+          {plan.leftover > 0 && (
+            <div className={styles.leftoverRow}>
+              <div>
+                <div>{verb === 'out' ? 'Extra cash raised' : 'Cash left over'}</div>
+                <div className={styles.fundName}>
+                  {verb === 'out'
+                    ? `Raises ${money(plan.leftover)} more than needed, because shares are whole.`
+                    : plan.shortOfShare.length > 0
+                      ? `Not enough for one share of ${shortList(plan.shortOfShare)}.`
+                      : 'Not enough for one more whole share of anything behind target.'}
+                </div>
+              </div>
+              <span className={styles.tradeAmount}>{money(plan.leftover)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {ok && sellChoice && (
+        <div className={styles.sellNote}>
+          {sellChoice.selling ? (
+            <>
+              <p>
+                {sellingText(sellChoice.sells, wholeShares)}{' '}
+                <button type="button" className={styles.linkButton} onClick={() => onSell(false)}>Only buy</button>
+              </p>
+              {sellChoice.taxNote && (
+                <p className={styles.sellTax}>
+                  Selling in a taxable account may mean paying tax.{' '}
+                  <button type="button" className={styles.linkButton} onClick={onRetirement}>It's a retirement account</button>
+                </p>
+              )}
+            </>
+          ) : (
+            <p>
+              {offText(sellChoice.off)}{' '}
+              <button type="button" className={styles.linkButton} onClick={() => onSell(true)}>Sell some to fix it</button>
+            </p>
+          )}
+        </div>
+      )}
+
+      {textFallback != null && (
+        <div className={styles.textFallback}>
+          <label>
+            Select the trades and copy them:
+            <textarea readOnly value={textFallback} rows={Math.min(10, textFallback.split('\n').length + 1)} autoFocus onFocus={e => e.currentTarget.select()} />
+          </label>
+          <button type="button" className={styles.linkButton} onClick={onCloseText}>Done</button>
         </div>
       )}
 
@@ -104,8 +247,21 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
           <span className={styles.footItem}>
             <button type="button" className={styles.linkButton} onClick={onRefresh}>Refresh</button>
           </span>
-          <span className={styles.footItem}>Fractional shares</span>
+          {typed.map(([symbol, m]) => (
+            <span key={symbol} className={styles.footItem}>Your price for {symbol}, {priceDate(m.at)}</span>
+          ))}
+          <span className={styles.footItem}>
+            <span className={styles.footSelect}>
+              {wholeShares ? 'Whole shares' : 'Fractional shares'}
+              <svg viewBox="0 0 12 8" width="9" height="6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 1.5 6 6.5l4.5-5" /></svg>
+              <select aria-label="Shares" value={wholeShares ? 'whole' : 'fractional'} onChange={e => onWholeShares(e.target.value === 'whole')}>
+                <option value="fractional">Fractional shares: exact amounts</option>
+                <option value="whole">Whole shares: for brokers without fractions</option>
+              </select>
+            </span>
+          </span>
           {zeroFunds.length > 0 && <span className={styles.footItem}>{zeroFunds.join(', ')} at 0%, skipped</span>}
+
         </div>
       )}
     </section>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { displayName, emptyPortfolio, nextPortfolioName, sameMix, sentenceName } from '../model';
+import { displayName, emptyPortfolio, isRetirement, nextPortfolioName, sameMix, sentenceName } from '../model';
 
 describe('portfolio names', () => {
   it('reads naturally in the sentence', () => {
@@ -28,5 +28,16 @@ describe('portfolio names', () => {
       [{ symbol: 'B', target: 40 }, { symbol: 'A', target: 60 }],
     )).toBe(true);
     expect(sameMix([{ symbol: 'A', target: 60 }], [{ symbol: 'A', target: 61 }])).toBe(false);
+  });
+});
+
+describe('isRetirement', () => {
+  it('guesses from the name unless the person said', () => {
+    expect(isRetirement({ name: 'Roth IRA' })).toBe(true);
+    expect(isRetirement({ name: "Sam's 401(k)" })).toBe(true);
+    expect(isRetirement({ name: 'HSA' })).toBe(true);
+    expect(isRetirement({ name: 'Brokerage' })).toBe(false);
+    expect(isRetirement({ name: 'Brokerage', retirement: true })).toBe(true);
+    expect(isRetirement({ name: 'Roth IRA', retirement: false })).toBe(false);
   });
 });

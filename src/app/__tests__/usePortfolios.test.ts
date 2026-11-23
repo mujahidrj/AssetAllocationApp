@@ -164,3 +164,82 @@ describe('usePortfolios', () => {
     spy.mockRestore();
   });
 });
+
+describe('usePortfolios: whole shares, imports and typed prices', () => {
+  it('keeps the whole-shares choice per portfolio, off by default', () => {
+    const { result } = renderHook(() => usePortfolios(null));
+    expect(result.current.portfolio.wholeShares).toBeUndefined();
+    act(() => result.current.actions.setWholeShares(true));
+    expect(loadDeviceWorkspace()!.portfolios[0].wholeShares).toBe(true);
+    act(() => result.current.actions.setWholeShares(false));
+    expect(loadDeviceWorkspace()!.portfolios[0].wholeShares).toBeUndefined();
+  });
+
+  it('replaces holdings from an import, adds chosen funds at 0%, and can undo it', () => {
+    seed({
+      portfolios: [{ ...emptyPortfolio('a', 'Roth IRA'), funds: [{ symbol: 'SPUS', target: 100 }], holdings: { SPUS: { kind: 'dollars', amount: 5 } } }],
+      activeId: 'a',
+    });
+    const { result } = renderHook(() => usePortfolios(null));
+    let snapshot!: ReturnType<typeof result.current.actions.importHoldings>;
+    act(() => {
+      snapshot = result.current.actions.importHoldings(
+        { SPUS: { kind: 'shares', amount: 210 }, FXAIX: { kind: 'shares', amount: 3 } },
+        [{ symbol: 'FXAIX', target: 25, name: 'Fidelity 500' }],
+      );
+    });
+    expect(result.current.portfolio).toMatchObject({
+      tracksHoldings: true,
+      funds: [{ symbol: 'SPUS', target: 100 }, { symbol: 'FXAIX', target: 0, name: 'Fidelity 500' }],
+      holdings: { SPUS: { kind: 'shares', amount: 210 }, FXAIX: { kind: 'shares', amount: 3 } },
+    });
+
+    act(() => result.current.actions.restoreHoldings(snapshot));
+    expect(result.current.portfolio).toMatchObject({
+      tracksHoldings: false,
+      funds: [{ symbol: 'SPUS', target: 100 }],
+      holdings: { SPUS: { kind: 'dollars', amount: 5 } },
+    });
+  });
+
+  it('saves typed prices for every portfolio, never overwrites them from a file, and drops them for live prices', () => {
+    const { result } = renderHook(() => usePortfolios(null));
+    act(() => result.current.priceActions.setManualPrice('FXAIX', 190.12));
+    expect(result.current.workspace.manualPrices?.FXAIX.price).toBe(190.12);
+
+    // A file's prices are today's, so they replace older typed ones
+    act(() => result.current.priceActions.addManualPrices({ VTSAX: 120 }));
+    expect(result.current.workspace.manualPrices?.FXAIX.price).toBe(190.12);
+    expect(result.current.workspace.manualPrices?.VTSAX.price).toBe(120);
+
+    // Typed prices survive adding, copying and deleting portfolios
+    act(() => { result.current.portfolioActions.create(); });
+    act(() => { result.current.portfolioActions.duplicate(); });
+    act(() => { result.current.portfolioActions.remove(result.current.portfolio.id); });
+    expect(Object.keys(result.current.workspace.manualPrices ?? {})).toEqual(['FXAIX', 'VTSAX']);
+    expect(Object.keys(loadDeviceWorkspace()?.manualPrices ?? {})).toEqual(['FXAIX', 'VTSAX']);
+
+    act(() => result.current.priceActions.addManualPrices({ FXAIX: 191 }));
+    expect(result.current.workspace.manualPrices?.FXAIX.price).toBe(191);
+    act(() => result.current.priceActions.restoreManualPrices({ FXAIX: { price: 190.12, at: 'then' }, NEW: null }));
+    expect(result.current.workspace.manualPrices?.FXAIX).toEqual({ price: 190.12, at: 'then' });
+    expect(loadDeviceWorkspace()?.manualPrices?.VTSAX.price).toBe(120);
+
+    act(() => result.current.priceActions.dropManualPrices(['VTSAX']));
+    expect(Object.keys(result.current.workspace.manualPrices ?? {})).toEqual(['FXAIX']);
+
+    act(() => result.current.priceActions.setManualPrice('FXAIX', null));
+    expect(result.current.workspace.manualPrices).toEqual({});
+  });
+
+  it('says when the account copy could not be loaded, and tries again', async () => {
+    vi.mocked(loadCloudWorkspace).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(cloud);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => usePortfolios({ uid: 'u-retry' } as User));
+    await waitFor(() => expect(result.current.loadFailed).toBe(true));
+    act(() => result.current.retryLoad());
+    await waitFor(() => expect(result.current.portfolio.name).toBe('Roth IRA'));
+    expect(result.current.loadFailed).toBe(false);
+    spy.mockRestore();
+  });
+});
