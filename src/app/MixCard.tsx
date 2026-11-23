@@ -151,7 +151,7 @@ export function MixCard(props: MixCardProps) {
                       label={`${f.symbol} you own, in ${kind === 'dollars' ? 'dollars' : 'shares'}`}
                       value={holding?.amount ?? 0}
                       prefix={kind === 'dollars' ? '$' : undefined}
-                      suffix={kind === 'shares' ? 'sh' : undefined}
+                      suffix={kind === 'shares' ? 'shares' : undefined}
                       decimals={kind === 'dollars' ? 2 : 4}
                       onCommit={n => onHolding(f.symbol, n > 0 ? { kind, amount: n } : null)}
                     />
@@ -168,7 +168,7 @@ export function MixCard(props: MixCardProps) {
                         aria-pressed={kind === 'shares'}
                         disabled={!price}
                         onClick={() => kind !== 'shares' && price && onHolding(f.symbol, { kind: 'shares', amount: Math.round((dollars / price) * 10000) / 10000 })}
-                      >sh</button>
+                      >shares</button>
                     </span>
                   </div>
                   {kind === 'shares' && holding && price != null && (

@@ -609,7 +609,7 @@
 /* ---------- Trade rows ---------- */
 .tradeRow {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 130px 150px;
+  grid-template-columns: 52px minmax(0, 1fr) 170px 150px;
   gap: 12px;
   align-items: center;
   min-height: 64px;
@@ -778,7 +778,7 @@
 
 .withHoldings .mixHead,
 .withHoldings .mixRow {
-  grid-template-columns: minmax(0, 1fr) 84px 196px 104px 40px;
+  grid-template-columns: minmax(0, 1fr) 84px 220px 100px 40px;
 }
 
 .mixHead {

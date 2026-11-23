@@ -29,7 +29,7 @@ export function tradesText(trades: Trade[], asOf: string | null): string {
   const rows = trades.map(t => [
     `${t.action === 'buy' ? 'Buy' : 'Sell'} ${t.symbol}`,
     money(t.dollars),
-    t.shares != null && t.price != null ? `(${fmtShares(t.shares)} sh @ ${money(t.price)})` : '(no price)',
+    t.shares != null && t.price != null ? `(${fmtShares(t.shares)} shares at ${money(t.price)})` : '(no price)',
   ]);
   const w0 = Math.max(...rows.map(r => r[0].length));
   const w1 = Math.max(...rows.map(r => r[1].length));
@@ -125,7 +125,7 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
                   </div>
                 </div>
                 <span className={styles.tradeShares}>
-                  {t.shares != null ? `${fmtShares(t.shares)} sh` : pricesLoading ? '…' : 'no price'}
+                  {t.shares != null ? `${fmtShares(t.shares)} shares` : pricesLoading ? '…' : 'no price'}
                 </span>
                 <span className={styles.tradeAmount}>{t.action === 'sell' ? money(-t.dollars) : money(t.dollars)}</span>
               </div>

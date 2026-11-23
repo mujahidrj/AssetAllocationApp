@@ -29,7 +29,7 @@ describe('Calculator', () => {
     expect(within(trades).getByText('$1,000.00')).toBeInTheDocument();
     expect(within(trades).getByRole('heading', { name: 'Buy these 3' })).toBeInTheDocument();
     // Prices come from the mocked API ($100 for these funds)
-    expect(await within(trades).findByText('60.0000 sh')).toBeInTheDocument();
+    expect(await within(trades).findByText('60.0000 shares')).toBeInTheDocument();
     // The phone's pinned bar (hidden at desktop width)
     expect(screen.getByRole('button', { name: /copy 3 buys · \$10,000\.00/i, hidden: true })).toBeInTheDocument();
   });
@@ -127,9 +127,9 @@ describe('Calculator', () => {
     renderApp();
 
     await user.type(screen.getByLabelText('Amount'), '500');
-    await screen.findByText('5.0000 sh');
+    await screen.findByText('5.0000 shares');
     await user.click(screen.getByRole('button', { name: 'Copy trades' }));
-    expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining('Buy VTI  $500.00  (5.0000 sh @ $100.00)'));
+    expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining('Buy VTI  $500.00  (5.0000 shares at $100.00)'));
     expect((await screen.findAllByRole('button', { name: 'Copied' })).length).toBeGreaterThan(0);
 
     await user.click(screen.getAllByRole('button', { name: 'Share link' })[0]);
