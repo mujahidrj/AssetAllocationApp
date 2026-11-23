@@ -18,30 +18,51 @@
 }
 
 .footnote {
-  margin: 32px 0 0;
+  margin: 0;
   text-align: center;
   font-size: 13px;
-  color: var(--text-3);
+  color: var(--text-2);
 }
 
-/* ---------- Header ---------- */
+.footer {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.footerAppearance {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+/* ---------- Header (masthead) ---------- */
+/* Lined up with the page's 760px column, so the name sits right above the sentence */
 .header {
   border-bottom: 1px solid var(--border);
 }
 
 .headerInner {
-  max-width: 1100px;
+  position: relative;
+  box-sizing: border-box;
+  max-width: 760px;
   margin: 0 auto;
-  min-height: 64px;
+  min-height: 72px;
   padding: 0 32px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .wordmark {
-  font-weight: 600;
-  font-size: 17px;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 21px;
+  letter-spacing: -0.01em;
   flex-grow: 1;
   min-width: 0;
   white-space: nowrap;
@@ -50,13 +71,22 @@
 }
 
 .saved {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
-  color: var(--text-3);
+  color: var(--text-2);
   white-space: nowrap;
+}
+
+.saved svg {
+  width: 14px;
+  height: 14px;
 }
 
 .savedError {
   color: var(--sell);
+  font-weight: 500;
 }
 
 .ghost {
@@ -78,38 +108,220 @@
   opacity: 0.5;
 }
 
-.iconButton {
+.signIn[aria-expanded='true'] {
+  border-color: var(--text);
+}
+
+.avatarButton {
   width: 40px;
   height: 40px;
+  margin-right: -4px;
+  padding: 0;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 50%;
   background: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.iconButton:hover {
+.avatar {
+  position: relative;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
   background: var(--surface);
-}
-
-.account {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   font-size: 14px;
-  color: var(--text-2);
-  white-space: nowrap;
+  font-weight: 600;
 }
 
-.phoneOnly {
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarButton:hover .avatar,
+.avatarButton[aria-expanded='true'] .avatar {
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
+}
+
+/* Something didn't save: the only sign of it on a phone, besides the message */
+.avatarDot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--sell);
+  border: 2px solid var(--bg);
+}
+
+/* Account panel: a popover on desktop, a sheet from the bottom on phones */
+.accountPanel {
+  position: absolute;
+  top: calc(100% - 4px);
+  right: 32px;
+  z-index: 45;
+  box-sizing: border-box;
+  width: 320px;
+  padding: 6px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  outline: none;
+}
+
+.sheetBackdrop {
   display: none;
 }
 
+.accountWho {
+  padding: 10px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.panelName {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.accountSub {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.accountSignIn {
+  margin-top: 12px;
+  width: 100%;
+  justify-content: center;
+}
+
+.accountStatus {
+  padding: 4px 12px 10px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.accountStatus svg {
+  width: 14px;
+  height: 14px;
+}
+
+.accountStatusError {
+  color: var(--sell);
+}
+
+.accountStatusError .linkButton {
+  color: var(--text);
+}
+
+.accountRule {
+  height: 1px;
+  margin: 0 6px;
+  background: var(--border);
+}
+
+.panelRow {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.accountSignOut {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.accountSignOut:hover {
+  background: var(--surface);
+}
+
+.accountNote {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+/* Device / Light / Dark */
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.segment {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.segment:hover:not(.segmentOn) {
+  color: var(--text);
+}
+
+.segmentOn {
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-weight: 600;
+}
+
+/* Share, in the portfolio card */
+.shareButton {
+  margin-left: auto;
+  padding: 0 14px 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shareButton svg {
+  width: 14px;
+  height: 14px;
+}
+
 .shareFallback {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 8px 32px 12px;
+  padding: 0 0 14px;
   display: flex;
   gap: 8px;
   align-items: center;
@@ -119,12 +331,85 @@
 
 .shareFallback input {
   flex: 1;
+  min-width: 0;
   height: 36px;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--raised);
   font-size: 14px;
+}
+
+/* ---------- Recap bar (desktop) ---------- */
+/* Slides down once the Copy button has scrolled away and you scroll back up */
+.recap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(26, 26, 23, 0.06);
+  transform: translateY(-100%);
+  visibility: hidden;
+  transition: transform 300ms ease, visibility 0s linear 300ms;
+}
+
+.recapShown {
+  transform: none;
+  visibility: visible;
+  transition: transform 300ms ease;
+}
+
+.recapInner {
+  box-sizing: border-box;
+  max-width: 760px;
+  margin: 0 auto;
+  min-height: 64px;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.recapText {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recapBlank {
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid var(--accent);
+  border-radius: 3px 3px 0 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  line-height: 1.1;
+}
+
+.recapBlank:hover {
+  border-bottom-color: var(--accent-hover);
+}
+
+.recapBlank:focus-visible {
+  outline: none;
+  background: var(--accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recap,
+  .recapShown {
+    transition: none;
+  }
 }
 
 /* ---------- Shared-mix banner ---------- */
@@ -1482,26 +1767,76 @@
 
 @media (max-width: 720px) {
   .headerInner {
-    min-height: 52px;
+    min-height: 56px;
     padding: 0 6px 0 16px;
-    gap: 2px;
+    gap: 8px;
   }
 
   .wordmark {
-    font-size: 16px;
+    font-size: 19px;
   }
 
-  .desktopOnly,
+  /* Phones show saving problems as a dot on the avatar (and in the message) */
   .saved {
     display: none;
   }
 
-  .phoneOnly {
-    display: inline-flex;
+  .avatarButton {
+    width: 44px;
+    height: 44px;
+    margin-right: 0;
   }
 
-  .shareFallback {
-    padding: 8px 16px 12px;
+  .signIn {
+    height: 44px;
+    margin-right: 10px;
+  }
+
+  .sheetBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.32);
+  }
+
+  .accountPanel {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    width: auto;
+    padding: 8px 8px calc(12px + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: 14px 14px 0 0;
+  }
+
+  .segment {
+    height: 40px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .accountSignOut {
+    min-height: 52px;
+    justify-content: center;
+  }
+
+  .recap {
+    display: none;
+  }
+
+  .shareButton {
+    height: 44px;
+  }
+
+  /* Title and Share on one line, switching portfolios on the next */
+  .switchLink {
+    flex-basis: 100%;
+    min-height: 32px;
+    text-align: left;
   }
 
   .main {
@@ -1736,10 +2071,14 @@
   }
 }
 
-/* Small phones (iPhone SE and narrower): shorter title so the header fits */
+/* Small phones (iPhone SE and narrower): a smaller title so the header fits */
 @media (max-width: 400px) {
-  .wordmarkLead {
-    display: none;
+  .headerInner {
+    padding-left: 14px;
+  }
+
+  .wordmark {
+    font-size: 18px;
   }
 
   .main {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/server';
 import fidelityCsv from './fixtures/fidelity.csv?raw';
@@ -153,20 +153,23 @@ describe('Calculator', () => {
     expect(screen.queryByLabelText('VTI target percent')).not.toBeInTheDocument();
   });
 
-  it('switches between light and dark with one click, and remembers it', async () => {
+  it('follows the device, or stays light or dark when picked, and remembers it', async () => {
     window.localStorage.setItem('assetAllocation.theme', 'light');
     const user = userEvent.setup();
     renderApp();
     expect(document.documentElement.dataset.theme).toBe('light');
-    expect(screen.queryByRole('button', { name: /match device/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Switch to dark mode' }));
+    const appearance = screen.getByRole('group', { name: 'Appearance' });
+    expect(within(appearance).getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(within(appearance).getByRole('button', { name: 'Dark' }));
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(window.localStorage.getItem('assetAllocation.theme')).toBe('dark');
 
-    await user.click(screen.getByRole('button', { name: 'Switch to light mode' }));
+    // Back to the device's setting (light here): nothing is remembered
+    await user.click(within(appearance).getByRole('button', { name: 'Device' }));
     expect(document.documentElement.dataset.theme).toBe('light');
-    expect(window.localStorage.getItem('assetAllocation.theme')).toBe('light');
+    expect(window.localStorage.getItem('assetAllocation.theme')).toBeNull();
   });
 
   it('offers a mix from a share link', async () => {
@@ -192,8 +195,83 @@ describe('Calculator', () => {
     expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining('Buy VTI  $500.00  (5.0000 shares at $100.00)'));
     expect((await screen.findAllByRole('button', { name: 'Copied' })).length).toBeGreaterThan(0);
 
-    await user.click(screen.getAllByRole('button', { name: 'Share link' })[0]);
+    // Share sits on the portfolio card, since it shares that portfolio's targets
+    const card = screen.getByRole('region', { name: 'Your portfolio' });
+    await user.click(within(card).getByRole('button', { name: 'Share targets' }));
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(`${window.location.origin}/?mix=VTI:100`));
+    expect(await within(card).findByRole('button', { name: 'Link copied' })).toBeInTheDocument();
+  });
+
+  it("can't share targets that don't add up to 100%", () => {
+    seed({ funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'BND', target: 30 }] });
+    renderApp();
+    expect(screen.getByRole('button', { name: 'Share targets' })).toBeDisabled();
+  });
+
+  it('repeats the sentence and the copy button in a bar after the trades scroll away, when scrolling back up', async () => {
+    let report: (entry: object) => void = () => {};
+    class FakeObserver {
+      constructor(cb: IntersectionObserverCallback) {
+        report = entry => cb([entry as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() { return []; }
+    }
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+    const scrollTo = (y: number) => {
+      Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+      fireEvent.scroll(window);
+    };
+    const setPageHeight = (h: number) => Object.defineProperty(document.documentElement, 'scrollHeight', { value: h, configurable: true });
+    try {
+      seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
+      const user = userEvent.setup();
+      const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+      renderApp();
+      await user.type(screen.getByLabelText('Amount'), '500');
+      await screen.findByText('5.0000 shares');
+      const copyButtons = () => screen.queryAllByRole('button', { name: /copy 1 buy · \$500\.00/i });
+      expect(copyButtons()).toHaveLength(0); // the phone's pinned bar is hidden at this width
+      expect(screen.queryByTestId('recap')).not.toBeInTheDocument();
+
+      // The Copy button scrolls up out of view; scrolling further down keeps the bar tucked away
+      setPageHeight(3000);
+      act(() => report({ isIntersecting: false, boundingClientRect: { bottom: -40 } }));
+      scrollTo(900);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'true');
+
+      // The page getting shorter moves the scroll up by itself: that isn't scrolling up
+      setPageHeight(2600);
+      scrollTo(700);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'true');
+
+      // Scrolling back up brings it in; scrolling down tucks it away again
+      scrollTo(620);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'false');
+      scrollTo(800);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'true');
+      scrollTo(700);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'false');
+
+      expect(copyButtons()).toHaveLength(1);
+      await user.click(copyButtons()[0]);
+      expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining('Buy VTI  $500.00'));
+
+      await user.click(screen.getByRole('button', { name: 'Change the amount, $500' }));
+      expect(screen.getByLabelText('Amount')).toHaveFocus();
+      await user.click(screen.getByRole('button', { name: 'Change the portfolio, Roth IRA' }));
+      expect(screen.getByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
+
+      // Once the Copy button is back in view, the bar goes
+      act(() => report({ isIntersecting: true, boundingClientRect: { bottom: 300 } }));
+      expect(screen.queryByTestId('recap')).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      Reflect.deleteProperty(document.documentElement, 'scrollHeight');
+    }
   });
 
   it('keeps several named portfolios, with undo on delete', async () => {

@@ -1,6 +1,6 @@
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
 import styles from './Calculator.module.css';
-import { CloseIcon } from './icons';
+import { CheckIcon, CloseIcon, ShareIcon } from './icons';
 import { drift, money, pct1, priceDate } from './format';
 import { shortName, type Fund, type Holding, type ManualPrice } from './model';
 import { holdingDollars, type OffTarget, type PriceMap } from './plan';
@@ -121,11 +121,30 @@ interface MixCardProps {
   /** Furthest off target, when worth a rebalance (and not already rebalancing). */
   offTarget: OffTarget | null;
   onRebalance: () => void;
+  /** Copies a link with this portfolio's targets; resolves to the link if copying failed. */
+  onShare: () => Promise<string | null>;
+  /** Targets add up to 100%, so there's something to share. */
+  canShare: boolean;
 }
 
 export function MixCard(props: MixCardProps) {
-  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance } = props;
+  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare } = props;
   const [dropping, setDropping] = useState(false);
+  const [shared, setShared] = useState(false);
+  const [shareFallback, setShareFallback] = useState<string | null>(null);
+  const shareTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(shareTimer.current), []);
+  // A link that couldn't be copied is out of date once the targets (or the portfolio) change
+  useEffect(() => { setShareFallback(null); }, [funds]);
+
+  const share = async () => {
+    const failedLink = await onShare();
+    if (failedLink) { setShareFallback(failedLink); return; }
+    setShareFallback(null);
+    setShared(true);
+    clearTimeout(shareTimer.current);
+    shareTimer.current = setTimeout(() => setShared(false), 2000);
+  };
 
   const hasFile = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files');
   const onDragOver = (e: DragEvent) => { if (!hasFile(e)) return; e.preventDefault(); setDropping(true); };
@@ -158,8 +177,24 @@ export function MixCard(props: MixCardProps) {
           <h2 className={styles.cardTitle}>{title}</h2>
           {subtitle && <span className={styles.cardSub}>{subtitle}</span>}
         </div>
-        <button type="button" className={`${styles.headLink} ${styles.pushRight}`} onClick={onOpenPortfolios}>Switch or add portfolio</button>
+        <button
+          type="button"
+          className={`${styles.ghost} ${styles.shareButton}`}
+          onClick={() => { void share(); }}
+          disabled={!canShare}
+          title={canShare ? 'Copies a link with these funds and targets. No amounts or holdings.' : 'Targets need to add up to 100% first.'}
+        >
+          {shared ? <CheckIcon /> : <ShareIcon />}
+          {shared ? 'Link copied' : 'Share targets'}
+        </button>
+        <button type="button" className={`${styles.headLink} ${styles.switchLink}`} onClick={onOpenPortfolios}>Switch or add portfolio</button>
       </div>
+      {shareFallback && (
+        <div className={styles.shareFallback}>
+          Copy this link:
+          <input readOnly value={shareFallback} aria-label="Share link" onFocus={e => e.currentTarget.select()} />
+        </div>
+      )}
       <div className={styles.cardTools}>
         <button type="button" className={styles.headLink} onClick={onChangeMix}>Use a template</button>
         <button type="button" className={styles.headLink} onClick={() => onSearchOpen(!searchOpen)} aria-expanded={searchOpen}>+ Add fund</button>
