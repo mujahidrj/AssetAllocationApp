@@ -45,8 +45,9 @@ describe('Calculator', () => {
     expect(screen.getByText(/type an amount like 2,500/i)).toBeInTheDocument();
   });
 
-  it('buys only what is behind target once holdings are entered', async () => {
+  it('only buys when adding, and offers to sell when buying alone would leave a fund well off target', async () => {
     seed({
+      name: 'Brokerage',
       funds: [{ symbol: 'SPUS', target: 50 }, { symbol: 'SPTE', target: 40 }, { symbol: 'SPWO', target: 10 }],
       holdings: {
         SPUS: { kind: 'dollars', amount: 12400 },
@@ -57,19 +58,68 @@ describe('Calculator', () => {
     });
     const user = userEvent.setup();
     renderApp();
+    expect(screen.queryByLabelText('Selling')).not.toBeInTheDocument();
 
-    expect(screen.getByLabelText('Selling')).toHaveValue('no');
-    await user.type(screen.getByLabelText('Amount'), '2500');
-
+    // $2,500 brings SPUS close enough: just buys, nothing to ask
+    const amount = screen.getByLabelText('Amount');
+    await user.type(amount, '2500');
     const trades = screen.getByRole('region', { name: /your trades/i });
     expect(await within(trades).findByText('$2,254.24')).toBeInTheDocument();
     expect(within(trades).getByText('$245.76')).toBeInTheDocument();
     expect(within(trades).getByText(/SPUS · already 57\.9%, target 50%/)).toBeInTheDocument();
+    expect(within(trades).queryByText(/would still be/)).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('Selling'), 'yes');
-    expect(await within(trades).findByText('−$450.00')).toBeInTheDocument();
-    expect(within(trades).getByRole('heading', { name: 'Your trades' })).toBeInTheDocument();
-    expect(within(trades).getByText('Net in $2,500.00')).toBeInTheDocument();
+    // $500 leaves SPUS well over target: offered, not done
+    await user.clear(amount);
+    await user.type(amount, '500');
+    expect(await within(trades).findByText(/SPUS would still be at 56\.6% after this\. Target is 50%\./)).toBeInTheDocument();
+    expect(within(trades).queryByText('−$1,450.00')).not.toBeInTheDocument();
+
+    await user.click(within(trades).getByRole('button', { name: 'Sell some to fix it' }));
+    expect(within(trades).getByText('−$1,450.00')).toBeInTheDocument();
+    expect(within(trades).getByText('Net in $500.00')).toBeInTheDocument();
+    expect(within(trades).getByText(/Selling \$1,450\.00 of SPUS so everything lands on target\./)).toBeInTheDocument();
+    expect(within(trades).getByText(/Selling in a taxable account may mean paying tax\./)).toBeInTheDocument();
+
+    await user.click(within(trades).getByRole('button', { name: "It's a retirement account" }));
+    expect(within(trades).queryByText(/taxable account/)).not.toBeInTheDocument();
+    expect(loadDeviceWorkspace()?.portfolios[0]).toMatchObject({ sell: true, retirement: true });
+
+    // Remembered, but only used when it's needed
+    await user.clear(amount);
+    await user.type(amount, '2500');
+    expect(await within(trades).findByText('$2,254.24')).toBeInTheDocument();
+    expect(within(trades).queryByText(/^−\$/)).not.toBeInTheDocument();
+    await user.clear(amount);
+    await user.type(amount, '500');
+    expect(await within(trades).findByText('−$1,450.00')).toBeInTheDocument();
+
+    await user.click(within(trades).getByRole('button', { name: 'Only buy' }));
+    expect(within(trades).queryByText('−$1,450.00')).not.toBeInTheDocument();
+    expect(within(trades).getByRole('button', { name: 'Sell some to fix it' })).toBeInTheDocument();
+  });
+
+  it('skips the tax note for portfolios named like retirement accounts, and summarises several funds', async () => {
+    seed({
+      name: 'Roth IRA',
+      funds: [{ symbol: 'SPUS', target: 40 }, { symbol: 'SPTE', target: 40 }, { symbol: 'SPWO', target: 20 }],
+      holdings: {
+        SPUS: { kind: 'dollars', amount: 6000 },
+        SPTE: { kind: 'dollars', amount: 3000 },
+        SPWO: { kind: 'dollars', amount: 1000 },
+      },
+      tracksHoldings: true,
+      sell: true,
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await user.type(screen.getByLabelText('Amount'), '100');
+    const trades = screen.getByRole('region', { name: /your trades/i });
+    expect(await within(trades).findByText(/Selling \$1,960\.00 of SPUS so everything lands on target\./)).toBeInTheDocument();
+    expect(within(trades).queryByText(/taxable account/)).not.toBeInTheDocument();
+
+    await user.click(within(trades).getByRole('button', { name: 'Only buy' }));
+    expect(within(trades).getByText(/3 funds would still be off target after this\./)).toBeInTheDocument();
   });
 
   it('offers quick fixes when targets do not add up', async () => {
@@ -368,10 +418,8 @@ describe('Calculator', () => {
     expect(screen.getByLabelText("What you're doing")).toHaveValue('add');
     expect(screen.getByText(/Furthest off: SPUS \+7\.9/)).toBeInTheDocument();
 
-    // A small deposit leaves it still off: offered as an alternative, not forced
     await user.type(screen.getByLabelText('Amount'), '500');
-    expect(await within(trades).findByText('SPUS still +6.6 after this')).toBeInTheDocument();
-    await user.click(within(trades).getByRole('button', { name: 'Rebalance instead' }));
+    await user.click(screen.getByRole('button', { name: 'Rebalance' }));
 
     expect(screen.getByLabelText("What you're doing")).toHaveValue('rebal');
     expect(await within(trades).findByText('−$1,700.00')).toBeInTheDocument();

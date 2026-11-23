@@ -369,25 +369,29 @@ export interface OffTarget {
 const MIN_REBALANCE_TRADE = 25;
 
 /**
- * The fund furthest from its target, when one is far enough off to be worth
- * rebalancing: 5 or more points away, or a quarter of its own target away (2.5
- * points for a 10% fund), and at least a $25 trade to fix. Null otherwise.
+ * Funds far enough off target to be worth rebalancing, furthest first: 5 or more
+ * points away, or a quarter of their own target away (2.5 points for a 10% fund),
+ * and at least a $25 trade to fix.
  */
-export function furthestOff(funds: Fund[], values: Record<string, number>): OffTarget | null {
+export function offTargets(funds: Fund[], values: Record<string, number>): OffTarget[] {
   const total = Object.values(values).reduce((a, b) => a + b, 0);
-  if (total <= 0) return null;
+  if (total <= 0) return [];
   const symbols = [...new Set([...funds.map(f => f.symbol), ...Object.keys(values)])];
-  let worst: OffTarget | null = null;
+  const off: OffTarget[] = [];
   symbols.forEach(symbol => {
     const targetPct = funds.find(f => f.symbol === symbol)?.target ?? 0;
     const nowPct = ((values[symbol] ?? 0) / total) * 100;
     const drift = nowPct - targetPct;
     const far = Math.abs(drift) >= 5 || (targetPct > 0 ? Math.abs(drift) / targetPct >= 0.25 : nowPct > 0);
     const worthIt = (Math.abs(drift) / 100) * total >= MIN_REBALANCE_TRADE;
-    if (far && worthIt && (!worst || Math.abs(drift) > Math.abs(worst.drift))) worst = { symbol, nowPct, targetPct, drift };
+    if (far && worthIt) off.push({ symbol, nowPct, targetPct, drift });
   });
-  return worst;
+  return off.sort((a, b) => Math.abs(b.drift) - Math.abs(a.drift));
 }
+
+/** The fund furthest from its target, when one is far enough off (see offTargets). */
+export const furthestOff = (funds: Fund[], values: Record<string, number>): OffTarget | null =>
+  offTargets(funds, values)[0] ?? null;
 
 /**
  * Dollar value of each holding, or null when a holding can't be valued (shares

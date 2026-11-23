@@ -68,6 +68,7 @@ function cleanPortfolio(raw: unknown, fallbackId: string): Portfolio | null {
     sell: p.sell === true,
     ...(typeof p.templateId === 'string' ? { templateId: p.templateId } : {}),
     ...(p.wholeShares === true ? { wholeShares: true } : {}),
+    ...(typeof p.retirement === 'boolean' ? { retirement: p.retirement } : {}),
   };
 }
 
@@ -181,6 +182,7 @@ export async function loadCloudWorkspace(uid: string): Promise<Workspace | null>
         sell: p.sell,
         templateId: p.templateId,
         wholeShares: p.wholeShares,
+        retirement: p.retirement,
       }, id)!;
     });
     const activeId = portfolios.some(p => p.id === stocksData.activeId) ? stocksData.activeId as string : portfolios[0].id;
@@ -210,6 +212,7 @@ export async function saveCloudWorkspace(uid: string, ws: Workspace): Promise<vo
         sell: p.sell,
         ...(p.templateId ? { templateId: p.templateId } : {}),
         ...(p.wholeShares ? { wholeShares: true } : {}),
+        ...(typeof p.retirement === 'boolean' ? { retirement: p.retirement } : {}),
       })),
       activeId: ws.activeId,
       manualPrices: ws.manualPrices ?? {},

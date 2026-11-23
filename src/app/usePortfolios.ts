@@ -161,6 +161,8 @@ export function usePortfolios(user: User | null) {
 
     setSell: useCallback((sell: boolean) => update(p => ({ ...p, sell })), [update]),
 
+    setRetirement: useCallback((retirement: boolean) => update(p => ({ ...p, retirement })), [update]),
+
     setWholeShares: useCallback((wholeShares: boolean) =>
       update(p => {
         const next = { ...p };

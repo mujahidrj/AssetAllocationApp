@@ -31,6 +31,8 @@ export interface Portfolio {
   templateId?: string;
   /** Trade whole shares only. Off (fractional) unless chosen. */
   wholeShares?: boolean;
+  /** Said to be a retirement account (selling inside it isn't taxed). Unset: guessed from the name. */
+  retirement?: boolean;
 }
 
 /** A price the person typed (or that came from a broker file) for a fund the lookup can't price. */
@@ -112,3 +114,8 @@ export function shortName(fund: Pick<Fund, 'symbol' | 'name'>): string {
     .replace(/\s+(ETF|Fund|Index Fund)$/i, '')
     .trim() || fund.symbol;
 }
+
+const RETIREMENT_NAME = /\b(roth|ira|401\s?\(?k\)?|403\s?\(?b\)?|457|hsa|tsp|sep|simple|pension|retirement|rrsp|tfsa|isa|sipp)\b/i;
+
+/** Whether selling inside this portfolio is tax-free: as the person said, or guessed from its name. */
+export const isRetirement = (p: Pick<Portfolio, 'name' | 'retirement'>) => p.retirement ?? RETIREMENT_NAME.test(p.name);

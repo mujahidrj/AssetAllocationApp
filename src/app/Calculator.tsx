@@ -12,12 +12,12 @@ import { Header } from './Header';
 import { CloseIcon, CopyIcon } from './icons';
 import { ImportDialog, type ImportChoice, type ImportProblem } from './ImportDialog';
 import { MixCard } from './MixCard';
-import { displayName, sentenceName, type Fund, type ManualPrice, type Verb } from './model';
-import { furthestOff, heldValues, makePlan, valuesAfter, type PriceMap } from './plan';
+import { displayName, isRetirement, sentenceName, type Fund, type ManualPrice, type Verb } from './model';
+import { furthestOff, heldValues, makePlan, offTargets, valuesAfter, type PriceMap } from './plan';
 import { PortfolioMenu } from './PortfolioMenu';
 import { Sentence } from './Sentence';
 import { matchingTemplate, templates } from './templates';
-import { Trades } from './Trades';
+import { Trades, type SellChoice } from './Trades';
 import { tradesCsv, tradesText } from './tradeText';
 import { usePortfolios, type RemovedPortfolio } from './usePortfolios';
 import { usePrices } from './usePrices';
@@ -137,35 +137,44 @@ export function Calculator() {
   const amount = parseAmount(amountText);
   const amountInvalid = amountText.trim() !== '' && !Number.isFinite(amount);
 
-  const plan = useMemo(() => makePlan({
-    funds,
-    holdings,
-    tracksHoldings,
-    verb: effectiveVerb,
-    amount: Number.isFinite(amount) ? amount : 0,
-    sell,
-    prices,
-    wholeShares,
-  }), [funds, holdings, tracksHoldings, effectiveVerb, amount, sell, prices, wholeShares]);
+  // Adding only buys, unless buying alone would leave something well off target and
+  // the person has chosen to sell for this portfolio. Never sells by itself.
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  const buyOnlyPlan = useMemo(
+    () => makePlan({ funds, holdings, tracksHoldings, verb: effectiveVerb, amount: safeAmount, sell: false, prices, wholeShares }),
+    [funds, holdings, tracksHoldings, effectiveVerb, safeAmount, prices, wholeShares],
+  );
+  const sellPlan = useMemo(
+    () => makePlan({ funds, holdings, tracksHoldings, verb: effectiveVerb, amount: safeAmount, sell: true, prices, wholeShares }),
+    [funds, holdings, tracksHoldings, effectiveVerb, safeAmount, prices, wholeShares],
+  );
 
   const targetsOk = funds.length > 0 && Math.abs(funds.reduce((sum, f) => sum + f.target, 0) - 100) <= 0.01;
-
-  // Off target: worth pointing out rebalancing (never switches the verb by itself)
   const values = useMemo(() => (tracksHoldings ? heldValues(holdings, prices) : null), [tracksHoldings, holdings, prices]);
   const hasHoldings = !!values && Object.keys(values).length > 0;
+
+  /** What buying alone would leave well off target (adding, with holdings, targets at 100%). */
+  const offAfterBuying = useMemo(() => {
+    if (!values || !hasHoldings || !targetsOk || effectiveVerb !== 'add' || buyOnlyPlan.status !== 'ok') return [];
+    return offTargets(funds, valuesAfter(values, buyOnlyPlan.trades));
+  }, [values, hasHoldings, targetsOk, effectiveVerb, buyOnlyPlan, funds]);
+  const sellsToFix = sellPlan.status === 'ok' ? sellPlan.trades.filter(t => t.action === 'sell') : [];
+  const canSell = offAfterBuying.length > 0 && sellsToFix.length > 0;
+  const selling = canSell && sell;
+  const plan = selling ? sellPlan : buyOnlyPlan;
+  const sellChoice: SellChoice | null = canSell
+    ? { off: offAfterBuying, selling, sells: sellsToFix, taxNote: !isRetirement(portfolio) }
+    : null;
+
+  // Off target before any trades: worth pointing out rebalancing (never switches the verb by itself)
   const offNow = useMemo(() => {
     if (!values || !targetsOk) return null;
     const off = furthestOff(funds, values);
     if (!off || !wholeShares) return off;
     // Whole shares can make a rebalance impossible (nothing affordable): don't offer one
-    const rebalPlan = makePlan({ funds, holdings, tracksHoldings, verb: 'rebal', amount: 0, sell, prices, wholeShares });
+    const rebalPlan = makePlan({ funds, holdings, tracksHoldings, verb: 'rebal', amount: 0, sell: false, prices, wholeShares });
     return rebalPlan.status === 'ok' ? off : null;
-  }, [funds, values, targetsOk, wholeShares, holdings, tracksHoldings, sell, prices]);
-  const offAfter = useMemo(() => {
-    // Adding with selling already lands everything on target; rebalancing is the fix itself
-    if (!values || plan.status !== 'ok' || effectiveVerb === 'rebal' || (effectiveVerb === 'add' && sell)) return null;
-    return furthestOff(funds, valuesAfter(values, plan.trades));
-  }, [values, plan, effectiveVerb, sell, funds]);
+  }, [funds, values, targetsOk, wholeShares, holdings, tracksHoldings, prices]);
   const rebalance = () => { setVerb('rebal'); window.scrollTo?.({ top: 0, behavior: 'smooth' }); };
 
   /** Picking "just rebalancing" turns holdings on, since it works from them. */
@@ -212,7 +221,7 @@ export function Calculator() {
     }
     if (effectiveVerb === 'rebal') return { text: 'Moving money between funds so each one lands on target. No new cash.' };
     if (effectiveVerb === 'out') return { text: "Selling from whatever's furthest over target first." };
-    return { text: sell ? 'Buying and selling so every fund lands exactly on target.' : "Buying only what's behind target, so nothing gets sold." };
+    return { text: selling ? 'Buying and selling so every fund lands on target.' : "Buying only what's behind target, so nothing gets sold." };
   })();
 
   const copyTrades = async () => {
@@ -429,9 +438,6 @@ export function Calculator() {
             portfolioLabel={showingAll ? 'all my portfolios' : sentenceName(portfolio.name)}
             onPortfolioClick={() => setMenu(m => (m ? null : 'list'))}
             menuOpen={menu !== null}
-            showSell={tracksHoldings && effectiveVerb === 'add'}
-            sell={sell}
-            onSell={actions.setSell}
             all={showingAll}
           />
           {menu && (
@@ -522,7 +528,9 @@ export function Calculator() {
               onCloseText={() => setTextFallback(null)}
               hasHoldings={hasHoldings}
               offNow={offNow}
-              offAfter={offAfter}
+              sellChoice={sellChoice}
+              onSell={actions.setSell}
+              onRetirement={() => actions.setRetirement(true)}
               onRebalance={rebalance}
               onEnterHoldings={focusHoldings}
               onImport={() => fileInput.current?.click()}

@@ -43,9 +43,6 @@ interface SentenceProps {
   portfolioLabel: string;
   onPortfolioClick: () => void;
   menuOpen: boolean;
-  showSell: boolean;
-  sell: boolean;
-  onSell: (sell: boolean) => void;
   /** Showing all portfolios together: "Here are [all my portfolios] together." */
   all?: boolean;
 }
@@ -53,12 +50,12 @@ interface SentenceProps {
 const AMOUNT_PLACEHOLDER = '2,500';
 
 /**
- * "I'm [adding] [$2,500] to [my Roth IRA] [without selling]."
+ * "I'm [adding] [$2,500] to [my Roth IRA]."
  * Words are kept in groups that never break apart, so on a phone it wraps as
- * "I'm adding $2,500 / to my Roth IRA / without selling."
+ * "I'm adding $2,500 / to my Roth IRA."
  */
 export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Sentence(props, portfolioRef) {
-  const { verb, onVerb, hasHoldings, amount, onAmount, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, showSell, sell, onSell, all } = props;
+  const { verb, onVerb, hasHoldings, amount, onAmount, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, all } = props;
   const hasAmount = verb !== 'rebal';
 
   const verbOptions: Array<{ value: Verb; label: string; menuLabel?: string }> = [
@@ -78,18 +75,6 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
     >
       {portfolioLabel}<Caret />
     </button>
-  );
-
-  const sellBlank = (
-    <BlankSelect
-      label="Selling"
-      value={sell ? 'yes' : 'no'}
-      onChange={v => onSell(v === 'yes')}
-      options={[
-        { value: 'no', label: 'without selling' },
-        { value: 'yes', label: "and selling what's over" },
-      ]}
-    />
   );
 
   if (all) {
@@ -129,16 +114,10 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
       </span>{' '}
       {hasAmount ? (
         <span className={styles.keep}>
-          {verb === 'out' ? 'from' : 'to'} {portfolioBlank}{showSell ? '' : '.'}
+          {verb === 'out' ? 'from' : 'to'} {portfolioBlank}.
         </span>
       ) : (
         <span className={styles.keep}>{portfolioBlank}.</span>
-      )}
-      {showSell && (
-        <>
-          {' '}
-          <span className={styles.keep}>{sellBlank}.</span>
-        </>
       )}
     </p>
   );

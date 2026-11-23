@@ -139,9 +139,9 @@ describe('signing in with portfolios built on this device', () => {
   });
 });
 
-describe('whole shares and typed prices', () => {
+describe('whole shares, retirement flag and typed prices', () => {
   const withExtras: Workspace = {
-    portfolios: [{ ...roth, wholeShares: true }, taxable],
+    portfolios: [{ ...roth, wholeShares: true, retirement: true }, { ...taxable, retirement: false }],
     activeId: 'r1',
     manualPrices: { FXAIX: { price: 190.12, at: '2026-11-22T15:00:00.000Z' } },
   };

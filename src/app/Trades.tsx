@@ -1,11 +1,42 @@
 import styles from './Calculator.module.css';
 import { CopyIcon } from './icons';
-import { drift, money, pct1, priceDate, priceTime } from './format';
+import { money, pct1, priceDate, priceTime } from './format';
 import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
 import type { Fund, ManualPrice, Verb } from './model';
 import { isCashSymbol, shortName } from './model';
-import type { OffTarget, Plan } from './plan';
+import type { OffTarget, Plan, Trade } from './plan';
 import { MixPicker } from './MixPicker';
+
+export interface SellChoice {
+  /** What buying alone would leave off target, furthest first. */
+  off: OffTarget[];
+  /** Selling is on (the trades shown include the sells). */
+  selling: boolean;
+  /** The sells that would fix it. */
+  sells: Trade[];
+  /** Selling in a portfolio that isn't a retirement account: mention tax. */
+  taxNote: boolean;
+}
+
+/** "SPUS would still be at 56.6% after this. Target is 50%." */
+function offText(off: OffTarget[]): string {
+  if (off.length === 1) {
+    const [o] = off;
+    return o.targetPct > 0
+      ? `${o.symbol} would still be at ${pct1(o.nowPct)} after this. Target is ${+o.targetPct.toFixed(2)}%.`
+      : `${o.symbol} isn't in your targets and would still be ${pct1(o.nowPct)} of this portfolio after this.`;
+  }
+  if (off.length === 2) return `${off[0].symbol} and ${off[1].symbol} would still be off target after this.`;
+  return `${off.length} funds would still be off target after this.`;
+}
+
+/** "Selling $1,450.00 of SPUS so everything lands on target." */
+function sellingText(sells: Trade[], whole: boolean): string {
+  const what = sells.length === 1 ? `${money(sells[0].dollars)} of ${sells[0].symbol}`
+    : sells.length === 2 ? `${money(sells[0].dollars)} of ${sells[0].symbol} and ${money(sells[1].dollars)} of ${sells[1].symbol}`
+    : `from ${sells.length} funds`;
+  return `Selling ${what} so everything lands ${whole ? 'as close to target as whole shares allow' : 'on target'}.`;
+}
 
 interface TradesProps {
   plan: Plan;
@@ -32,15 +63,18 @@ interface TradesProps {
   hasHoldings: boolean;
   /** Furthest off target now (before any trades), when worth rebalancing. */
   offNow: OffTarget | null;
-  /** Still that far off after these trades. */
-  offAfter: OffTarget | null;
   onRebalance: () => void;
+  /** Adding, and buying alone would leave something well off target: offer to sell too. */
+  sellChoice: SellChoice | null;
+  onSell: (sell: boolean) => void;
+  /** "It's a retirement account": no more tax note for this portfolio. */
+  onRetirement: () => void;
   onEnterHoldings: () => void;
   onImport: () => void;
 }
 
 export function Trades(props: TradesProps) {
-  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, offAfter, onRebalance, onEnterHoldings, onImport } = props;
+  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, sellChoice, onSell, onRetirement } = props;
   const ok = plan.status === 'ok';
   const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
   const when = priceTime(asOf);
@@ -172,6 +206,30 @@ export function Trades(props: TradesProps) {
         </div>
       )}
 
+      {ok && sellChoice && (
+        <div className={styles.sellNote}>
+          {sellChoice.selling ? (
+            <>
+              <p>
+                {sellingText(sellChoice.sells, wholeShares)}{' '}
+                <button type="button" className={styles.linkButton} onClick={() => onSell(false)}>Only buy</button>
+              </p>
+              {sellChoice.taxNote && (
+                <p className={styles.sellTax}>
+                  Selling in a taxable account may mean paying tax.{' '}
+                  <button type="button" className={styles.linkButton} onClick={onRetirement}>It's a retirement account</button>
+                </p>
+              )}
+            </>
+          ) : (
+            <p>
+              {offText(sellChoice.off)}{' '}
+              <button type="button" className={styles.linkButton} onClick={() => onSell(true)}>Sell some to fix it</button>
+            </p>
+          )}
+        </div>
+      )}
+
       {textFallback != null && (
         <div className={styles.textFallback}>
           <label>
@@ -203,14 +261,7 @@ export function Trades(props: TradesProps) {
             </span>
           </span>
           {zeroFunds.length > 0 && <span className={styles.footItem}>{zeroFunds.join(', ')} at 0%, skipped</span>}
-          {ok && offAfter && (
-            <>
-              <span className={styles.footItem}>{offAfter.symbol} still {drift(offAfter.drift)} after this</span>
-              <span className={styles.footItem}>
-                <button type="button" className={styles.linkButton} onClick={onRebalance}>Rebalance instead</button>
-              </span>
-            </>
-          )}
+
         </div>
       )}
     </section>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { furthestOff, heldValues, makePlan, holdingDollars, valuesAfter, type PlanInput } from '../plan';
+import { furthestOff, heldValues, makePlan, holdingDollars, offTargets, valuesAfter, type PlanInput } from '../plan';
 
 const funds = [
   { symbol: 'SPUS', target: 50, name: 'SP Funds S&P 500 Sharia Industry Exclusions ETF' },
@@ -275,5 +275,13 @@ describe('furthestOff', () => {
   it('gives no figures when a holding in shares has no price', () => {
     expect(heldValues({ X: { kind: 'shares', amount: 5 } }, {})).toBeNull();
     expect(heldValues(holdings, prices)).toEqual(values);
+  });
+});
+
+describe('offTargets', () => {
+  it('lists every fund that is well off, furthest first', () => {
+    const three = [{ symbol: 'SPUS', target: 40 }, { symbol: 'SPTE', target: 40 }, { symbol: 'SPWO', target: 20 }];
+    expect(offTargets(three, { SPUS: 6000, SPTE: 3000, SPWO: 1000 }).map(o => o.symbol)).toEqual(['SPUS', 'SPTE', 'SPWO']);
+    expect(offTargets(three, { SPUS: 4000, SPTE: 4000, SPWO: 2000 })).toEqual([]);
   });
 });

@@ -1113,6 +1113,24 @@
   text-align: right;
 }
 
+/* A quiet note under the trades: buying alone leaves something off target */
+.sellNote {
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+  font-size: 14px;
+  color: var(--text-2);
+}
+
+.sellNote p {
+  margin: 0;
+}
+
+.sellTax {
+  margin-top: 4px !important;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
 /* ---------- Leftover cash, typed prices, shares choice ---------- */
 
 .leftoverRow {
