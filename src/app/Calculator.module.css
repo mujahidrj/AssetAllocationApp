@@ -404,7 +404,13 @@
   font-size: 12px;
   line-height: 1.5;
   color: var(--text-2);
-  overflow-wrap: anywhere;
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 0.25em;
+}
+
+.pickerFund {
+  white-space: nowrap;
 }
 
 .pickerNote {

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import styles from './Calculator.module.css';
 import { CheckIcon, ChevronIcon } from './icons';
 import { displayName, type Fund, type Portfolio } from './model';
-import { MixPicker } from './MixPicker';
+import { FundList, MixPicker } from './MixPicker';
 import { describeMix } from './templates';
 
 interface PortfolioMenuProps {
@@ -118,7 +118,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                 >
                   <span className={styles.pickerText}>
                     <span className={styles.pickerLabel}>{displayName(p)}</span>
-                    <span className={styles.pickerMix}>{describeMix(p.funds) || 'No funds yet'}</span>
+                    <FundList text={describeMix(p.funds) || 'No funds yet'} />
                   </span>
                   <span className={styles.pickerCheck}>{p.id === active.id && <CheckIcon />}</span>
                 </button>
