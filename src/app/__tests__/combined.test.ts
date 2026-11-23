@@ -50,4 +50,16 @@ describe('combinePortfolios', () => {
     expect(none.funds).toEqual([]);
     expect(none.behind).toEqual([]);
   });
+
+  it('leaves funds without a price out of where new money helps, and says so', () => {
+    const r = combinePortfolios([
+      P('a', 'Roth IRA', [{ symbol: 'SPUS', target: 100 }], { SPUS: { kind: 'dollars', amount: 1000 } }),
+      P('b', 'HSA', [{ symbol: 'SPUS', target: 70 }, { symbol: 'TRUST', target: 30 }], {
+        SPUS: { kind: 'dollars', amount: 1000 },
+        TRUST: { kind: 'shares', amount: 50 },
+      }),
+    ], {});
+    expect(r.unpriced).toEqual([{ symbol: 'TRUST', heldIn: [{ id: 'b', name: 'HSA' }] }]);
+    expect(r.behind.map(f => f.symbol)).not.toContain('TRUST');
+  });
 });

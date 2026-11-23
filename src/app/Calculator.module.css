@@ -615,6 +615,13 @@
   flex-direction: column;
 }
 
+.titleRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
 .cardSub {
   font-size: 13px;
   color: var(--text-3);

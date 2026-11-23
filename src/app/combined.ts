@@ -35,6 +35,8 @@ export interface Combined {
   excluded: Array<{ id: string; name: string; reason: 'no-holdings' | 'targets-off' }>;
   /** Funds furthest behind overall, biggest dollar gap first. */
   behind: CombinedFund[];
+  /** Funds held as shares with no price, so they count as $0, and where they're held. */
+  unpriced: Array<{ symbol: string; heldIn: Array<{ id: string; name: string }> }>;
 }
 
 const CASH = 'CASH';
@@ -43,20 +45,30 @@ const key = (symbol: string) => (isCashSymbol(symbol) ? CASH : symbol);
 export function combinePortfolios(portfolios: Portfolio[], prices: PriceMap): Combined {
   const included: Array<{ p: Portfolio; value: number; values: Record<string, number> }> = [];
   const excluded: Combined['excluded'] = [];
+  const unpriced: Combined['unpriced'] = [];
 
   portfolios.forEach(p => {
     const values: Record<string, number> = {};
+    const noPrice: string[] = [];
     if (p.tracksHoldings) {
       Object.entries(p.holdings).forEach(([s, h]) => {
         const v = holdingDollars(s, h, prices);
         if (v > 0) values[key(s)] = (values[key(s)] ?? 0) + v;
+        else if (h.amount > 0) noPrice.push(s);
       });
     }
     const value = Object.values(values).reduce((a, b) => a + b, 0);
     const targetTotal = p.funds.reduce((sum, f) => sum + f.target, 0);
     if (value <= 0) excluded.push({ id: p.id, name: displayName(p), reason: 'no-holdings' });
     else if (Math.abs(targetTotal - 100) > 0.01) excluded.push({ id: p.id, name: displayName(p), reason: 'targets-off' });
-    else included.push({ p, value, values });
+    else {
+      included.push({ p, value, values });
+      noPrice.forEach(symbol => {
+        let u = unpriced.find(x => x.symbol === symbol);
+        if (!u) { u = { symbol, heldIn: [] }; unpriced.push(u); }
+        u.heldIn.push({ id: p.id, name: displayName(p) });
+      });
+    }
   });
 
   const total = included.reduce((sum, x) => sum + x.value, 0);
@@ -101,7 +113,12 @@ export function combinePortfolios(portfolios: Portfolio[], prices: PriceMap): Co
     portfolios: included.map(({ p, value }) => ({ id: p.id, name: displayName(p), value, share: total > 0 ? (value / total) * 100 : 0 }))
       .sort((a, b) => b.value - a.value),
     excluded,
-    behind: funds.filter(f => f.short >= 1 && f.targetedIn.length > 0).sort((a, b) => b.short - a.short).slice(0, 3),
+    // A fund without a price looks empty, not behind: leave it out until it has one
+    behind: funds
+      .filter(f => f.short >= 1 && f.targetedIn.length > 0 && !unpriced.some(u => u.symbol === f.symbol))
+      .sort((a, b) => b.short - a.short)
+      .slice(0, 3),
+    unpriced,
   };
 }
 

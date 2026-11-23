@@ -30,7 +30,7 @@ function PortfolioLinks({ list, onOpen }: { list: Array<{ id: string; name: stri
  * combined split against the combined target. Read-only; trades stay per portfolio.
  */
 export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
-  const { total, funds, portfolios, excluded, behind } = combined;
+  const { total, funds, portfolios, excluded, behind, unpriced } = combined;
   const withTarget = funds.filter(f => f.targetPct > 0.005);
   const withValue = funds.filter(f => f.value > 0.005);
 
@@ -65,10 +65,12 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
       <section className={`${styles.card} ${styles.mix}`} aria-label="All portfolios">
         <div className={styles.cardHead}>
           <div className={styles.titleBlock}>
-            <h2 className={styles.cardTitle}>All portfolios</h2>
+            <div className={styles.titleRow}>
+              <h2 className={styles.cardTitle}>All portfolios</h2>
+              <span className={styles.cardSum}>{money(total)}</span>
+            </div>
             <span className={styles.cardSub}>Targets are each portfolio's targets, weighted by its value.</span>
           </div>
-          <span className={`${styles.cardSum} ${styles.pushRight}`}>{money(total)}</span>
         </div>
 
         <div className={styles.barLabel}>Target</div>
@@ -93,7 +95,9 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
             <span className={styles.num}><span className={styles.phoneLabel}>Target </span>{pct1(f.targetPct)}</span>
             <span className={styles.num}><span className={styles.phoneLabel}>Now </span>{pct1(f.nowPct)}</span>
             <span className={`${styles.num} ${Math.abs(f.drift) >= 5 ? styles.driftBig : styles.driftSmall}`}>{drift(f.drift)}</span>
-            <span className={`${styles.num} ${styles.combinedValue}`}>{money(f.value)}</span>
+            <span className={`${styles.num} ${styles.combinedValue}`}>
+              {unpriced.some(u => u.symbol === f.symbol) && f.value < 0.005 ? <span className={styles.noPrice}>no price</span> : money(f.value)}
+            </span>
           </div>
         ))}
 
@@ -111,6 +115,15 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
           </div>
         ))}
 
+        {unpriced.length > 0 && (
+          <div className={styles.mixFoot}>
+            {unpriced.map(u => (
+              <span key={u.symbol}>
+                No price for {u.symbol}, so it counts as $0. Add one in <PortfolioLinks list={u.heldIn} onOpen={onOpen} />.
+              </span>
+            ))}
+          </div>
+        )}
         <div className={styles.mixFoot}>
           {excluded.length > 0
             ? <span>Not included: {excluded.map(e => `${e.name}, ${reasonText[e.reason]}`).join('; ')}.</span>
