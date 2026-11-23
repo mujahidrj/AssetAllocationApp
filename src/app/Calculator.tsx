@@ -403,32 +403,42 @@ export function Calculator() {
   useEffect(() => {
     const el = copyRef.current;
     if (!hasCopy || !el || typeof IntersectionObserver !== 'function') { setCopyPassed(false); return; }
+    // The top 65px are where the bar sits: hand back to the real button as it comes out from under it
     const observer = new IntersectionObserver(([entry]) => {
-      setCopyPassed(!entry.isIntersecting && entry.boundingClientRect.bottom < 0);
-    });
+      setCopyPassed(!entry.isIntersecting && entry.boundingClientRect.bottom < (entry.rootBounds?.top ?? 0));
+    }, { rootMargin: '-65px 0px 0px 0px' });
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasCopy]);
   useEffect(() => {
     setScrollingUp(false);
-    if (!copyPassed) return;
+    if (!copyPassed || !ok) return;
     let last = window.scrollY;
+    let height = document.documentElement.scrollHeight;
     const onScroll = () => {
       const y = window.scrollY;
+      const h = document.documentElement.scrollHeight;
+      // The page grew or shrank (a fund removed, a note shown) and the browser moved the
+      // scroll to match: that isn't the person scrolling
+      if (h !== height) { height = h; last = y; return; }
       if (Math.abs(y - last) < 8) return; // a nudge isn't a direction
       setScrollingUp(y < last);
       last = y;
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, [copyPassed]);
+  }, [copyPassed, ok]);
   const recapOn = hasCopy && ok && copyPassed;
   const backToTop = () => window.scrollTo?.({ top: 0, behavior: 'smooth' });
   const editAmount = () => {
     document.querySelector<HTMLInputElement>('input[aria-label="Amount"]')?.focus({ preventScroll: true });
     backToTop();
   };
-  const editPortfolio = () => { backToTop(); setMenu('list'); };
+  const editPortfolio = () => {
+    blankRef.current?.focus({ preventScroll: true }); // the bar goes away, so focus has to land somewhere
+    backToTop();
+    setMenu('list');
+  };
 
   return (
     <div className={styles.page}>
@@ -633,7 +643,7 @@ export function Calculator() {
       </main>
 
       {recapOn && (
-        <div className={`${styles.recap} ${scrollingUp ? styles.recapShown : ''}`} aria-hidden={!scrollingUp}>
+        <div className={`${styles.recap} ${scrollingUp ? styles.recapShown : ''}`} aria-hidden={!scrollingUp} data-testid="recap">
           <div className={styles.recapInner}>
             <p className={styles.recapText}>
               {effectiveVerb === 'add' ? 'Adding' : effectiveVerb === 'out' ? 'Taking out' : 'Rebalancing'}{' '}

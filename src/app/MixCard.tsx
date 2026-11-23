@@ -134,6 +134,8 @@ export function MixCard(props: MixCardProps) {
   const [shareFallback, setShareFallback] = useState<string | null>(null);
   const shareTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => () => clearTimeout(shareTimer.current), []);
+  // A link that couldn't be copied is out of date once the targets (or the portfolio) change
+  useEffect(() => { setShareFallback(null); }, [funds]);
 
   const share = async () => {
     const failedLink = await onShare();

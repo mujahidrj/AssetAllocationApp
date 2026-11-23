@@ -150,7 +150,8 @@
 
 .avatarButton:hover .avatar,
 .avatarButton[aria-expanded='true'] .avatar {
-  border: 2px solid var(--text);
+  border-color: var(--text);
+  box-shadow: 0 0 0 1px var(--text);
 }
 
 /* Something didn't save: the only sign of it on a phone, besides the message */
@@ -170,7 +171,7 @@
 .accountPanel {
   position: absolute;
   top: calc(100% - 4px);
-  right: 28px;
+  right: 32px;
   z-index: 45;
   box-sizing: border-box;
   width: 320px;
@@ -1788,6 +1789,7 @@
 
   .signIn {
     height: 44px;
+    margin-right: 10px;
   }
 
   .sheetBackdrop {

@@ -10,13 +10,12 @@ const CHOICES: Array<{ value: ThemePref; label: string }> = [
 /** Device / Light / Dark, as three buttons that read as one control. */
 export function Appearance({ pref, onPref }: { pref: ThemePref; onPref: (pref: ThemePref) => void }) {
   return (
-    <span role="radiogroup" aria-label="Appearance" className={styles.segmented}>
+    <span role="group" aria-label="Appearance" className={styles.segmented}>
       {CHOICES.map(c => (
         <button
           key={c.value}
           type="button"
-          role="radio"
-          aria-checked={pref === c.value}
+          aria-pressed={pref === c.value}
           className={`${styles.segment} ${pref === c.value ? styles.segmentOn : ''}`}
           onClick={() => onPref(c.value)}
         >

@@ -159,15 +159,15 @@ describe('Calculator', () => {
     renderApp();
     expect(document.documentElement.dataset.theme).toBe('light');
 
-    const appearance = screen.getByRole('radiogroup', { name: 'Appearance' });
-    expect(within(appearance).getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
+    const appearance = screen.getByRole('group', { name: 'Appearance' });
+    expect(within(appearance).getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true');
 
-    await user.click(within(appearance).getByRole('radio', { name: 'Dark' }));
+    await user.click(within(appearance).getByRole('button', { name: 'Dark' }));
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(window.localStorage.getItem('assetAllocation.theme')).toBe('dark');
 
     // Back to the device's setting (light here): nothing is remembered
-    await user.click(within(appearance).getByRole('radio', { name: 'Device' }));
+    await user.click(within(appearance).getByRole('button', { name: 'Device' }));
     expect(document.documentElement.dataset.theme).toBe('light');
     expect(window.localStorage.getItem('assetAllocation.theme')).toBeNull();
   });
@@ -224,6 +224,7 @@ describe('Calculator', () => {
       Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
       fireEvent.scroll(window);
     };
+    const setPageHeight = (h: number) => Object.defineProperty(document.documentElement, 'scrollHeight', { value: h, configurable: true });
     try {
       seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
       const user = userEvent.setup();
@@ -233,15 +234,27 @@ describe('Calculator', () => {
       await screen.findByText('5.0000 shares');
       const copyButtons = () => screen.queryAllByRole('button', { name: /copy 1 buy · \$500\.00/i });
       expect(copyButtons()).toHaveLength(0); // the phone's pinned bar is hidden at this width
+      expect(screen.queryByTestId('recap')).not.toBeInTheDocument();
 
-      // The Copy button scrolls up out of view; scrolling further down keeps the bar away
+      // The Copy button scrolls up out of view; scrolling further down keeps the bar tucked away
+      setPageHeight(3000);
       act(() => report({ isIntersecting: false, boundingClientRect: { bottom: -40 } }));
       scrollTo(900);
-      expect(screen.queryByRole('button', { name: 'Change the portfolio, Roth IRA' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'true');
 
-      // Scrolling back up brings it in
-      scrollTo(820);
-      expect(screen.getByRole('button', { name: 'Change the amount, $500' })).toBeInTheDocument();
+      // The page getting shorter moves the scroll up by itself: that isn't scrolling up
+      setPageHeight(2600);
+      scrollTo(700);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'true');
+
+      // Scrolling back up brings it in; scrolling down tucks it away again
+      scrollTo(620);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'false');
+      scrollTo(800);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'true');
+      scrollTo(700);
+      expect(screen.getByTestId('recap')).toHaveAttribute('aria-hidden', 'false');
+
       expect(copyButtons()).toHaveLength(1);
       await user.click(copyButtons()[0]);
       expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining('Buy VTI  $500.00'));
@@ -251,12 +264,13 @@ describe('Calculator', () => {
       await user.click(screen.getByRole('button', { name: 'Change the portfolio, Roth IRA' }));
       expect(screen.getByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
 
-      // Back at the top, the bar goes
+      // Once the Copy button is back in view, the bar goes
       act(() => report({ isIntersecting: true, boundingClientRect: { bottom: 300 } }));
-      expect(screen.queryByRole('button', { name: 'Change the amount, $500' })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('recap')).not.toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
       Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      Reflect.deleteProperty(document.documentElement, 'scrollHeight');
     }
   });
 

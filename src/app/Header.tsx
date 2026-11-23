@@ -47,6 +47,7 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
   const firstName = user?.displayName?.split(' ')[0] || user?.email || 'Signed in';
   const initial = firstName.charAt(0).toUpperCase();
   const photo = user?.photoURL && !photoFailed ? user.photoURL : null;
+  useEffect(() => { setPhotoFailed(false); }, [user?.photoURL]);
 
   // Closes on a click outside or Escape; Escape puts focus back on the button
   useEffect(() => {
@@ -125,6 +126,11 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
               aria-label={user ? 'Account' : 'Sign in'}
               tabIndex={-1}
               className={styles.accountPanel}
+              onBlur={e => {
+                // Tabbing out of the panel closes it (clicks are handled above)
+                const next = e.relatedTarget as Node | null;
+                if (next && !panel.current?.contains(next) && !trigger.current?.contains(next)) close();
+              }}
             >
               {user ? (
                 <>
@@ -141,7 +147,7 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
                   <div className={styles.accountRule} />
                   <button type="button" className={styles.accountSignOut} onClick={() => { close(); onSignOut(); }}>
                     <span>Sign out</span>
-                    <span className={styles.accountNote}>This device goes back to what it had before you signed in.</span>
+                    <span className={styles.accountNote}>This device goes back to the portfolios it had before you signed in.</span>
                   </button>
                 </>
               ) : (

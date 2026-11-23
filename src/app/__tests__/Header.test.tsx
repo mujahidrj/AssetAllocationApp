@@ -32,7 +32,7 @@ describe('Header', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     const panel = screen.getByRole('dialog', { name: 'Sign in' });
     expect(within(panel).getByText('Your portfolios are on this device')).toBeInTheDocument();
-    await user.click(within(panel).getByRole('radio', { name: 'Dark' }));
+    await user.click(within(panel).getByRole('button', { name: 'Dark' }));
     expect(props.onThemePref).toHaveBeenCalledWith('dark');
 
     await user.click(within(panel).getByRole('button', { name: 'Sign in with Google' }));
@@ -53,7 +53,7 @@ describe('Header', () => {
     expect(within(panel).getByText('Mujahid Rahman')).toBeInTheDocument();
     expect(within(panel).getByText('mujahid@example.com')).toBeInTheDocument();
     expect(within(panel).getByText('Your portfolios sync across your devices')).toBeInTheDocument();
-    expect(within(panel).getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
+    expect(within(panel).getByRole('button', { name: 'Light' })).toHaveAttribute('aria-pressed', 'true');
 
     await user.click(within(panel).getByRole('button', { name: /sign out.*before you signed in/i }));
     expect(props.onSignOut).toHaveBeenCalled();
@@ -68,6 +68,17 @@ describe('Header', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(avatar).toHaveFocus();
+  });
+
+  it('stays open for clicks inside, and closes for a click outside', async () => {
+    const user = userEvent.setup();
+    renderHeader({ user: mujahid, savedTo: 'account' });
+    await user.click(screen.getByRole('button', { name: /^Mujahid:/ }));
+    const panel = screen.getByRole('dialog', { name: 'Account' });
+    await user.click(within(panel).getByText('Mujahid Rahman'));
+    expect(screen.getByRole('dialog', { name: 'Account' })).toBeInTheDocument();
+    await user.click(document.body);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('flags a failed save, on the avatar too, with a way to try again', async () => {
