@@ -69,10 +69,10 @@ describe('Calculator', () => {
     expect(within(trades).getByText(/SPUS · already 57\.9%, target 50%/)).toBeInTheDocument();
     expect(within(trades).queryByText(/would still be/)).not.toBeInTheDocument();
 
-    // $500 leaves SPUS well over target: offered, not done
+    // $500 leaves SPUS well over (and SPTE well under) target: offered, not done
     await user.clear(amount);
     await user.type(amount, '500');
-    expect(await within(trades).findByText(/SPUS would still be at 56\.6% after this\. Target is 50%\./)).toBeInTheDocument();
+    expect(await within(trades).findByText(/SPUS and SPTE would still be off target after this\./)).toBeInTheDocument();
     expect(within(trades).queryByText('−$1,450.00')).not.toBeInTheDocument();
 
     await user.click(within(trades).getByRole('button', { name: 'Sell some to fix it' }));
@@ -99,14 +99,15 @@ describe('Calculator', () => {
     expect(within(trades).getByRole('button', { name: 'Sell some to fix it' })).toBeInTheDocument();
   });
 
-  it('skips the tax note for portfolios named like retirement accounts, and summarises several funds', async () => {
+  it('skips the tax note for retirement accounts, and names a single fund that would stay off', async () => {
     seed({
       name: 'Roth IRA',
-      funds: [{ symbol: 'SPUS', target: 40 }, { symbol: 'SPTE', target: 40 }, { symbol: 'SPWO', target: 20 }],
+      funds: [{ symbol: 'SPUS', target: 40 }, { symbol: 'SPTE', target: 20 }, { symbol: 'SPWO', target: 20 }, { symbol: 'SPSK', target: 20 }],
       holdings: {
-        SPUS: { kind: 'dollars', amount: 6000 },
-        SPTE: { kind: 'dollars', amount: 3000 },
-        SPWO: { kind: 'dollars', amount: 1000 },
+        SPUS: { kind: 'dollars', amount: 5000 },
+        SPTE: { kind: 'dollars', amount: 1667 },
+        SPWO: { kind: 'dollars', amount: 1667 },
+        SPSK: { kind: 'dollars', amount: 1666 },
       },
       tracksHoldings: true,
       sell: true,
@@ -115,11 +116,11 @@ describe('Calculator', () => {
     renderApp();
     await user.type(screen.getByLabelText('Amount'), '100');
     const trades = screen.getByRole('region', { name: /your trades/i });
-    expect(await within(trades).findByText(/Selling \$1,960\.00 of SPUS so everything lands on target\./)).toBeInTheDocument();
+    expect(await within(trades).findByText(/Selling \$960\.00 of SPUS so everything lands on target\./)).toBeInTheDocument();
     expect(within(trades).queryByText(/taxable account/)).not.toBeInTheDocument();
 
     await user.click(within(trades).getByRole('button', { name: 'Only buy' }));
-    expect(within(trades).getByText(/3 funds would still be off target after this\./)).toBeInTheDocument();
+    expect(within(trades).getByText(/SPUS would still be at 49\.5% after this\. Target is 40%\./)).toBeInTheDocument();
   });
 
   it('offers quick fixes when targets do not add up', async () => {
