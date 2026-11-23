@@ -43,7 +43,10 @@
   font-weight: 600;
   font-size: 17px;
   flex-grow: 1;
+  min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .saved {
@@ -1187,5 +1190,21 @@
     height: 52px;
     justify-content: center;
     font-size: 16px;
+  }
+}
+
+/* Small phones (iPhone SE and narrower): shorter title so the header fits */
+@media (max-width: 400px) {
+  .wordmarkLead {
+    display: none;
+  }
+
+  .main {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .sentence {
+    font-size: 24px;
   }
 }

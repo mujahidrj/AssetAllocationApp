@@ -63,7 +63,7 @@ export function Header({ user, savedTo, saveState, onSignIn, onSignOut, theme, o
   return (
     <header className={styles.header}>
       <div className={styles.headerInner}>
-        <span className={styles.wordmark}>Asset Allocation Calculator</span>
+        <span className={styles.wordmark}><span className={styles.wordmarkLead}>Asset </span>Allocation Calculator</span>
         <span className={`${styles.saved} ${saveState === 'error' ? styles.savedError : ''}`} role="status">{savedText}</span>
 
         <button type="button" className={`${styles.ghost} ${styles.desktopOnly}`} onClick={share} disabled={!canShare}>
