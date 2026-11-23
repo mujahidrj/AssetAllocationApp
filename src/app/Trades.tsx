@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import styles from './Calculator.module.css';
 import { CopyIcon } from './icons';
 import { money, pct1, priceDate, priceTime } from './format';
@@ -71,10 +72,12 @@ interface TradesProps {
   onRetirement: () => void;
   onEnterHoldings: () => void;
   onImport: () => void;
+  /** On the Copy and CSV buttons, so the page can tell when they've scrolled away. */
+  copyRef?: Ref<HTMLSpanElement>;
 }
 
 export function Trades(props: TradesProps) {
-  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, sellChoice, onSell, onRetirement } = props;
+  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, sellChoice, onSell, onRetirement, copyRef } = props;
   const ok = plan.status === 'ok';
   const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
   const when = priceTime(asOf);
@@ -94,7 +97,7 @@ export function Trades(props: TradesProps) {
         <h2 className={styles.cardTitle}>{title}</h2>
         <span className={styles.cardSum}>{ok ? tradeSum(plan) : ''}</span>
         {plan.status !== 'needs-mix' && (
-          <span className={styles.tradeHeadActions}>
+          <span ref={copyRef} className={styles.tradeHeadActions}>
             <button type="button" className={styles.primary} onClick={onCopy} disabled={!ok}>
               <CopyIcon />{copied ? 'Copied' : 'Copy trades'}
             </button>

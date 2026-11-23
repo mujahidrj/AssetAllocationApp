@@ -8,6 +8,7 @@ import { parseBrokerCsv, type ImportResult } from './brokerImport';
 import { combinePortfolios } from './combined';
 import { CombinedView } from './CombinedView';
 import { formatAmountInput, money } from './format';
+import { Appearance } from './Appearance';
 import { Header } from './Header';
 import { CloseIcon, CopyIcon } from './icons';
 import { ImportDialog, type ImportChoice, type ImportProblem } from './ImportDialog';
@@ -392,6 +393,43 @@ export function Calculator() {
 
   const naming = namingId === portfolio.id && !showingAll;
 
+  /* ---------- Recap bar (desktop) ---------- */
+  // Once the Copy button has scrolled up out of view, a slim bar repeats the sentence and the
+  // copy button. It tucks away while scrolling down and comes back on the way up.
+  const copyRef = useRef<HTMLSpanElement>(null);
+  const [copyPassed, setCopyPassed] = useState(false);
+  const [scrollingUp, setScrollingUp] = useState(false);
+  const hasCopy = !showingAll && plan.status !== 'needs-mix';
+  useEffect(() => {
+    const el = copyRef.current;
+    if (!hasCopy || !el || typeof IntersectionObserver !== 'function') { setCopyPassed(false); return; }
+    const observer = new IntersectionObserver(([entry]) => {
+      setCopyPassed(!entry.isIntersecting && entry.boundingClientRect.bottom < 0);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasCopy]);
+  useEffect(() => {
+    setScrollingUp(false);
+    if (!copyPassed) return;
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (Math.abs(y - last) < 8) return; // a nudge isn't a direction
+      setScrollingUp(y < last);
+      last = y;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [copyPassed]);
+  const recapOn = hasCopy && ok && copyPassed;
+  const backToTop = () => window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  const editAmount = () => {
+    document.querySelector<HTMLInputElement>('input[aria-label="Amount"]')?.focus({ preventScroll: true });
+    backToTop();
+  };
+  const editPortfolio = () => { backToTop(); setMenu('list'); };
+
   return (
     <div className={styles.page}>
       <Header
@@ -402,10 +440,9 @@ export function Calculator() {
         deviceSaveFailed={deviceSaveFailed}
         onSignIn={() => { void signInWithGoogle(); }}
         onSignOut={() => { void signOut(); }}
-        theme={theme.mode}
-        onToggleTheme={theme.toggle}
-        onShare={share}
-        canShare={targetsOk && !showingAll}
+        onRetry={loadFailed ? retryLoad : retrySave}
+        themePref={theme.pref}
+        onThemePref={theme.setPref}
       />
 
       <main className={styles.main}>
@@ -534,6 +571,7 @@ export function Calculator() {
               onRebalance={rebalance}
               onEnterHoldings={focusHoldings}
               onImport={() => fileInput.current?.click()}
+              copyRef={copyRef}
             />
 
             {(funds.length > 0 || searchOpen) && (
@@ -565,6 +603,8 @@ export function Calculator() {
                 onSetPrice={priceActions.setManualPrice}
                 offTarget={effectiveVerb === 'rebal' ? null : offNow}
                 onRebalance={rebalance}
+                onShare={share}
+                canShare={targetsOk}
               />
             )}
           </>
@@ -583,8 +623,38 @@ export function Calculator() {
           }}
         />
 
-        <p className={styles.footnote}>A calculator, not financial advice.</p>
+        <footer className={styles.footer}>
+          <p className={styles.footnote}>A calculator, not financial advice.</p>
+          <div className={styles.footerAppearance}>
+            <span>Appearance</span>
+            <Appearance pref={theme.pref} onPref={theme.setPref} />
+          </div>
+        </footer>
       </main>
+
+      {recapOn && (
+        <div className={`${styles.recap} ${scrollingUp ? styles.recapShown : ''}`} aria-hidden={!scrollingUp}>
+          <div className={styles.recapInner}>
+            <p className={styles.recapText}>
+              {effectiveVerb === 'add' ? 'Adding' : effectiveVerb === 'out' ? 'Taking out' : 'Rebalancing'}{' '}
+              {effectiveVerb !== 'rebal' && (
+                <>
+                  <button type="button" className={styles.recapBlank} onClick={editAmount} aria-label={`Change the amount, $${formatAmountInput(safeAmount)}`}>
+                    ${formatAmountInput(safeAmount)}
+                  </button>
+                  {effectiveVerb === 'out' ? ' from ' : ' to '}
+                </>
+              )}
+              <button type="button" className={styles.recapBlank} onClick={editPortfolio} aria-label={`Change the portfolio, ${displayName(portfolio)}`}>
+                {displayName(portfolio)}
+              </button>
+            </p>
+            <button type="button" className={styles.primary} onClick={copyTrades}>
+              <CopyIcon />{copyBarLabel}
+            </button>
+          </div>
+        </div>
+      )}
 
       {importing && (
         <ImportDialog
