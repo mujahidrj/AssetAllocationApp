@@ -15,6 +15,8 @@ interface HeaderProps {
   user: User | null;
   savedTo: 'device' | 'account';
   saveState: SaveState;
+  /** Signed in but the saved portfolios couldn't be read. */
+  loadFailed?: boolean;
   onSignIn: () => void;
   onSignOut: () => void;
   theme: ThemeMode;
@@ -24,7 +26,7 @@ interface HeaderProps {
   canShare: boolean;
 }
 
-export function Header({ user, savedTo, saveState, onSignIn, onSignOut, theme, onTheme, onShare, canShare }: HeaderProps) {
+export function Header({ user, savedTo, saveState, loadFailed, onSignIn, onSignOut, theme, onTheme, onShare, canShare }: HeaderProps) {
   const [shared, setShared] = useState(false);
   const [fallback, setFallback] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
@@ -55,7 +57,8 @@ export function Header({ user, savedTo, saveState, onSignIn, onSignOut, theme, o
     savedTo === 'device' ? 'Saved on this device'
       : saveState === 'loading' ? 'Loading…'
       : saveState === 'saving' ? 'Saving…'
-      : saveState === 'error' ? "Couldn't save. Check your connection."
+      : loadFailed ? 'Not synced'
+      : saveState === 'error' ? 'Not saved'
       : 'Saved to your account';
 
   const firstName = user?.displayName?.split(' ')[0] ?? user?.email ?? 'Signed in';

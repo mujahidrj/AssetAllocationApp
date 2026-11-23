@@ -116,4 +116,82 @@ describe('makePlan', () => {
     expect(holdingDollars('XYZ', { kind: 'shares', amount: 10 }, {})).toBe(0);
     expect(holdingDollars('CASH', { kind: 'shares', amount: 10 }, {})).toBe(10);
   });
+
+  it('never leaves cash over with fractional shares', () => {
+    const plan = makePlan({ ...base, holdings, tracksHoldings: true, sell: true });
+    expect(plan.leftover).toBe(0);
+    expect(plan.shortOfShare).toEqual([]);
+  });
+});
+
+describe('makePlan with whole shares', () => {
+  const whole = (input: Partial<PlanInput>) => {
+    const plan = makePlan({ ...base, wholeShares: true, ...input });
+    return { plan, trades: plan.trades.map(t => [t.action, t.symbol, t.shares, t.dollars]) };
+  };
+
+  it('rounds buys down, then spends what is left on whoever is furthest behind', () => {
+    const { plan, trades } = whole({});
+    // 24.2 / 26.9 / 9.5 shares round down to 24 / 26 / 9; the $59 left buys one more SPTE
+    expect(trades).toEqual([['buy', 'SPUS', 24, 1238.88], ['buy', 'SPTE', 27, 1003.32], ['buy', 'SPWO', 9, 235.98]]);
+    expect(plan.net).toBe(2478.18);
+    expect(plan.leftover).toBe(21.82);
+    expect(plan.leftover).toBeLessThan(prices.SPWO);
+  });
+
+  it('works with holdings, buying only what is behind', () => {
+    const { plan, trades } = whole({ holdings, tracksHoldings: true });
+    expect(trades).toEqual([['buy', 'SPTE', 60, 2229.6], ['buy', 'SPWO', 10, 262.2]]);
+    expect(plan.leftover).toBe(8.2);
+  });
+
+  it('rounds sells up so the buys are always covered', () => {
+    const { plan, trades } = whole({ holdings, tracksHoldings: true, sell: true });
+    expect(trades).toEqual([['sell', 'SPUS', 9, 464.58], ['buy', 'SPTE', 72, 2675.52], ['buy', 'SPWO', 11, 288.42]]);
+    expect(plan.leftover).toBe(0.64);
+  });
+
+  it('raises at least the amount asked for when taking money out', () => {
+    const { plan, trades } = whole({ holdings, tracksHoldings: true, verb: 'out', amount: 1500 });
+    expect(trades).toEqual([['sell', 'SPUS', 28, 1445.36], ['sell', 'SPWO', 3, 78.66]]);
+    expect(-plan.net).toBeGreaterThanOrEqual(1500);
+    expect(plan.leftover).toBe(24.02);
+  });
+
+  it('rebalances with whole shares, keeping the change as cash', () => {
+    const { plan, trades } = whole({ holdings, tracksHoldings: true, verb: 'rebal' });
+    expect(trades).toEqual([['sell', 'SPUS', 33, 1703.46], ['buy', 'SPTE', 45, 1672.2], ['buy', 'SPWO', 1, 26.22]]);
+    expect(plan.leftover).toBe(5.04);
+  });
+
+  it('never sells more than you own', () => {
+    const { trades } = whole({
+      funds: [{ symbol: 'SPUS', target: 0 }, { symbol: 'SPTE', target: 100 }],
+      holdings: { SPUS: { kind: 'shares', amount: 2.5 }, SPTE: { kind: 'shares', amount: 1 } },
+      tracksHoldings: true,
+      verb: 'rebal',
+    });
+    expect(trades[0]).toEqual(['sell', 'SPUS', 2.5, 129.05]);
+  });
+
+  it('says when the amount is too small for a single share', () => {
+    const { plan } = whole({ amount: 20 });
+    expect(plan.status).toBe('short-of-share');
+    expect(plan.leftover).toBe(20);
+    expect(plan.shortOfShare.map(s => s.symbol)).toEqual(['SPUS', 'SPTE', 'SPWO']);
+  });
+
+  it('lists funds that missed out on a share next to the ones that got one', () => {
+    const { plan, trades } = whole({ amount: 60 });
+    expect(trades).toEqual([['buy', 'SPUS', 1, 51.62]]);
+    expect(plan.leftover).toBe(8.38);
+    expect(plan.shortOfShare.map(s => s.symbol)).toEqual(['SPTE', 'SPWO']);
+  });
+
+  it('keeps cash and unpriced funds in exact dollars', () => {
+    const cash = whole({ funds: [{ symbol: 'SPUS', target: 98 }, { symbol: 'CASH', target: 2 }] });
+    expect(cash.trades).toEqual([['buy', 'SPUS', 47, 2426.14], ['buy', 'CASH', 50, 50]]);
+    const unpriced = whole({ prices: { SPUS: 51.62, SPTE: null, SPWO: 26.22 } });
+    expect(unpriced.trades[1]).toEqual(['buy', 'SPTE', null, 1000]);
+  });
 });

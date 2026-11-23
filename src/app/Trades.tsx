@@ -1,15 +1,16 @@
 import styles from './Calculator.module.css';
 import { CopyIcon } from './icons';
-import { money, pct1, priceTime, shares as fmtShares } from './format';
-import { tradeSum, tradeTitle } from './tradeText';
-import type { Fund } from './model';
-import { shortName } from './model';
+import { money, pct1, priceDate, priceTime } from './format';
+import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
+import type { Fund, ManualPrice, Verb } from './model';
+import { isCashSymbol, shortName } from './model';
 import type { Plan } from './plan';
 import { MixPicker } from './MixPicker';
 
 interface TradesProps {
   plan: Plan;
   funds: Fund[];
+  verb: Verb;
   colorOf: (symbol: string) => string;
   asOf: string | null;
   pricesLoading: boolean;
@@ -19,17 +20,29 @@ interface TradesProps {
   onCsv: () => void;
   onPickMix: (funds: Fund[], templateId: string) => void;
   onBuildOwn: () => void;
+  wholeShares: boolean;
+  onWholeShares: (whole: boolean) => void;
+  /** Typed prices in use, by symbol. */
+  manualPrices: Record<string, ManualPrice>;
+  onAddPrice: (symbol: string) => void;
+  /** The trades as text, shown when copying didn't work. */
+  textFallback: string | null;
+  onCloseText: () => void;
 }
 
-export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn }: TradesProps) {
+export function Trades(props: TradesProps) {
+  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText } = props;
   const ok = plan.status === 'ok';
   const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
   const when = priceTime(asOf);
+  const typed = Object.entries(manualPrices).filter(([s]) => funds.some(f => f.symbol === s) || plan.trades.some(t => t.symbol === s));
+  const cheapest = cheapestShort(plan.shortOfShare);
 
   const title =
     ok ? tradeTitle(plan.trades)
       : plan.status === 'targets-off' ? 'Targets need to add up to 100%'
       : plan.status === 'needs-mix' ? 'Pick a starting point'
+      : plan.status === 'short-of-share' ? 'Not enough for one share'
       : 'Your trades';
 
   return (
@@ -66,6 +79,15 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
       {plan.status === 'nothing-to-do' && (
         <div className={styles.empty}><p>Everything is already on target. Nothing to buy or sell.</p></div>
       )}
+      {plan.status === 'short-of-share' && (
+        <div className={styles.empty}>
+          <p>
+            {money(plan.leftover)} won't buy a whole share of anything behind target.
+            {cheapest && <> Cheapest is {cheapest.symbol} at {money(cheapest.price)}.</>}{' '}
+            <button type="button" className={styles.linkButton} onClick={() => onWholeShares(false)}>Use fractional shares</button>
+          </p>
+        </div>
+      )}
 
       {ok && (
         <div>
@@ -82,7 +104,11 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
                   </div>
                 </div>
                 <span className={styles.tradeShares}>
-                  {t.shares != null ? `${fmtShares(t.shares)} shares` : pricesLoading ? '…' : 'no price'}
+                  {isCashSymbol(t.symbol) ? 'cash'
+                    : t.shares != null ? sharesText(t.shares, wholeShares)
+                    : pricesLoading ? '…'
+                    : fund ? <button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add a price to see shares</button>
+                    : 'no price'}
                 </span>
                 <span className={styles.tradeAmount}>{t.action === 'sell' ? money(-t.dollars) : money(t.dollars)}</span>
               </div>
@@ -94,6 +120,31 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
               {s.symbol} · already {pct1(s.nowPct)}, target {+s.targetPct.toFixed(2)}%
             </div>
           ))}
+          {plan.leftover > 0 && (
+            <div className={styles.leftoverRow}>
+              <div>
+                <div>{verb === 'out' ? 'Extra cash raised' : 'Cash left over'}</div>
+                <div className={styles.fundName}>
+                  {verb === 'out'
+                    ? `Raises ${money(plan.leftover)} more than needed, because shares are whole.`
+                    : plan.shortOfShare.length > 0
+                      ? `Not enough for one share of ${shortList(plan.shortOfShare)}.`
+                      : 'Not enough for one more whole share of anything behind target.'}
+                </div>
+              </div>
+              <span className={styles.tradeAmount}>{money(plan.leftover)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {textFallback != null && (
+        <div className={styles.textFallback}>
+          <label>
+            Select the trades and copy them:
+            <textarea readOnly value={textFallback} rows={Math.min(10, textFallback.split('\n').length + 1)} autoFocus onFocus={e => e.currentTarget.select()} />
+          </label>
+          <button type="button" className={styles.linkButton} onClick={onCloseText}>Done</button>
         </div>
       )}
 
@@ -104,7 +155,19 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
           <span className={styles.footItem}>
             <button type="button" className={styles.linkButton} onClick={onRefresh}>Refresh</button>
           </span>
-          <span className={styles.footItem}>Fractional shares</span>
+          {typed.map(([symbol, m]) => (
+            <span key={symbol} className={styles.footItem}>Your price for {symbol}, {priceDate(m.at)}</span>
+          ))}
+          <span className={styles.footItem}>
+            <span className={styles.footSelect}>
+              {wholeShares ? 'Whole shares' : 'Fractional shares'}
+              <svg viewBox="0 0 12 8" width="9" height="6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1.5 1.5 6 6.5l4.5-5" /></svg>
+              <select aria-label="Shares" value={wholeShares ? 'whole' : 'fractional'} onChange={e => onWholeShares(e.target.value === 'whole')}>
+                <option value="fractional">Fractional shares: exact amounts</option>
+                <option value="whole">Whole shares: for brokers without fractions</option>
+              </select>
+            </span>
+          </span>
           {zeroFunds.length > 0 && <span className={styles.footItem}>{zeroFunds.join(', ')} at 0%, skipped</span>}
         </div>
       )}

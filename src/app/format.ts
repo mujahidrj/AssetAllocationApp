@@ -50,3 +50,14 @@ export function priceTime(iso: string | null | undefined, now: Date = new Date()
   const date = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric' }).format(at);
   return `Last close ${date.replace(',', '')}`;
 }
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/** When a typed price was entered: "Nov 22", plus "(9 days old)" after a week. */
+export function priceDate(iso: string, now: number = Date.now()): string {
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) return '';
+  const date = at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const days = Math.floor((now - at.getTime()) / DAY);
+  return days >= 7 ? `${date} (${days} days old)` : date;
+}

@@ -9,6 +9,8 @@ const mockAuthContext: AuthContextType = {
   loading: false,
   signInWithGoogle: async () => {},
   signOut: async () => {},
+  problem: null,
+  clearProblem: () => {},
 };
 
 export function SimpleWrapper({ children }: { children: ReactNode }) {

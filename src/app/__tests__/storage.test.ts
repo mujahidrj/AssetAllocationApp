@@ -138,3 +138,50 @@ describe('signing in with portfolios built on this device', () => {
     expect(mergeDeviceIntoAccount(two, null).added).toBe(0);
   });
 });
+
+describe('whole shares and typed prices', () => {
+  const withExtras: Workspace = {
+    portfolios: [{ ...roth, wholeShares: true }, taxable],
+    activeId: 'r1',
+    manualPrices: { FXAIX: { price: 190.12, at: '2026-11-22T15:00:00.000Z' } },
+  };
+
+  it('saves them on the device and reads them back', () => {
+    saveDeviceWorkspace(withExtras);
+    expect(loadDeviceWorkspace()).toEqual(withExtras);
+  });
+
+  it('saves them to the account and reads them back', async () => {
+    vi.mocked(setDoc).mockClear();
+    await saveCloudWorkspace('u1', withExtras);
+    const [stocksCall, positionsCall] = vi.mocked(setDoc).mock.calls as unknown as Array<[string, Record<string, unknown>]>;
+    expect(stocksCall[1].manualPrices).toEqual(withExtras.manualPrices);
+    vi.mocked(getDoc).mockImplementation((async (ref: unknown) =>
+      snap(ref === 'userStocks/u1' ? stocksCall[1] : positionsCall[1])) as never);
+    expect(await loadCloudWorkspace('u1')).toEqual(withExtras);
+  });
+
+  it('drops typed prices that are not real prices', () => {
+    window.localStorage.setItem('assetAllocation.portfolios.v3', JSON.stringify({
+      ...two,
+      manualPrices: { A: { price: -1, at: 'x' }, B: { price: 'ten', at: 'x' }, C: { price: 5 }, D: { price: 5, at: '2026-11-22' } },
+    }));
+    expect(loadDeviceWorkspace()?.manualPrices).toEqual({ D: { price: 5, at: '2026-11-22' } });
+  });
+
+  it('keeps the account’s typed prices on sign-in and adds the device’s others', () => {
+    const account: Workspace = { ...two, manualPrices: { A: { price: 1, at: 'acct' } } };
+    const device: Workspace = { ...two, manualPrices: { A: { price: 2, at: 'dev' }, B: { price: 3, at: 'dev' } } };
+    expect(mergeDeviceIntoAccount(account, device).workspace.manualPrices).toEqual({
+      A: { price: 1, at: 'acct' },
+      B: { price: 3, at: 'dev' },
+    });
+  });
+
+  it('reports when the browser will not store anything', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('QuotaExceeded'); });
+    expect(saveDeviceWorkspace(two)).toBe(false);
+    spy.mockRestore();
+    expect(saveDeviceWorkspace(two)).toBe(true);
+  });
+});

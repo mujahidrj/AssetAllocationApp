@@ -44,6 +44,8 @@ interface SentenceProps {
   showSell: boolean;
   sell: boolean;
   onSell: (sell: boolean) => void;
+  /** Showing all portfolios together: "Here are [all my portfolios] together." */
+  all?: boolean;
 }
 
 const AMOUNT_PLACEHOLDER = '2,500';
@@ -54,7 +56,7 @@ const AMOUNT_PLACEHOLDER = '2,500';
  * "I'm adding $2,500 / to my Roth IRA / without selling."
  */
 export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Sentence(props, portfolioRef) {
-  const { verb, onVerb, canRebalance, amount, onAmount, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, showSell, sell, onSell } = props;
+  const { verb, onVerb, canRebalance, amount, onAmount, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, showSell, sell, onSell, all } = props;
   const hasAmount = verb !== 'rebal';
 
   const verbOptions: Array<{ value: Verb; label: string }> = [
@@ -87,6 +89,15 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
       ]}
     />
   );
+
+  if (all) {
+    return (
+      <p className={styles.sentence}>
+        <span className={styles.keep}>Here are {portfolioBlank}</span>{' '}
+        <span className={styles.keep}>together.</span>
+      </p>
+    );
+  }
 
   return (
     <p className={styles.sentence}>

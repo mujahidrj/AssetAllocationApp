@@ -1,0 +1,11 @@
+﻿Account Number,Account Name,Symbol,Description,Quantity,Last Price,Last Price Change,Current Value,Today's Gain/Loss Dollar,Today's Gain/Loss Percent,Total Gain/Loss Dollar,Total Gain/Loss Percent,Percent Of Account,Cost Basis Total,Average Cost Basis,Type
+237123456,ROTH IRA,SPAXX**,HELD IN MONEY MARKET,,,,$412.55,,,,,3.24%,,,Cash,
+237123456,ROTH IRA,SPUS,SP FUNDS TR S&P 500 SHARIA INDUSTRY EXCLUSIONS ETF,210,$51.62,+$0.12,"$10,840.20",+$25.20,+0.23%,"+$2,100.00",+24.03%,85.00%,"$8,740.20",$41.62,Cash,
+237123456,ROTH IRA,SPWO,SP FUNDS TR WORLD EX US ETF,40.5,$26.22,-$0.04,"$1,061.91",,,,,8.00%,,,Cash,
+237123456,ROTH IRA,Pending Activity,,,,,-$12.00,,,,,,,,,
+X98765432,Individual,FXAIX,FIDELITY 500 INDEX FUND,10.123,$190.12,+$1.23,"$1,924.58",,,,,,,,Cash,
+X98765432,Individual,FDRXX**,HELD IN MONEY MARKET,,,,$100.00,,,,,,,,Cash,
+X98765432,Individual, -SPY261218C500,SPY DEC 18 2026 $500 CALL,1,$5.00,,$500.00,,,,,,,,Margin,
+
+"The data and information in this spreadsheet is provided to you solely for your use and is not for distribution."
+"Date downloaded Nov-22-2026 3:04 p.m ET"

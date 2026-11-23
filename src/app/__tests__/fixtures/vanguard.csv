@@ -1,0 +1,9 @@
+Account Number,Investment Name,Symbol,Shares,Share Price,Total Value,
+12345678,VANGUARD FEDERAL MONEY MARKET FUND,VMFXX,1000.5,1.00,1000.50,
+12345678,VANGUARD TOTAL STOCK MARKET ETF,VTI,20,340.02,6800.40,
+12345678,VANGUARD TOTAL INTL STOCK ETF,VXUS,15.25,68.10,1038.53,
+
+
+
+Account Number,Trade Date,Settlement Date,Transaction Type,Transaction Description,Investment Name,Symbol,Shares,Share Price,Principal Amount,Commissions and Fees,Net Amount,Accrued Interest,Account Type,
+12345678,2026-11-20,2026-11-21,Buy,Buy,VANGUARD TOTAL STOCK MARKET ETF,VTI,1,340.02,-340.02,0,-340.02,0,CASH,

@@ -8,12 +8,21 @@ import {
   nextPortfolioName,
   type Fund,
   type Holding,
+  type ManualPrice,
   type Portfolio,
   type Workspace,
 } from './model';
 import { loadCloudWorkspace, loadDeviceWorkspace, mergeDeviceIntoAccount, saveCloudWorkspace, saveDeviceWorkspace } from './storage';
 
 export type SaveState = 'loading' | 'saved' | 'saving' | 'error';
+
+/** What an import replaced, so it can be undone. */
+export interface HoldingsSnapshot {
+  portfolioId: string;
+  funds: Fund[];
+  holdings: Record<string, Holding>;
+  tracksHoldings: boolean;
+}
 
 export interface RemovedPortfolio {
   portfolio: Portfolio;
@@ -35,7 +44,13 @@ export function usePortfolios(user: User | null) {
   const [workspace, setWorkspace] = useState<Workspace>(() => (uid ? emptyWorkspace() : loadDeviceWorkspace() ?? emptyWorkspace()));
   const [loadedFor, setLoadedFor] = useState<string | null>(uid ? null : DEVICE);
   const [saveState, setSaveState] = useState<SaveState>(uid ? 'loading' : 'saved');
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [deviceSaveFailed, setDeviceSaveFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [saveAttempt, setSaveAttempt] = useState(0);
   const skipNextSave = useRef(true);
+  const workspaceRef = useRef(workspace);
+  useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
 
   // Load whenever the signed-in user changes
   useEffect(() => {
@@ -51,6 +66,7 @@ export function usePortfolios(user: User | null) {
 
     setLoadedFor(null);
     setSaveState('loading');
+    setLoadFailed(false);
     loadCloudWorkspace(uid)
       .then(saved => {
         if (cancelled) return;
@@ -71,11 +87,11 @@ export function usePortfolios(user: User | null) {
       .catch(error => {
         // Leave saving off: writing now could replace data we failed to read
         console.error('Error loading your saved portfolios:', error);
-        if (!cancelled) setSaveState('error');
+        if (!cancelled) { setSaveState('error'); setLoadFailed(true); }
       });
 
     return () => { cancelled = true; };
-  }, [uid]);
+  }, [uid, loadAttempt]);
 
   // Save after changes, once the saved copy has been read
   useEffect(() => {
@@ -87,7 +103,7 @@ export function usePortfolios(user: User | null) {
     }
 
     if (!uid) {
-      saveDeviceWorkspace(workspace);
+      setDeviceSaveFailed(!saveDeviceWorkspace(workspace));
       return;
     }
 
@@ -101,7 +117,7 @@ export function usePortfolios(user: User | null) {
         });
     }, CLOUD_SAVE_DELAY);
     return () => clearTimeout(timer);
-  }, [uid, loadedFor, workspace]);
+  }, [uid, loadedFor, workspace, saveAttempt]);
 
   /** Change the open portfolio. */
   const update = useCallback((change: (p: Portfolio) => Portfolio) =>
@@ -144,6 +160,42 @@ export function usePortfolios(user: User | null) {
     setTracksHoldings: useCallback((tracksHoldings: boolean) => update(p => ({ ...p, tracksHoldings })), [update]),
 
     setSell: useCallback((sell: boolean) => update(p => ({ ...p, sell })), [update]),
+
+    setWholeShares: useCallback((wholeShares: boolean) =>
+      update(p => {
+        const next = { ...p };
+        if (wholeShares) next.wholeShares = true; else delete next.wholeShares;
+        return next;
+      }), [update]),
+
+    /**
+     * Replaces what you own with imported holdings (adding any new funds at 0%) and
+     * turns holdings on. Returns what it replaced, for Undo.
+     */
+    importHoldings: useCallback((holdings: Record<string, Holding>, addFunds: Fund[]): HoldingsSnapshot => {
+      const current = activePortfolio(workspaceRef.current);
+      const snapshot: HoldingsSnapshot = {
+        portfolioId: current.id,
+        funds: current.funds,
+        holdings: current.holdings,
+        tracksHoldings: current.tracksHoldings,
+      };
+      update(p => ({
+        ...p,
+        funds: [...p.funds, ...addFunds.filter(f => !p.funds.some(x => x.symbol === f.symbol)).map(f => ({ ...f, target: 0 }))],
+        holdings: { ...holdings },
+        tracksHoldings: true,
+      }));
+      return snapshot;
+    }, [update]),
+
+    restoreHoldings: useCallback((snap: HoldingsSnapshot) =>
+      setWorkspace(ws => ({
+        ...ws,
+        portfolios: ws.portfolios.map(p => (p.id === snap.portfolioId
+          ? { ...p, funds: snap.funds, holdings: snap.holdings, tracksHoldings: snap.tracksHoldings }
+          : p)),
+      })), []),
 
     /** Scale every target so they add up to 100%, keeping proportions (one decimal). */
     scaleTo100: useCallback(() =>
@@ -228,6 +280,38 @@ export function usePortfolios(user: User | null) {
       }), []),
   };
 
+  const priceActions = {
+    /** Saves (or with null, removes) a typed price for a fund. Every portfolio uses it. */
+    setManualPrice: useCallback((symbol: string, price: number | null) =>
+      setWorkspace(ws => {
+        const manualPrices: Record<string, ManualPrice> = { ...(ws.manualPrices ?? {}) };
+        if (price != null && price > 0) manualPrices[symbol] = { price, at: new Date().toISOString() };
+        else delete manualPrices[symbol];
+        return { ...ws, manualPrices };
+      }), []),
+
+    /** Adds several prices at once (from an import), never replacing ones already typed. */
+    addManualPrices: useCallback((prices: Record<string, number>) =>
+      setWorkspace(ws => {
+        const at = new Date().toISOString();
+        const manualPrices: Record<string, ManualPrice> = { ...(ws.manualPrices ?? {}) };
+        let changed = false;
+        Object.entries(prices).forEach(([symbol, price]) => {
+          if (!manualPrices[symbol] && price > 0) { manualPrices[symbol] = { price, at }; changed = true; }
+        });
+        return changed ? { ...ws, manualPrices } : ws;
+      }), []),
+
+    /** Drops typed prices for funds the lookup can price again: the live price wins. */
+    dropManualPrices: useCallback((symbols: string[]) =>
+      setWorkspace(ws => {
+        if (!ws.manualPrices || !symbols.some(s => ws.manualPrices![s])) return ws;
+        const manualPrices = { ...ws.manualPrices };
+        symbols.forEach(s => { delete manualPrices[s]; });
+        return { ...ws, manualPrices };
+      }), []),
+  };
+
   const active = useMemo(() => activePortfolio(workspace), [workspace]);
 
   return {
@@ -236,7 +320,14 @@ export function usePortfolios(user: User | null) {
     actions,
     portfolioActions,
     saveState,
+    priceActions,
     savedTo: uid ? 'account' as const : 'device' as const,
     ready: loadedFor === (uid ?? DEVICE),
+    /** Signed in, but the saved portfolios couldn't be read; nothing is saved until they are. */
+    loadFailed,
+    retryLoad: useCallback(() => setLoadAttempt(n => n + 1), []),
+    retrySave: useCallback(() => setSaveAttempt(n => n + 1), []),
+    /** Signed out and this browser won't store anything. */
+    deviceSaveFailed,
   };
 }

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import styles from './Calculator.module.css';
 import { CheckIcon, ChevronIcon } from './icons';
 import { displayName, type Fund, type Portfolio } from './model';
+import { money } from './format';
 import { FundList, MixPicker } from './MixPicker';
 import { describeMix } from './templates';
 
@@ -20,6 +21,15 @@ interface PortfolioMenuProps {
   onBuildOwn: () => void;
   /** Open straight on the template list. */
   startOnMix?: boolean;
+  /** "All portfolios" row, shown when there are two or more portfolios. */
+  all?: {
+    /** Portfolios with holdings entered, and their combined value. */
+    count: number;
+    total: number;
+    /** The combined view is what's showing now. */
+    showing: boolean;
+    onShow: () => void;
+  };
 }
 
 /**
@@ -28,7 +38,8 @@ interface PortfolioMenuProps {
  * sheet on phones.
  */
 export function PortfolioMenu(props: PortfolioMenuProps) {
-  const { portfolios, activeId, anchor, onClose, onSwitch, onNew, onDuplicate, onRename, onDelete, onPickMix, onBuildOwn, startOnMix } = props;
+  const { portfolios, activeId, anchor, onClose, onSwitch, onNew, onDuplicate, onRename, onDelete, onPickMix, onBuildOwn, startOnMix, all } = props;
+  const showingAll = all?.showing ?? false;
   const [step, setStep] = useState<'list' | 'mix'>(startOnMix ? 'mix' : 'list');
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState('');
@@ -94,6 +105,27 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
       >
         {step === 'list' ? (
           <>
+            {all && portfolios.length > 1 && (
+              <div className={styles.pickerAll}>
+                <button
+                  type="button"
+                  className={styles.pickerItem}
+                  aria-current={showingAll}
+                  disabled={all.count < 2}
+                  onClick={() => { all.onShow(); onClose(); }}
+                >
+                  <span className={styles.pickerText}>
+                    <span className={styles.pickerLabel}>All portfolios</span>
+                    <span className={styles.pickerNote}>
+                      {all.count < 2
+                        ? 'Add holdings to two portfolios to see them together'
+                        : `${all.count} with holdings · ${money(all.total)}`}
+                    </span>
+                  </span>
+                  <span className={styles.pickerCheck}>{showingAll && <CheckIcon />}</span>
+                </button>
+              </div>
+            )}
             <div className={styles.pickerHeading}>Portfolios</div>
             {portfolios.map(p => (
               p.id === active.id && renaming ? (
@@ -113,21 +145,21 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                   key={p.id}
                   type="button"
                   className={styles.pickerItem}
-                  aria-current={p.id === active.id}
+                  aria-current={!showingAll && p.id === active.id}
                   onClick={() => { onSwitch(p.id); onClose(); }}
                 >
                   <span className={styles.pickerText}>
                     <span className={styles.pickerLabel}>{displayName(p)}</span>
                     <FundList text={describeMix(p.funds) || 'No funds yet'} />
                   </span>
-                  <span className={styles.pickerCheck}>{p.id === active.id && <CheckIcon />}</span>
+                  <span className={styles.pickerCheck}>{!showingAll && p.id === active.id && <CheckIcon />}</span>
                 </button>
               )
             ))}
             <button type="button" className={styles.pickerItem} onClick={() => { onNew(); onClose(); }}>
               <span className={`${styles.pickerLabel} ${styles.pickerAction}`}>+ New portfolio</span>
             </button>
-            <div className={styles.pickerFoot}>
+            {!showingAll && <div className={styles.pickerFoot}>
               <button type="button" className={styles.pickerItem} onClick={() => setStep('mix')}>
                 <span className={styles.pickerLabel}>Use a template…</span>
                 <span className={styles.pickerCheck} style={{ transform: 'rotate(-90deg)' }}><ChevronIcon /></span>
@@ -145,7 +177,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                   <span className={`${styles.pickerLabel} ${styles.pickerDanger}`}>Delete {displayName(active)}</span>
                 </button>
               )}
-            </div>
+            </div>}
           </>
         ) : (
           <>
