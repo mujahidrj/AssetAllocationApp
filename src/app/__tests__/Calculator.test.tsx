@@ -232,7 +232,7 @@ describe('Calculator', () => {
       await user.type(screen.getByLabelText('Amount'), '500');
       await screen.findByText('5.0000 shares');
       const copyButtons = () => screen.queryAllByRole('button', { name: /copy 1 buy · \$500\.00/i });
-      expect(copyButtons()).toHaveLength(1); // the phone's pinned bar
+      expect(copyButtons()).toHaveLength(0); // the phone's pinned bar is hidden at this width
 
       // The Copy button scrolls up out of view; scrolling further down keeps the bar away
       act(() => report({ isIntersecting: false, boundingClientRect: { bottom: -40 } }));
@@ -242,7 +242,7 @@ describe('Calculator', () => {
       // Scrolling back up brings it in
       scrollTo(820);
       expect(screen.getByRole('button', { name: 'Change the amount, $500' })).toBeInTheDocument();
-      expect(copyButtons()).toHaveLength(2);
+      expect(copyButtons()).toHaveLength(1);
       await user.click(copyButtons()[0]);
       expect(writeText).toHaveBeenLastCalledWith(expect.stringContaining('Buy VTI  $500.00'));
 
