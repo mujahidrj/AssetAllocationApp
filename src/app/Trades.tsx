@@ -142,12 +142,13 @@ export function Trades({ plan, funds, colorOf, asOf, pricesLoading, onRefresh, c
 
       {plan.status !== 'needs-mix' && (
         <div className={styles.cardFoot}>
-          <span>{pricesLoading ? 'Updating prices…' : when ?? 'Prices from Yahoo Finance'}</span>
-          {when && !pricesLoading && <span>· Yahoo Finance</span>}
-          <span>·</span>
-          <button type="button" className={styles.linkButton} onClick={onRefresh}>Refresh</button>
-          <span>· Fractional shares</span>
-          {zeroFunds.length > 0 && <span>· {zeroFunds.join(', ')} at 0%, skipped</span>}
+          <span className={styles.footItem}>{pricesLoading ? 'Updating prices…' : when ?? 'Prices from Yahoo Finance'}</span>
+          {when && !pricesLoading && <span className={styles.footItem}>Yahoo Finance</span>}
+          <span className={styles.footItem}>
+            <button type="button" className={styles.linkButton} onClick={onRefresh}>Refresh</button>
+          </span>
+          <span className={styles.footItem}>Fractional shares</span>
+          {zeroFunds.length > 0 && <span className={styles.footItem}>{zeroFunds.join(', ')} at 0%, skipped</span>}
         </div>
       )}
     </section>
