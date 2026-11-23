@@ -169,3 +169,26 @@ export function getBaseTicker(symbol: string): string {
   const dotIndex = symbol.indexOf('.');
   return dotIndex > 0 ? symbol.substring(0, dotIndex) : symbol;
 }
+
+export interface SearchResult {
+  symbol: string;
+  description: string;
+}
+
+/** US listings only, no options or futures, one entry per company (primary ticker first). */
+export function cleanResults(raw: Array<{ symbol?: string; description?: string }>): SearchResult[] {
+  const seen = new Set<string>();
+  const usable = raw
+    .filter((r): r is SearchResult => !!r.symbol && !!r.description)
+    .filter(r => !isOption(r.symbol, r.description) && !isFutures(r.symbol, r.description) && isUSTicker(r.symbol));
+  const ordered = [...usable.filter(r => isPrimaryTicker(r.symbol)), ...usable.filter(r => !isPrimaryTicker(r.symbol))];
+  const out: SearchResult[] = [];
+  ordered.forEach(r => {
+    const base = getBaseTicker(r.symbol);
+    if (!seen.has(base)) {
+      seen.add(base);
+      out.push(r);
+    }
+  });
+  return out.slice(0, 8);
+}

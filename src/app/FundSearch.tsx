@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './Calculator.module.css';
 import { SearchIcon } from './icons';
-import { getBaseTicker, isFutures, isOption, isPrimaryTicker, isUSTicker } from './searchUtils';
+import { cleanResults, type SearchResult as Result } from './searchUtils';
 
-interface Result {
-  symbol: string;
-  description: string;
-}
 
 const DEBOUNCE_MS = 300;
 const MIN_LENGTH = 2;
@@ -14,23 +10,6 @@ const TICKER = /^[A-Z0-9.^-]{1,12}$/;
 
 const apiBase = () => (import.meta.env.DEV ? (import.meta.env.VITE_API_URL ?? '') : '');
 
-/** US listings only, no options or futures, one entry per company (primary ticker first). */
-export function cleanResults(raw: Array<{ symbol?: string; description?: string }>): Result[] {
-  const seen = new Set<string>();
-  const usable = raw
-    .filter((r): r is Result => !!r.symbol && !!r.description)
-    .filter(r => !isOption(r.symbol, r.description) && !isFutures(r.symbol, r.description) && isUSTicker(r.symbol));
-  const ordered = [...usable.filter(r => isPrimaryTicker(r.symbol)), ...usable.filter(r => !isPrimaryTicker(r.symbol))];
-  const out: Result[] = [];
-  ordered.forEach(r => {
-    const base = getBaseTicker(r.symbol);
-    if (!seen.has(base)) {
-      seen.add(base);
-      out.push(r);
-    }
-  });
-  return out.slice(0, 8);
-}
 
 interface FundSearchProps {
   onAdd: (symbol: string, name?: string) => void;
