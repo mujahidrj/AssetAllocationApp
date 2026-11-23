@@ -13,6 +13,7 @@ import {
   type Workspace,
 } from './model';
 import { loadCloudWorkspace, loadDeviceWorkspace, mergeDeviceIntoAccount, saveCloudWorkspace, saveDeviceWorkspace } from './storage';
+import { reportTiming } from '../lib/timing';
 
 export type SaveState = 'loading' | 'saved' | 'saving' | 'error';
 
@@ -67,9 +68,11 @@ export function usePortfolios(user: User | null) {
     setLoadedFor(null);
     setSaveState('loading');
     setLoadFailed(false);
+    const started = performance.now();
     loadCloudWorkspace(uid)
       .then(saved => {
         if (cancelled) return;
+        reportTiming({ event: 'portfolios-load', outcome: 'ok', ms: Math.round(performance.now() - started) });
         const device = loadDeviceWorkspace();
         if (saved) {
           const { workspace: merged, added } = mergeDeviceIntoAccount(saved, device);
@@ -87,7 +90,11 @@ export function usePortfolios(user: User | null) {
       .catch(error => {
         // Leave saving off: writing now could replace data we failed to read
         console.error('Error loading your saved portfolios:', error);
-        if (!cancelled) { setSaveState('error'); setLoadFailed(true); }
+        if (!cancelled) {
+          reportTiming({ event: 'portfolios-load', outcome: 'failed', ms: Math.round(performance.now() - started) });
+          setSaveState('error');
+          setLoadFailed(true);
+        }
       });
 
     return () => { cancelled = true; };
