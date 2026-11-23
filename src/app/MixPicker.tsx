@@ -18,7 +18,7 @@ export function FundList({ text }: { text: string }) {
   return (
     <span className={styles.pickerMix}>
       {parts.map((part, i) => (
-        <span key={i} className={styles.pickerFund}>{i < parts.length - 1 ? `${part} · ` : part}</span>
+        <span key={i} className={styles.pickerFund}>{i < parts.length - 1 ? `${part} ·` : part}</span>
       ))}
     </span>
   );

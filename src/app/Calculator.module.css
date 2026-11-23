@@ -406,7 +406,7 @@
   color: var(--text-2);
   display: flex;
   flex-wrap: wrap;
-  column-gap: 0.25em;
+  column-gap: 0.6em; /* one monospace character, same as the space before the dot */
 }
 
 .pickerFund {
