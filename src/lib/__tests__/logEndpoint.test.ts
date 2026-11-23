@@ -14,7 +14,7 @@ function call(method: string, body: unknown): number | undefined {
 }
 
 describe('/api/log', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => { vi.restoreAllMocks(); });
 
   it('writes a timing line, keeping only short labels and plain numbers', () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
