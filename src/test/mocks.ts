@@ -14,14 +14,3 @@ vi.mock('../lib/useAuth', () => ({
     signOut: vi.fn(),
   }),
 }));
-
-vi.mock('../lib/useStocks', () => ({
-  useStocks: () => ({
-    stocks: [
-      { name: "VTSAX", percentage: 60 },
-      { name: "VOO", percentage: 40 },
-    ],
-    setStocks: vi.fn(),
-    loading: false,
-  }),
-}));

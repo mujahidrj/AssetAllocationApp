@@ -22,7 +22,7 @@ Prices are the last market price from Yahoo Finance. This is a calculator, not f
 
 ## Running it locally
 
-Requires Node 20 or 22.
+Requires Node 22 or 24.
 
 ```bash
 npm install

@@ -1,6 +1,5 @@
 import {
   render as rtlRender,
-  RenderOptions,
   screen,
   waitFor,
   within,
@@ -13,7 +12,8 @@ import {
   queryByPlaceholderText,
   getByPlaceholderText,
 } from '@testing-library/react';
-import { ReactElement } from 'react';
+import type { ReactElement } from 'react';
+import type { RenderOptions } from '@testing-library/react';
 import { SimpleWrapper } from './SimpleWrapper';
 
 const customRender = (

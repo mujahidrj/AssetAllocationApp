@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { AuthContext } from '../lib/authContext';
 import type { AuthContextType } from '../lib/authContext';
 

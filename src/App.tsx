@@ -1,13 +1,10 @@
-import RothIRACalculator from './components/RothIRACalculator'
-import { AuthProvider } from './lib/auth'
-import './App.css'
+import { AuthProvider } from './lib/auth';
+import { Calculator } from './app/Calculator';
 
 function App() {
   return (
     <AuthProvider>
-      <div className="App">
-        <RothIRACalculator />
-      </div>
+      <Calculator />
     </AuthProvider>
   );
 }
