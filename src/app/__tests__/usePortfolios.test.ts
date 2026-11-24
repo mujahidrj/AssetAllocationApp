@@ -19,6 +19,7 @@ const seed = (ws: Workspace) => saveDeviceWorkspace(ws);
 
 describe('usePortfolios', () => {
   beforeEach(() => {
+    vi.spyOn(console, 'info').mockImplementation(() => {}); // load timings
     vi.mocked(loadCloudWorkspace).mockReset();
     vi.mocked(saveCloudWorkspace).mockClear();
   });

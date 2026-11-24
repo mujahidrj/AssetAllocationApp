@@ -68,6 +68,7 @@ async function signInFailingWith(code: string) {
 describe('AuthProvider', () => {
   const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'info').mockImplementation(() => {}); // sign-in timings
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -75,6 +76,22 @@ describe('AuthProvider', () => {
 
   it('says nothing when the person closes the sign-in window', async () => {
     expect(await signInFailingWith('auth/popup-closed-by-user')).toHaveTextContent('none');
+    // …but times it, under the reason it stopped
+    const saved = JSON.parse(window.localStorage.getItem('assetAllocation.timings') ?? '[]');
+    expect(saved.at(-1)).toMatchObject({ event: 'sign-in', outcome: 'popup-closed-by-user' });
+  });
+
+  it('times a sign-in that works', async () => {
+    mockSignInWithPopup.mockResolvedValueOnce({});
+    render(
+      <AuthProvider>
+        <TestComponent />
+      </AuthProvider>
+    );
+    await userEvent.setup().click(screen.getByRole('button', { name: /sign in/i }));
+    const saved = JSON.parse(window.localStorage.getItem('assetAllocation.timings') ?? '[]');
+    expect(saved.at(-1)).toMatchObject({ event: 'sign-in', outcome: 'signed-in' });
+    expect(screen.getByRole('status')).toHaveTextContent('none');
   });
 
   it.each([
