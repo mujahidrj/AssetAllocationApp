@@ -9,7 +9,7 @@ import { type FirebaseError } from 'firebase/app';
 import { auth } from './firebase';
 import { AuthContext, type AuthProblem } from './authContext';
 import { authProblemFor } from './authProblem';
-import { reportTiming, startSignInTiming } from './timing';
+import { outcomeFor, reportTiming, startSignInTiming } from './timing';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       reportTiming(timing.finish('signed-in'));
     } catch (error) {
       const code = (error as FirebaseError)?.code;
-      reportTiming(timing.finish(typeof code === 'string' ? code.replace(/^auth\//, '') : 'error'));
+      reportTiming(timing.finish(outcomeFor(code)));
       const next = authProblemFor(code);
       if (next) console.error('Error signing in with Google:', error);
       setProblem(next);

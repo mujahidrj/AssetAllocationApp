@@ -68,6 +68,7 @@ async function signInFailingWith(code: string) {
 describe('AuthProvider', () => {
   const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.spyOn(console, 'info').mockImplementation(() => {}); // sign-in timings
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,7 +82,6 @@ describe('AuthProvider', () => {
   });
 
   it('times a sign-in that works', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => {});
     mockSignInWithPopup.mockResolvedValueOnce({});
     render(
       <AuthProvider>
