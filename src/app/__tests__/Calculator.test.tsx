@@ -500,18 +500,18 @@ describe('Calculator', () => {
 
     const trades = screen.getByRole('region', { name: /your trades/i });
     expect(await within(trades).findByText(/SPUS is at 57\.9%, target 50%\./)).toBeInTheDocument();
-    expect(screen.getByLabelText("What you're doing")).toHaveValue('add');
+    expect(screen.getByLabelText("What you want to do")).toHaveValue('add');
     expect(screen.getByText(/Furthest off: SPUS \+7\.9/)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Amount'), '500');
     await user.click(screen.getByRole('button', { name: 'Rebalance' }));
 
-    expect(screen.getByLabelText("What you're doing")).toHaveValue('rebal');
+    expect(screen.getByLabelText("What you want to do")).toHaveValue('rebal');
     expect(await within(trades).findByText('−$1,700.00')).toBeInTheDocument();
     expect(screen.queryByText(/Furthest off/)).not.toBeInTheDocument();
 
     // Back to adding: the amount typed before is still there
-    await user.selectOptions(screen.getByLabelText("What you're doing"), 'add');
+    await user.selectOptions(screen.getByLabelText("What you want to do"), 'add');
     expect(screen.getByLabelText('Amount')).toHaveValue('500');
   });
 
@@ -519,7 +519,7 @@ describe('Calculator', () => {
     seed({ funds: [{ symbol: 'VTI', target: 100 }] });
     const user = userEvent.setup();
     renderApp();
-    await user.selectOptions(screen.getByLabelText("What you're doing"), 'rebal');
+    await user.selectOptions(screen.getByLabelText("What you want to do"), 'rebal');
     expect(screen.getByRole('switch', { name: /i already own some of these/i })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByText(/Rebalancing works from what you own\./)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Enter it below' }));

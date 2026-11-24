@@ -88,9 +88,10 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
 
   return (
     <p className={styles.sentence}>
+      {/* Outside the unbreakable group, so a long amount on a narrow phone wraps after "to" */}
+      I want to{' '}
       <span className={styles.keep}>
-        I want to{' '}
-        <BlankSelect label="What you're doing" value={verb} onChange={onVerb} options={verbOptions} />
+        <BlankSelect label="What you want to do" value={verb} onChange={onVerb} options={verbOptions} />
         {hasAmount && (
           <>
             {' '}
