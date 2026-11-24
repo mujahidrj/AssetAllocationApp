@@ -279,7 +279,7 @@ describe('Calculator', () => {
     const user = userEvent.setup();
     renderApp();
 
-    expect(screen.getByRole('option', { name: 'just rebalancing · uses what you own' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'rebalance · uses what you own' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'my portfolio' }));
     const menu = screen.getByRole('dialog', { name: 'Portfolios' });
@@ -380,7 +380,7 @@ describe('Calculator', () => {
     expect(within(dialog).getByText('40.5 shares · $1,061.91')).toBeInTheDocument();
     expect(within(dialog).getAllByText('was nothing')).toHaveLength(2);
     expect(within(dialog).getByText('Replaces what you own in Roth IRA: 2 funds, $11,902.11.')).toBeInTheDocument();
-    await user.click(within(dialog).getByLabelText(/use as the amount i'm adding/i));
+    await user.click(within(dialog).getByLabelText(/use as the amount i want to add/i));
     await user.click(within(dialog).getByRole('button', { name: 'Replace holdings' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

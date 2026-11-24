@@ -35,7 +35,7 @@ function BlankSelect<T extends string>({ value, options, onChange, label }: {
 interface SentenceProps {
   verb: Verb;
   onVerb: (verb: Verb) => void;
-  /** Holdings are on; without them, "just rebalancing" says it uses what you own. */
+  /** Holdings are on; without them, "rebalance" says it uses what you own. */
   hasHoldings: boolean;
   amount: string;
   onAmount: (value: string) => void;
@@ -50,18 +50,18 @@ interface SentenceProps {
 const AMOUNT_PLACEHOLDER = '2,500';
 
 /**
- * "I'm [adding] [$2,500] to [my Roth IRA]."
+ * "I want to [add] [$2,500] to [my Roth IRA]."
  * Words are kept in groups that never break apart, so on a phone it wraps as
- * "I'm adding $2,500 / to my Roth IRA."
+ * "I want to add $2,500 / to my Roth IRA."
  */
 export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Sentence(props, portfolioRef) {
   const { verb, onVerb, hasHoldings, amount, onAmount, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, all } = props;
   const hasAmount = verb !== 'rebal';
 
   const verbOptions: Array<{ value: Verb; label: string; menuLabel?: string }> = [
-    { value: 'add', label: 'adding' },
-    { value: 'out', label: 'taking out' },
-    { value: 'rebal', label: 'just rebalancing', ...(hasHoldings ? {} : { menuLabel: 'just rebalancing · uses what you own' }) },
+    { value: 'add', label: 'add' },
+    { value: 'out', label: 'remove' },
+    { value: 'rebal', label: 'rebalance', ...(hasHoldings ? {} : { menuLabel: 'rebalance · uses what you own' }) },
   ];
 
   const portfolioBlank = (
@@ -89,7 +89,7 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
   return (
     <p className={styles.sentence}>
       <span className={styles.keep}>
-        I'm{' '}
+        I want to{' '}
         <BlankSelect label="What you're doing" value={verb} onChange={onVerb} options={verbOptions} />
         {hasAmount && (
           <>
