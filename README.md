@@ -6,7 +6,7 @@ Live: https://asset-allocation-app-nine.vercel.app/
 
 ## What it does
 
-- **Deposit / Withdrawal:** type an amount and it's split across your funds by target percentage, with share counts at the latest price.
+- **Add or remove money:** "I want to add $2,500 to my Roth IRA": the amount is split across your funds by target percentage, with share counts at the latest price.
 - **Rebalance:** enter what you hold and your targets, and it lists the buys and sells that bring each fund back to target.
 - **Model portfolios:** start from a Fidelity, Vanguard, Schwab or Sharia-compliant mix.
 - **Google sign-in:** saves your funds, holdings and targets to your account.

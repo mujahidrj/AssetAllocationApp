@@ -178,7 +178,7 @@ export function Calculator() {
   }, [funds, values, targetsOk, wholeShares, holdings, tracksHoldings, prices]);
   const rebalance = () => { setVerb('rebal'); window.scrollTo?.({ top: 0, behavior: 'smooth' }); };
 
-  /** Picking "just rebalancing" turns holdings on, since it works from them. */
+  /** Picking "rebalance" turns holdings on, since it works from them. */
   const chooseVerb = (next: Verb) => {
     setVerb(next);
     if (next === 'rebal' && !tracksHoldings) actions.setTracksHoldings(true);
@@ -646,7 +646,7 @@ export function Calculator() {
         <div className={`${styles.recap} ${scrollingUp ? styles.recapShown : ''}`} aria-hidden={!scrollingUp} data-testid="recap">
           <div className={styles.recapInner}>
             <p className={styles.recapText}>
-              {effectiveVerb === 'add' ? 'Adding' : effectiveVerb === 'out' ? 'Taking out' : 'Rebalancing'}{' '}
+              {effectiveVerb === 'add' ? 'Add' : effectiveVerb === 'out' ? 'Remove' : 'Rebalance'}{' '}
               {effectiveVerb !== 'rebal' && (
                 <>
                   <button type="button" className={styles.recapBlank} onClick={editAmount} aria-label={`Change the amount, $${formatAmountInput(safeAmount)}`}>

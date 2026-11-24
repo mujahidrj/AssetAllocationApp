@@ -272,7 +272,7 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
                   <span className={styles.num}>{money(groups.cash)}</span>
                   <span className={styles.importCheck}>
                     <input type="checkbox" checked={useCash} onChange={e => setUseCash(e.target.checked)} />
-                    Use as the amount I'm adding
+                    Use as the amount I want to add
                   </span>
                 </label>
               </section>

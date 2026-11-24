@@ -279,7 +279,7 @@ describe('Calculator', () => {
     const user = userEvent.setup();
     renderApp();
 
-    expect(screen.getByRole('option', { name: 'just rebalancing · uses what you own' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'rebalance · uses what you own' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'my portfolio' }));
     const menu = screen.getByRole('dialog', { name: 'Portfolios' });
@@ -380,7 +380,7 @@ describe('Calculator', () => {
     expect(within(dialog).getByText('40.5 shares · $1,061.91')).toBeInTheDocument();
     expect(within(dialog).getAllByText('was nothing')).toHaveLength(2);
     expect(within(dialog).getByText('Replaces what you own in Roth IRA: 2 funds, $11,902.11.')).toBeInTheDocument();
-    await user.click(within(dialog).getByLabelText(/use as the amount i'm adding/i));
+    await user.click(within(dialog).getByLabelText(/use as the amount i want to add/i));
     await user.click(within(dialog).getByRole('button', { name: 'Replace holdings' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -500,18 +500,18 @@ describe('Calculator', () => {
 
     const trades = screen.getByRole('region', { name: /your trades/i });
     expect(await within(trades).findByText(/SPUS is at 57\.9%, target 50%\./)).toBeInTheDocument();
-    expect(screen.getByLabelText("What you're doing")).toHaveValue('add');
+    expect(screen.getByLabelText("What you want to do")).toHaveValue('add');
     expect(screen.getByText(/Furthest off: SPUS \+7\.9/)).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Amount'), '500');
     await user.click(screen.getByRole('button', { name: 'Rebalance' }));
 
-    expect(screen.getByLabelText("What you're doing")).toHaveValue('rebal');
+    expect(screen.getByLabelText("What you want to do")).toHaveValue('rebal');
     expect(await within(trades).findByText('−$1,700.00')).toBeInTheDocument();
     expect(screen.queryByText(/Furthest off/)).not.toBeInTheDocument();
 
     // Back to adding: the amount typed before is still there
-    await user.selectOptions(screen.getByLabelText("What you're doing"), 'add');
+    await user.selectOptions(screen.getByLabelText("What you want to do"), 'add');
     expect(screen.getByLabelText('Amount')).toHaveValue('500');
   });
 
@@ -519,7 +519,7 @@ describe('Calculator', () => {
     seed({ funds: [{ symbol: 'VTI', target: 100 }] });
     const user = userEvent.setup();
     renderApp();
-    await user.selectOptions(screen.getByLabelText("What you're doing"), 'rebal');
+    await user.selectOptions(screen.getByLabelText("What you want to do"), 'rebal');
     expect(screen.getByRole('switch', { name: /i already own some of these/i })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByText(/Rebalancing works from what you own\./)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Enter it below' }));
