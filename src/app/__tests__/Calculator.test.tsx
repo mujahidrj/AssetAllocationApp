@@ -340,10 +340,31 @@ describe('Calculator', () => {
     await user.click(screen.getByRole('button', { name: '+ Add fund' }));
     await user.type(screen.getByLabelText(/add a fund/i), 'AAPL');
     await user.click(await screen.findByRole('button', { name: /AAPL Apple Inc\./ }));
-    expect(screen.getByLabelText('AAPL target percent')).toBeInTheDocument();
+    // The cursor moves to the new fund's target, and the search stays for the next one
+    expect(screen.getByLabelText('AAPL target percent')).toHaveFocus();
+    expect(screen.getByLabelText(/add a fund/i)).toHaveValue('');
 
     await user.click(screen.getByRole('button', { name: 'Remove VTI' }));
     expect(screen.queryByLabelText('VTI target percent')).not.toBeInTheDocument();
+  });
+
+  it('keeps the last results up while a new search runs, and moves the copy bar aside meanwhile', async () => {
+    seed({ funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+    const bar = () => document.querySelector('[class*="copyBar"]')!;
+
+    await user.click(screen.getByRole('button', { name: '+ Add fund' }));
+    expect(bar().className).toMatch(/copyBarAway/);
+    await user.type(screen.getByLabelText(/add a fund/i), 'VO');
+    expect(await screen.findByRole('option', { name: /VOO Vanguard S&P 500 ETF/ })).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/add a fund/i), 'O');
+    // Still there while "VOO" is looked up
+    expect(screen.getByRole('option', { name: /VOO Vanguard S&P 500 ETF/ })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByRole('option')[0]).toHaveTextContent('VOO'));
+
+    await user.click(screen.getByRole('button', { name: /VOO Vanguard S&P 500 ETF/ }));
+    expect(bar().className).not.toMatch(/copyBarAway/);
   });
 
   it('follows the device, or stays light or dark when picked, and remembers it', async () => {

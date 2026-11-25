@@ -170,6 +170,8 @@ export function Calculator() {
   const totalRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [importGuide, setImportGuide] = useState(false);
+  // Typing in the fund search: the phone's copy bar steps aside for the results and keyboard
+  const [searchFocused, setSearchFocused] = useState(false);
   // The fund just added from the search: when targets fall short, the quick fix offers it the rest
   const [justAdded, setJustAdded] = useState<{ portfolioId: string; symbol: string } | null>(null);
 
@@ -629,7 +631,7 @@ export function Calculator() {
   };
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${searchFocused ? styles.searching : ''}`}>
       <Header
         user={user}
         savedTo={savedTo}
@@ -817,12 +819,22 @@ export function Calculator() {
                 onHolding={actions.setHolding}
                 onTracksHoldings={actions.setTracksHoldings}
                 onAddFund={(s, n, own) => {
-                  actions.addFund(s, n);
-                  setJustAdded({ portfolioId: portfolio.id, symbol: s });
-                  setSearchOpen(false);
-                  // A fund of your own (many 401(k) funds have no ticker) needs its price from you
-                  if (own && !looksLikeTicker(s)) setEditingPrice(s);
+                  // A fund added by name (many 401(k) funds have no ticker) needs its price from you
+                  const askPrice = own && !looksLikeTicker(s);
+                  // Drawn at once, so the cursor can move to the new row inside this tap (iPhone
+                  // keeps the keyboard open only then). The search stays open for the next fund.
+                  flushSync(() => {
+                    actions.addFund(s, n);
+                    setJustAdded({ portfolioId: portfolio.id, symbol: s });
+                    if (askPrice) setEditingPrice(s);
+                  });
+                  if (!askPrice) {
+                    [...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" target percent"]')]
+                      .find(i => i.getAttribute('aria-label') === `${s} target percent`)
+                      ?.focus();
+                  }
                 }}
+                onSearchFocus={setSearchFocused}
                 onRemoveFund={removeFund}
                 onScale={actions.scaleTo100}
                 onAbsorb={actions.absorbRemainder}
@@ -941,7 +953,7 @@ export function Calculator() {
       )}
 
       {!showingAll && !waitingForAccount && plan.status !== 'needs-mix' && (
-        <div className={styles.copyBar}>
+        <div className={`${styles.copyBar} ${searchFocused ? styles.copyBarAway : ''}`}>
           {/* Always there (it would flicker as targets are typed), and when there's nothing to copy yet it takes you to what's missing */}
           <button type="button" className={`${styles.primary} ${bar.run && !ok ? styles.barGo : ''}`} onClick={bar.run} disabled={!bar.run}>
             {ok && <CopyIcon />}

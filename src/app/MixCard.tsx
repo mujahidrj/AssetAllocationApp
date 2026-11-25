@@ -10,11 +10,13 @@ import { looksLikeTicker } from './searchUtils';
 import { parseAmount } from '../lib/parseAmount';
 
 /** A number field that lets you type freely and only commits valid numbers. */
-function NumberField({ value, onCommit, label, className, prefix, suffix, decimals }: {
+function NumberField({ value, onCommit, label, className, lead, prefix, suffix, decimals }: {
   value: number;
   onCommit: (n: number) => void;
   label: string;
   className?: string;
+  /** Words inside the field, before the number, on phones only (where there are no column headings). */
+  lead?: string;
   prefix?: string;
   suffix?: string;
   decimals?: number;
@@ -31,6 +33,7 @@ function NumberField({ value, onCommit, label, className, prefix, suffix, decima
 
   return (
     <label className={`${styles.field} ${className ?? ''}`}>
+      {lead && <span className={styles.fieldLead}>{lead}</span>}
       {prefix && <span>{prefix}</span>}
       <input
         aria-label={label}
@@ -137,10 +140,11 @@ interface MixCardProps {
   newFund: string | null;
   /** The total line, so the page can bring it into view. */
   totalRef?: Ref<HTMLDivElement>;
+  onSearchFocus?: (focused: boolean) => void;
 }
 
 export function MixCard(props: MixCardProps) {
-  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare, newFund, totalRef } = props;
+  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare, newFund, totalRef, onSearchFocus } = props;
   const [dropping, setDropping] = useState(false);
   const [shared, setShared] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
@@ -257,7 +261,7 @@ export function MixCard(props: MixCardProps) {
 
         return (
           <div key={f.symbol} className={styles.rowGroup}>
-            <div className={`${styles.mixRow} ${f.target === 0 ? styles.zero : ''}`}>
+            <div className={`${styles.mixRow} ${f.target === 0 ? styles.zero : ''} ${!tracksHoldings || heldTotal <= 0 ? styles.noNow : ''}`}>
               <div className={styles.fundCell}>
                 <span className={styles.swatch} style={{ background: colorOf(f.symbol) }} />
                 <b className={`${styles.symbol} ${looksLikeTicker(f.symbol) ? '' : styles.ownSymbol}`} style={{ fontSize: 15 }}>{f.symbol}</b>
@@ -285,6 +289,7 @@ export function MixCard(props: MixCardProps) {
                     <div className={styles.ownCell}>
                       <NumberField
                         label={`${f.symbol} you own, in ${kind === 'dollars' ? 'dollars' : 'shares'}`}
+                        lead="You own"
                         value={holding?.amount ?? 0}
                         prefix={kind === 'dollars' ? '$' : undefined}
                         suffix={kind === 'shares' ? 'shares' : undefined}
@@ -344,7 +349,7 @@ export function MixCard(props: MixCardProps) {
       })}
 
       {(searchOpen || funds.length === 0) && (
-        <FundSearch onAdd={onAddFund} existing={funds.map(f => f.symbol)} autoFocus={searchOpen} />
+        <FundSearch onAdd={onAddFund} existing={funds.map(f => f.symbol)} autoFocus={searchOpen} onFocusChange={onSearchFocus} />
       )}
 
       {funds.length > 0 && (
