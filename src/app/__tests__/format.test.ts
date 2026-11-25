@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { drift, formatAmountInput, money, pct1, pctTarget, priceDate, priceTime, shares } from '../format';
+import { drift, driftWords, formatAmountInput, money, pct1, pctTarget, priceDate, priceTime, shares } from '../format';
 
 describe('format', () => {
   it('formats money with a true minus sign', () => {
@@ -16,6 +16,11 @@ describe('format', () => {
     expect(drift(7.94)).toBe('+7.9');
     expect(drift(-7.8)).toBe('−7.8');
     expect(drift(0.04)).toBe('0.0');
+    // In words, the same in every view
+    expect(driftWords(16)).toBe('16 pts over');
+    expect(driftWords(-7.84, true)).toBe('7.8 pts under target');
+    expect(driftWords(1)).toBe('1 pt over');
+    expect(driftWords(0.04, true)).toBe('on target');
   });
 
   it('formats a typed amount, keeping cents only when typed', () => {

@@ -10,6 +10,7 @@ import {
   type Holding,
   type ManualPrice,
   type Portfolio,
+  type Verb,
   type Workspace,
 } from './model';
 import { loadCloudWorkspace, loadDeviceWorkspace, mergeDeviceIntoAccount, saveCloudWorkspace, saveDeviceWorkspace } from './storage';
@@ -209,6 +210,22 @@ export function usePortfolios(user: User | null) {
     setSell: useCallback((sell: boolean) => update(p => ({ ...p, sell })), [update]),
 
     setRetirement: useCallback((retirement: boolean) => update(p => ({ ...p, retirement })), [update]),
+
+    /** Remembers what's typed in the sentence for a portfolio. Nothing changes (or saves) if it's the same. */
+    setLast: useCallback((portfolioId: string, amount: string, verb: Verb) =>
+      setWorkspace(ws => {
+        const target = ws.portfolios.find(p => p.id === portfolioId);
+        if (!target || ((target.lastAmount ?? '') === amount && (target.lastVerb ?? 'add') === verb)) return ws;
+        return {
+          ...ws,
+          portfolios: ws.portfolios.map(p => {
+            if (p.id !== portfolioId) return p;
+            const next: Portfolio = { ...p, lastVerb: verb };
+            if (amount.trim()) next.lastAmount = amount; else delete next.lastAmount;
+            return next;
+          }),
+        };
+      }), []),
 
     setWholeShares: useCallback((wholeShares: boolean) =>
       update(p => {

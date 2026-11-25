@@ -22,7 +22,7 @@ describe('trade text', () => {
   it('adds the cash left over, and what it could not buy, to the copied text', () => {
     const plan = makePlan({ ...base, amount: 60, wholeShares: true });
     expect(tradesText(plan, null, true)).toBe([
-      'Buy SPUS  $51.62  (1 share at $51.62)',
+      'Buy SPUS $51.62 · 1 share',
       'Cash left over: $8.38 (not enough for 1 share of SPTE at $37.16, SPWO at $26.22)',
     ].join('\n'));
     expect(shortList(plan.shortOfShare)).toBe('SPTE ($37.16) and SPWO ($26.22)');
@@ -31,7 +31,7 @@ describe('trade text', () => {
 
   it('marks cash as cash, and writes whole shares plainly in the CSV', () => {
     const plan = makePlan({ ...base, funds: [{ symbol: 'SPUS', target: 98 }, { symbol: 'CASH', target: 2 }], wholeShares: true });
-    expect(tradesText(plan, null, true)).toContain('Buy CASH     $50.00  (cash)');
+    expect(tradesText(plan, null, true).split('\n')).toContain('Buy CASH $50.00');
     expect(tradesCsv(plan.trades)).toBe('Action,Symbol,Dollars,Shares,Price\nBuy,SPUS,2426.14,47,51.62\nBuy,CASH,50.00,,1.00');
   });
 

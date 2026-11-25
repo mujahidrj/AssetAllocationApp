@@ -16,12 +16,13 @@ import { CloseIcon, CopyIcon } from './icons';
 import { ImportDialog, type ImportChoice, type ImportProblem } from './ImportDialog';
 import { ImportGuide } from './ImportGuide';
 import { clearLeftoverSheetEntries } from './sheetHistory';
-import { MixCard } from './MixCard';
+import { MixCard, type ShareResult } from './MixCard';
 import { displayName, isRetirement, sentenceName, type Fund, type ManualPrice, type Verb } from './model';
 import { furthestOff, heldValues, makePlan, offTargets, valuesAfter, type PriceMap } from './plan';
 import { PortfolioMenu } from './PortfolioMenu';
 import { Sentence } from './Sentence';
-import { matchingTemplate, templates } from './templates';
+import { describeMix, matchingTemplate, templates } from './templates';
+import { colorsBySymbol } from './colors';
 import { Trades, type SellChoice } from './Trades';
 import { tradesCsv, tradesText } from './tradeText';
 import { usePortfolios, type RemovedFund, type RemovedPortfolio } from './usePortfolios';
@@ -175,6 +176,24 @@ export function Calculator() {
   // The fund just added from the search: when targets fall short, the quick fix offers it the rest
   const [justAdded, setJustAdded] = useState<{ portfolioId: string; symbol: string } | null>(null);
 
+  // Each portfolio remembers what was last typed in the sentence: brought back on
+  // returning to it (or to the page), saved as it changes
+  const sentenceKey = waitingForAccount ? null : `${savedTo}:${portfolio.id}`;
+  const sentenceFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (sentenceKey === null || sentenceFor.current === sentenceKey) return;
+    sentenceFor.current = sentenceKey;
+    setAmountText(portfolio.lastAmount ?? '');
+    setVerb(portfolio.lastVerb ?? 'add');
+  }, [sentenceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const savedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (sentenceKey === null || sentenceFor.current !== sentenceKey) return;
+    // Just switched: these are still the last portfolio's words, about to be replaced
+    if (savedFor.current !== sentenceKey) { savedFor.current = sentenceKey; return; }
+    actions.setLast(portfolio.id, amountText, verb);
+  }, [amountText, verb, sentenceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // A reload while a sheet was open leaves its history entry behind: step back over it
   useEffect(() => { clearLeftoverSheetEntries(); }, []);
   const copyTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -319,12 +338,10 @@ export function Calculator() {
   const combined = useMemo(() => combinePortfolios(workspace.portfolios, prices), [workspace.portfolios, prices]);
   const showingAll = view === 'all' && combined.portfolios.length >= 2;
 
-  const colorSymbols = showingAll ? combined.funds.map(f => f.symbol) : symbols;
-  const fundColors = useMemo(() => {
-    const map: Record<string, string> = {};
-    colorSymbols.forEach((s, i) => { map[s] = `var(--fund-${(i % 5) + 1})`; });
-    return map;
-  }, [colorSymbols.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Each fund keeps one colour in every view: picked from its symbol, across all portfolios,
+  // so two funds don't share one until there are more than ten
+  const everySymbol = [...new Set(workspace.portfolios.flatMap(p => [...p.funds.map(f => f.symbol), ...Object.keys(p.holdings)]))].sort();
+  const fundColors = useMemo(() => colorsBySymbol(everySymbol), [everySymbol.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
   const colorOf = useCallback((s: string) => fundColors[s] ?? 'var(--fund-5)', [fundColors]);
 
   const missingPrices = symbols.filter(s => priceData.info[s]?.status === 'missing' && !manualPrices[s]);
@@ -389,13 +406,23 @@ export function Calculator() {
     URL.revokeObjectURL(url);
   };
 
-  const share = async (): Promise<string | null> => {
+  /** On phones, the system share sheet; elsewhere (or where there's none), the link is copied. */
+  const share = async (): Promise<ShareResult> => {
     const link = buildShareLink(stocksFromFunds(funds));
+    if (typeof navigator.share === 'function' && window.matchMedia?.('(pointer: coarse)').matches) {
+      try {
+        await navigator.share({ title: `${displayName(portfolio)} targets`, text: `Targets for ${displayName(portfolio)}: ${describeMix(funds)}`, url: link });
+        return 'shared';
+      } catch (e) {
+        if ((e as DOMException)?.name === 'AbortError') return 'cancelled';
+        // Not allowed here: copy instead
+      }
+    }
     try {
       await navigator.clipboard.writeText(link);
-      return null;
+      return 'copied';
     } catch {
-      return link;
+      return { link };
     }
   };
 
@@ -632,7 +659,7 @@ export function Calculator() {
 
   // Room below the search while it's in use, kept between funds added in a row so the page doesn't jump
   return (
-    <div className={`${styles.page} ${searchFocused || (searchOpen && funds.length > 0) ? styles.searching : ''}`}>
+    <div className={`${styles.page} ${searchFocused || (searchOpen && funds.length > 0) ? styles.searching : ''} ${!showingAll && !waitingForAccount && plan.status !== 'needs-mix' ? styles.withCopyBar : ''}`}>
       <Header
         user={user}
         savedTo={savedTo}
@@ -765,7 +792,17 @@ export function Calculator() {
         )}
 
         {showingAll ? (
-          <CombinedView combined={combined} colorOf={colorOf} onOpen={id => { openPortfolio(id); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }} />
+          <CombinedView
+            combined={combined}
+            colorOf={colorOf}
+            onOpen={id => {
+              // From "where new money helps most": ready to type the new money
+              flushSync(() => openPortfolio(id));
+              flushSync(() => setVerb('add'));
+              amountRef.current?.focus({ preventScroll: true });
+              window.scrollTo?.({ top: 0, behavior: 'smooth' });
+            }}
+          />
         ) : (
           <>
             <Trades

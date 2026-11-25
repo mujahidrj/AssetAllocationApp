@@ -51,6 +51,29 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const active = portfolios.find(p => p.id === activeId) ?? portfolios[0];
 
+  // "All portfolios": at the top once it can be used, below the list (greyed) until then
+  const allRow = (below: boolean) => all && (
+              <div className={below ? styles.pickerAllBelow : styles.pickerAll}>
+                <button
+                  type="button"
+                  className={styles.pickerItem}
+                  aria-current={showingAll}
+                  disabled={all.count < 2}
+                  onClick={() => { all.onShow(); onClose(); }}
+                >
+                  <span className={styles.pickerText}>
+                    <span className={styles.pickerLabel}>All portfolios</span>
+                    <span className={styles.pickerNote}>
+                      {all.count < 2
+                        ? 'Needs two portfolios with holdings, prices and targets at 100%'
+                        : `${all.count} with holdings · ${money(all.total)}`}
+                    </span>
+                  </span>
+                  <span className={styles.pickerCheck}>{showingAll && <CheckIcon />}</span>
+                </button>
+              </div>
+  );
+
   // Back closes the sheet, or from the template list goes back to the portfolios
   useSheetHistory('portfolios', step === 'list' ? 1 : 2, level => {
     if (level === 0) onClose(); else setStep('list');
@@ -123,27 +146,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
         />
         {step === 'list' ? (
           <>
-            {all && portfolios.length > 1 && (
-              <div className={styles.pickerAll}>
-                <button
-                  type="button"
-                  className={styles.pickerItem}
-                  aria-current={showingAll}
-                  disabled={all.count < 2}
-                  onClick={() => { all.onShow(); onClose(); }}
-                >
-                  <span className={styles.pickerText}>
-                    <span className={styles.pickerLabel}>All portfolios</span>
-                    <span className={styles.pickerNote}>
-                      {all.count < 2
-                        ? 'Needs two portfolios with holdings, prices and targets at 100%'
-                        : `${all.count} with holdings · ${money(all.total)}`}
-                    </span>
-                  </span>
-                  <span className={styles.pickerCheck}>{showingAll && <CheckIcon />}</span>
-                </button>
-              </div>
-            )}
+            {all && portfolios.length > 1 && all.count >= 2 && allRow(false)}
             <div className={styles.pickerHeading}>Portfolios</div>
             {portfolios.map(p => (
               p.id === active.id && renaming ? (
@@ -178,17 +181,18 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
             <button type="button" className={styles.pickerItem} onClick={() => { onNew(); onClose(); }}>
               <span className={`${styles.pickerLabel} ${styles.pickerAction}`}>+ New portfolio</span>
             </button>
+            {all && portfolios.length > 1 && all.count < 2 && allRow(true)}
             {!showingAll && <div className={styles.pickerFoot}>
               <button type="button" className={styles.pickerItem} onClick={() => setStep('mix')}>
                 <span className={styles.pickerLabel}>Use a template…</span>
                 <span className={styles.pickerCheck} style={{ transform: 'rotate(-90deg)' }}><ChevronIcon /></span>
               </button>
               <button type="button" className={styles.pickerItem} onClick={startRename}>
-                <span className={styles.pickerLabel}>Rename</span>
+                <span className={styles.pickerLabel}>Rename {displayName(active)}</span>
               </button>
               {active.funds.length > 0 && (
                 <button type="button" className={styles.pickerItem} onClick={() => { onDuplicate(); onClose(); }}>
-                  <span className={styles.pickerLabel}>Copy to a new portfolio</span>
+                  <span className={styles.pickerLabel}>Make a copy of {displayName(active)}</span>
                 </button>
               )}
               {portfolios.length > 1 && (

@@ -17,6 +17,14 @@ export const pct1 = (n: number) => `${n.toFixed(1)}%`;
 /** Targets: no decimals unless typed. */
 export const pctTarget = (n: number) => `${+n.toFixed(2)}%`;
 
+/** Drift in words, the same everywhere: "7.9 pts over", "16 pts under", "on target" (to a tenth). */
+export function driftWords(n: number, withTarget = false): string {
+  const r = Math.round(n * 10) / 10;
+  if (r === 0) return 'on target';
+  const size = Math.abs(r);
+  return `${+size.toFixed(1)} ${size === 1 ? 'pt' : 'pts'} ${r > 0 ? 'over' : 'under'}${withTarget ? ' target' : ''}`;
+}
+
 /** "+7.9" / "−7.8" / "0.0" */
 export function drift(n: number): string {
   const r = Math.round(n * 10) / 10;

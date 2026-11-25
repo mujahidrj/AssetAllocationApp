@@ -55,6 +55,16 @@ describe('device storage', () => {
     expect(loadDeviceWorkspace()).toEqual(two);
   });
 
+  it('keeps what was last typed for each portfolio, and drops anything malformed', () => {
+    const typed: Workspace = { ...two, portfolios: [{ ...roth, lastAmount: '2,500', lastVerb: 'out' }, taxable] };
+    saveDeviceWorkspace(typed);
+    expect(loadDeviceWorkspace()).toEqual(typed);
+    window.localStorage.setItem('assetAllocation.portfolios.v3', JSON.stringify({
+      ...two, portfolios: [{ ...roth, lastAmount: 25, lastVerb: 'sideways' }, taxable],
+    }));
+    expect(loadDeviceWorkspace()).toEqual(two);
+  });
+
   it('picks up the single portfolio the first version of this screen saved', () => {
     window.localStorage.setItem('assetAllocation.portfolio.v2', JSON.stringify({
       funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false,
@@ -111,7 +121,8 @@ describe('Google account storage', () => {
   });
 
   it('saves every portfolio and reads them back', async () => {
-    await saveCloudWorkspace('u1', two);
+    const typed: Workspace = { ...two, portfolios: [{ ...roth, lastAmount: '2,500', lastVerb: 'add' }, taxable] };
+    await saveCloudWorkspace('u1', typed);
     const [stocksCall, positionsCall] = vi.mocked(setDoc).mock.calls as unknown as Array<[string, Record<string, unknown>]>;
     expect(stocksCall[0]).toBe('userStocks/u1');
     // The old fields mirror the first portfolio for older copies of the app
@@ -120,7 +131,7 @@ describe('Google account storage', () => {
 
     vi.mocked(getDoc).mockImplementation((async (ref: unknown) =>
       snap(ref === 'userStocks/u1' ? stocksCall[1] : positionsCall[1])) as never);
-    expect(await loadCloudWorkspace('u1')).toEqual(two);
+    expect(await loadCloudWorkspace('u1')).toEqual(typed);
   });
 });
 

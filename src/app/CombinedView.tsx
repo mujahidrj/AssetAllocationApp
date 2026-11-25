@@ -1,5 +1,5 @@
 import styles from './Calculator.module.css';
-import { drift, money, pct1 } from './format';
+import { driftWords, money, pct1 } from './format';
 import type { Combined } from './combined';
 import { shortName } from './model';
 
@@ -102,7 +102,7 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
             <span className={styles.combinedStats}>
               <span className={styles.num}><span className={styles.phoneLabel}>Target </span>{pct1(f.targetPct)}</span>
               <span className={styles.num}><span className={styles.phoneLabel}>Now </span>{pct1(f.nowPct)}</span>
-              <span className={`${styles.num} ${Math.abs(f.drift) >= 5 ? styles.driftBig : styles.driftSmall}`}>{drift(f.drift)}</span>
+              <span className={`${styles.num} ${Math.abs(f.drift) >= 5 ? styles.driftBig : styles.driftSmall}`}>{driftWords(f.drift)}</span>
             </span>
             <span className={`${styles.num} ${styles.combinedValue}`}>{money(f.value)}</span>
           </div>

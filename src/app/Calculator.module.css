@@ -1067,6 +1067,19 @@
   min-width: 0;
 }
 
+/* In the portfolio card, the fund's whole name gets its own line under the ticker, using the column's full width */
+.mixRow .fundCell {
+  flex-wrap: wrap;
+  row-gap: 2px;
+  padding: 6px 0;
+}
+
+.mixRow .fundName {
+  flex-basis: 100%;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
 .swatch {
   width: 8px;
   height: 8px;
@@ -1081,10 +1094,11 @@
 
 .fundName {
   font-size: 13px;
+  line-height: 1.35;
   color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Whole names: they wrap into the row's spare width instead of being cut off */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tradeShares {
@@ -1336,7 +1350,7 @@
   }
 
   /* Room below, so the search can move up even when it's at the end of the page */
-  .searching .main {
+  .page.searching .main {
     padding-bottom: 100vh;
   }
 }
@@ -1344,6 +1358,14 @@
 /* "You own" inside the field: phones only, where the column headings are hidden */
 .fieldLead {
   display: none;
+}
+
+/* "18.3 pts over": under the percentage in the Now column; beside it on phones */
+.driftWords {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .driftBig {
@@ -1926,6 +1948,13 @@
   padding-bottom: 4px;
 }
 
+/* Not usable yet: under the list, so it doesn't sit first */
+.pickerAllBelow {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
 .pickerItem:disabled {
   cursor: default;
 }
@@ -2116,7 +2145,7 @@
   }
 
   .main {
-    padding: 28px 16px 120px;
+    padding: 28px 16px 48px;
   }
 
   .sentence {
@@ -2243,6 +2272,16 @@
   .resultName {
     font-size: 13px;
     line-height: 1.3;
+  }
+
+  .nowCell .driftWords {
+    display: inline;
+    margin-left: 6px;
+  }
+
+  /* Room for the copy bar only when it's there (a first visit shouldn't scroll) */
+  .withCopyBar .main {
+    padding-bottom: 120px;
   }
 
   .fieldLead {

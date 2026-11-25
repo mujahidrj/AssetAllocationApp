@@ -33,6 +33,9 @@ export interface Portfolio {
   wholeShares?: boolean;
   /** Said to be a retirement account (selling inside it isn't taxed). Unset: guessed from the name. */
   retirement?: boolean;
+  /** What was last typed in the sentence for this portfolio, brought back when you return to it. */
+  lastAmount?: string;
+  lastVerb?: Verb;
 }
 
 /** A price the person typed (or that came from a broker file) for a fund the lookup can't price. */
