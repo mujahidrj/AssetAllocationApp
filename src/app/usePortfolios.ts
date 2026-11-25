@@ -70,6 +70,7 @@ export function usePortfolios(user: User | null) {
       setWorkspace(loadDeviceWorkspace() ?? emptyWorkspace());
       setLoadedFor(DEVICE);
       setSaveState('saved');
+      setLoadFailed(false);
       return;
     }
 

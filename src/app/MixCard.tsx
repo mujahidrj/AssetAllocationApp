@@ -4,6 +4,7 @@ import { CheckIcon, CloseIcon, ShareIcon } from './icons';
 import { drift, money, pct1, priceDate } from './format';
 import { shortName, type Fund, type Holding, type ManualPrice } from './model';
 import { holdingDollars, unpricedShares, type OffTarget, type PriceMap } from './plan';
+import { closesKeyboard } from './format';
 import { FundSearch } from './FundSearch';
 import { parseAmount } from '../lib/parseAmount';
 
@@ -37,7 +38,7 @@ function NumberField({ value, onCommit, label, className, prefix, suffix, decima
         autoComplete="off"
         placeholder="0"
         value={draft}
-        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+        onKeyDown={e => { if (e.key === 'Enter' && closesKeyboard()) e.currentTarget.blur(); }}
         onFocus={() => setEditing(true)}
         onBlur={() => { setEditing(false); setDraft(show(value)); }}
         onChange={e => {
@@ -280,6 +281,8 @@ export function MixCard(props: MixCardProps) {
                           type="button"
                           className={kind === 'dollars' ? styles.unitOn : ''}
                           aria-pressed={kind === 'dollars'}
+                          // Shares with no price have no dollar value yet: switching would lose them
+                          disabled={kind === 'shares' && !!holding && !price}
                           onClick={() => kind !== 'dollars' && onHolding(f.symbol, dollars > 0 ? { kind: 'dollars', amount: Math.round(dollars * 100) / 100 } : null)}
                         >$</button>
                         <button

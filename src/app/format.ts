@@ -61,3 +61,11 @@ export function priceDate(iso: string, now: number = Date.now()): string {
   const days = Math.floor((now - at.getTime()) / DAY);
   return days >= 7 ? `${date} (${days} days old)` : date;
 }
+
+/** On touch screens Enter ("Done") puts the keyboard away; with a real keyboard it does nothing. */
+export const closesKeyboard = () =>
+  typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
+
+/** "VTI", "VTI and BND", "VTI, BND and VXUS" */
+export const listText = (items: string[]) =>
+  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;

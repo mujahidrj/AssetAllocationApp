@@ -1,7 +1,7 @@
 import { Fragment, type Ref } from 'react';
 import styles from './Calculator.module.css';
 import { CopyIcon } from './icons';
-import { money, pct1, priceDate, priceTime } from './format';
+import { listText, money, pct1, priceDate, priceTime } from './format';
 import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
 import type { Fund, ManualPrice, Verb } from './model';
 import { isCashSymbol, shortName } from './model';
@@ -31,10 +31,6 @@ function offText(off: OffTarget[]): string {
   if (off.length === 2) return `${off[0].symbol} and ${off[1].symbol} would still be off target after this.`;
   return `${off.length} funds would still be off target after this.`;
 }
-
-/** "VTI", "VTI and BND", "VTI, BND and VXUS" */
-const listText = (symbols: string[]) =>
-  symbols.length <= 1 ? symbols.join('') : `${symbols.slice(0, -1).join(', ')} and ${symbols[symbols.length - 1]}`;
 
 /** "Add a price for VXUS": the first in ink, any others outlined, then an optional "Try again". */
 function PriceButtons({ symbols, onAddPrice, onRetry }: { symbols: string[]; onAddPrice: (symbol: string) => void; onRetry?: () => void }) {
@@ -188,7 +184,7 @@ export function Trades(props: TradesProps) {
                   ? <>Couldn't get a price for {failed[0]}. You entered it in shares, so your trades need its price first.</>
                   : <>Couldn't get prices for {listText(failed)}. You entered them in shares, so your trades need their prices first.</>}
               </p>
-              <PriceButtons symbols={failed.filter(s => funds.some(f => f.symbol === s))} onAddPrice={onAddPrice} onRetry={onRefresh} />
+              <PriceButtons symbols={failed} onAddPrice={onAddPrice} onRetry={onRefresh} />
             </div>
           ) : pricesSlow ? (
             <div className={styles.emptyAction}>
@@ -196,7 +192,7 @@ export function Trades(props: TradesProps) {
                 {listText(waiting)} {waiting.length === 1 ? 'is' : 'are'} taking a while.
                 {' '}You can add {waiting.length === 1 ? 'its price' : 'their prices'} yourself.
               </p>
-              <PriceButtons symbols={waiting.filter(s => funds.some(f => f.symbol === s))} onAddPrice={onAddPrice} />
+              <PriceButtons symbols={waiting} onAddPrice={onAddPrice} />
             </div>
           ) : (
             <p>

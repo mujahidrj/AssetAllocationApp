@@ -303,6 +303,30 @@ describe('Calculator', () => {
     expect(loadDeviceWorkspace()?.portfolios.map(p => p.name)).toEqual(['', 'Roth IRA']);
   });
 
+  it('keeps an Undo for each of two portfolios deleted in a row', async () => {
+    saveDeviceWorkspace({
+      portfolios: [
+        { ...emptyPortfolio('a', 'Roth IRA'), funds: [{ symbol: 'VTI', target: 100 }] },
+        { ...emptyPortfolio('b', 'HSA'), funds: [{ symbol: 'VTI', target: 100 }] },
+        { ...emptyPortfolio('c', 'Kids'), funds: [{ symbol: 'VTI', target: 100 }] },
+      ],
+      activeId: 'b',
+    });
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'my HSA' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: 'Delete HSA' }));
+    await user.click(screen.getByRole('button', { name: 'my Roth IRA' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: 'Delete Roth IRA' }));
+
+    expect(screen.getByText('Deleted HSA.')).toBeInTheDocument();
+    expect(screen.getByText('Deleted Roth IRA.')).toBeInTheDocument();
+    const [undoHsa] = screen.getAllByRole('button', { name: 'Undo' });
+    await user.click(undoHsa);
+    expect(loadDeviceWorkspace()?.portfolios.map(p => p.name)).toEqual(['HSA', 'Kids']);
+  });
+
   it('renames the open portfolio from the menu', async () => {
     seed({ funds: [{ symbol: 'VTI', target: 100 }] });
     const user = userEvent.setup();
@@ -440,6 +464,35 @@ describe('Calculator', () => {
     expect(await within(trades).findByText('$800.00')).toBeInTheDocument();
     expect(within(trades).getByText('$200.00')).toBeInTheDocument();
     expect(within(trades).getByRole('button', { name: 'Copy trades' })).toBeEnabled();
+  });
+
+  it('asks for the price of a fund you hold but have no target for', async () => {
+    server.use(http.get('*/api/stock/XYZ', () => HttpResponse.json({ price: null })));
+    seed({
+      funds: [{ symbol: 'VTI', target: 100 }],
+      holdings: { VTI: { kind: 'dollars', amount: 1000 }, XYZ: { kind: 'shares', amount: 10 } },
+      tracksHoldings: true,
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await user.type(screen.getByLabelText('Amount'), '500');
+
+    const trades = screen.getByRole('region', { name: /your trades/i });
+    await user.click(await within(trades).findByRole('button', { name: 'Add a price for XYZ' }));
+    await user.type(screen.getByLabelText('Price per share for XYZ'), '10');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    // XYZ is now worth $100, so the trades can be worked out: adding only buys VTI
+    expect((await within(trades).findAllByText('$500.00')).length).toBeGreaterThan(0);
+    expect(within(trades).getByRole('button', { name: 'Copy trades' })).toBeEnabled();
+  });
+
+  it("won't switch shares with no price to dollars, which would count them as $0", async () => {
+    server.use(http.get('*/api/stock/VXUS', () => HttpResponse.json({ price: null })));
+    seed({ funds: [{ symbol: 'VXUS', target: 100 }], holdings: { VXUS: { kind: 'shares', amount: 100 } }, tracksHoldings: true });
+    renderApp();
+    const toggle = screen.getByRole('group', { name: 'VXUS enter as' });
+    await waitFor(() => expect(within(toggle).getByRole('button', { name: '$' })).toBeDisabled());
+    expect(loadDeviceWorkspace()?.portfolios[0].holdings).toEqual({ VXUS: { kind: 'shares', amount: 100 } });
   });
 
   it('says it is waiting for prices while they load', async () => {

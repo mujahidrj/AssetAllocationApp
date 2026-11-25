@@ -266,6 +266,17 @@ describe('usePortfolios: whole shares, imports and typed prices', () => {
     spy.mockRestore();
   });
 
+  it('forgets a failed load once you sign out', async () => {
+    vi.mocked(loadCloudWorkspace).mockRejectedValueOnce(new Error('offline'));
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { result, rerender } = renderHook(({ user }) => usePortfolios(user), { initialProps: { user: { uid: 'u-out' } as User | null } });
+    await waitFor(() => expect(result.current.loadFailed).toBe(true));
+    rerender({ user: null });
+    expect(result.current.loadFailed).toBe(false);
+    expect(result.current.savedTo).toBe('device');
+    spy.mockRestore();
+  });
+
   it('tries loading again by itself when the connection comes back', async () => {
     vi.mocked(loadCloudWorkspace).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(cloud);
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});

@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import styles from './Calculator.module.css';
+import { closesKeyboard } from './format';
 import type { Verb } from './model';
 
 /** A small chevron sized to the sentence's type, with no empty space on its right. */
@@ -108,7 +109,7 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
                   value={amount}
                   onChange={e => onAmount(e.target.value)}
                   onBlur={onAmountBlur}
-                  onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                  onKeyDown={e => { if (e.key === 'Enter' && closesKeyboard()) e.currentTarget.blur(); }}
                 />
               </span>
             </label>

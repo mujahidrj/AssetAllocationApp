@@ -1166,7 +1166,6 @@
   background: var(--raised);
   font-family: var(--font-num);
   font-weight: 500;
-  font-size: 16px; /* 16px or more, or iPhone zooms in when the field is tapped */
 }
 
 .field:focus-within {
@@ -1180,6 +1179,7 @@
   outline: 0;
   background: none;
   font: inherit;
+  font-size: 16px; /* 16px or more, or iPhone zooms in when the field is tapped */
   padding: 0;
 }
 
@@ -2229,8 +2229,9 @@
     width: max(100%, 44px);
   }
 
-  /* Rows of links 8px apart: split the space between them evenly */
-  .cardTools .headLink::after {
+  /* Rows 8px apart: split the space between them evenly */
+  .cardTools .headLink::after,
+  .chip::after {
     height: calc(100% + 8px);
   }
 

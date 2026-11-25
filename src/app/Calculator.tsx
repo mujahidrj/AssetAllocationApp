@@ -7,7 +7,7 @@ import styles from './Calculator.module.css';
 import { parseBrokerCsv, type ImportResult } from './brokerImport';
 import { combinePortfolios } from './combined';
 import { CombinedView } from './CombinedView';
-import { formatAmountInput, money } from './format';
+import { formatAmountInput, listText, money } from './format';
 import { Appearance } from './Appearance';
 import { Header } from './Header';
 import { CloseIcon, CopyIcon } from './icons';
@@ -47,9 +47,6 @@ const undoNotice = (key: string, text: string, run: () => void): Notice =>
 /** At most this many messages stacked at once (the oldest goes first). */
 const MAX_NOTICES = 3;
 
-/** "VTI", "VTI and BND", "VTI, BND and VXUS" */
-const listText = (items: string[]) =>
-  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
 /** True once `waiting` has stayed true for `ms`: time to say it's taking a while. */
 function useLongWait(waiting: boolean, ms = 8000): boolean {
@@ -156,6 +153,8 @@ export function Calculator() {
   const [textFallback, setTextFallback] = useState<string | null>(null);
   const [importing, setImporting] = useState<{ fileName: string; result: ImportResult | ImportProblem } | null>(null);
   const [flashes, setFlashes] = useState<Notice[]>([]);
+  // Funds removed in a row (in one portfolio) share one Undo that brings them all back
+  const removedFunds = useRef<RemovedFund[]>([]);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [sharedMix, setSharedMix] = useState<Fund[] | null>(() =>
     readSharedMix()?.map(s => ({ symbol: s.name, target: s.percentage })) ?? null
@@ -168,6 +167,15 @@ export function Calculator() {
     const timers = flashTimers.current;
     return () => { clearTimeout(copyTimer.current); timers.forEach(t => clearTimeout(t)); };
   }, []);
+
+  // Signing in or out swaps every portfolio: an Undo from before would act on the wrong ones
+  const who = user?.uid ?? null;
+  useEffect(() => {
+    flashTimers.current.forEach(t => clearTimeout(t));
+    flashTimers.current.clear();
+    setFlashes([]);
+    removedFunds.current = [];
+  }, [who]);
 
   const dropFlash = useCallback((key: string) => {
     clearTimeout(flashTimers.current.get(key));
@@ -354,9 +362,6 @@ export function Calculator() {
     setView('one');
   };
 
-  // Funds removed in a row (in one portfolio) share one Undo that brings them all back
-  const removedFunds = useRef<RemovedFund[]>([]);
-
   const openPortfolio = (id: string) => {
     if (id !== portfolio.id) endFundUndo();
     portfolioActions.switchTo(id);
@@ -372,7 +377,7 @@ export function Calculator() {
     const removed: RemovedPortfolio | null = portfolioActions.remove(id);
     if (!removed) return;
     endFundUndo();
-    showFlash(undoNotice('deleted', `Deleted ${displayName(removed.portfolio)}.`, () => portfolioActions.restore(removed)));
+    showFlash(undoNotice(`deleted-${removed.portfolio.id}`, `Deleted ${displayName(removed.portfolio)}.`, () => portfolioActions.restore(removed)));
   };
 
   const removeFund = (symbol: string) => {
@@ -413,7 +418,7 @@ export function Calculator() {
       setAmountText(formatAmountInput(choice.cashAmount));
     }
     setImporting(null);
-    showFlash(undoNotice('imported', broker ? `Holdings imported from ${broker}.` : 'Holdings imported.', () => {
+    showFlash(undoNotice(`imported-${Date.now()}`, broker ? `Holdings imported from ${broker}.` : 'Holdings imported.', () => {
       actions.restoreHoldings(snapshot);
       priceActions.restoreManualPrices(pricesBefore);
       if (choice.cashAmount) { setVerb(before.verb); setAmountText(before.amountText); }
@@ -481,7 +486,7 @@ export function Calculator() {
   const copyRef = useRef<HTMLSpanElement>(null);
   const [copyPassed, setCopyPassed] = useState(false);
   const [scrollingUp, setScrollingUp] = useState(false);
-  const hasCopy = !showingAll && plan.status !== 'needs-mix';
+  const hasCopy = !showingAll && !waitingForAccount && plan.status !== 'needs-mix';
   useEffect(() => {
     const el = copyRef.current;
     if (!hasCopy || !el || typeof IntersectionObserver !== 'function') { setCopyPassed(false); return; }
