@@ -53,25 +53,25 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
 
   // "All portfolios": at the top once it can be used, below the list (greyed) until then
   const allRow = (below: boolean) => all && (
-              <div className={below ? styles.pickerAllBelow : styles.pickerAll}>
-                <button
-                  type="button"
-                  className={styles.pickerItem}
-                  aria-current={showingAll}
-                  disabled={all.count < 2}
-                  onClick={() => { all.onShow(); onClose(); }}
-                >
-                  <span className={styles.pickerText}>
-                    <span className={styles.pickerLabel}>All portfolios</span>
-                    <span className={styles.pickerNote}>
-                      {all.count < 2
-                        ? 'Needs two portfolios with holdings, prices and targets at 100%'
-                        : `${all.count} with holdings · ${money(all.total)}`}
-                    </span>
-                  </span>
-                  <span className={styles.pickerCheck}>{showingAll && <CheckIcon />}</span>
-                </button>
-              </div>
+    <div className={below ? styles.pickerAllBelow : styles.pickerAll}>
+      <button
+        type="button"
+        className={styles.pickerItem}
+        aria-current={showingAll}
+        disabled={all.count < 2}
+        onClick={() => { all.onShow(); onClose(); }}
+      >
+        <span className={styles.pickerText}>
+          <span className={styles.pickerLabel}>All portfolios</span>
+          <span className={styles.pickerNote}>
+            {all.count < 2
+              ? 'Needs two portfolios with holdings, prices and targets at 100%'
+              : `${all.count} with holdings · ${money(all.total)}`}
+          </span>
+        </span>
+        <span className={styles.pickerCheck}>{showingAll && <CheckIcon />}</span>
+      </button>
+    </div>
   );
 
   // Back closes the sheet, or from the template list goes back to the portfolios
