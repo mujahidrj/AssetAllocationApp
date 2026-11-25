@@ -114,7 +114,8 @@ export function Trades(props: TradesProps) {
   const failed = plan.unpriced.filter(s => priceFailed.includes(s));
   const waiting = plan.unpriced.filter(s => !priceFailed.includes(s));
   // Funds the lookup couldn't price (and nobody typed a price for), named in the footer
-  const noPrice = plan.status === 'needs-prices' ? [] : priceFailed.filter(s => funds.some(f => f.symbol === s));
+  const noPrice = plan.status === 'needs-prices' ? []
+    : priceFailed.filter(s => funds.some(f => f.symbol === s && f.target > 0) || plan.trades.some(t => t.symbol === s));
 
   const title =
     ok ? (sellsEverything ? 'Sell everything' : tradeTitle(plan.trades))
