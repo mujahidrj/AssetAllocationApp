@@ -1631,6 +1631,30 @@
   font-weight: 500;
 }
 
+/* A fund's row: "your price" goes on its own line under the name. The name and the
+   words beside it shrink to share the first line rather than wrap under it. */
+.mixRow .fundCell {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.mixRow .fundName,
+.mixRow .ownSymbol {
+  flex: 1 1 0;
+}
+
+/* A fund added by name fills the line, so "0%, not buying" goes under it */
+.mixRow .ownSymbol + .fundName {
+  flex-basis: 100%;
+  padding-left: 18px;
+}
+
+.mixRow .yourPrice {
+  flex-basis: 100%;
+  padding-left: 18px;
+  white-space: normal;
+}
+
 .priceEditor {
   display: flex;
   flex-wrap: wrap;
@@ -2393,30 +2417,6 @@
   /* The quick fixes sit together on their own line, under the total */
   .mixFoot .totalText {
     flex-basis: 100%;
-  }
-
-  /* A fund's row: "your price" goes on its own line under the name. The name and the
-     words beside it shrink to share the first line rather than wrap under it. */
-  .mixRow .fundCell {
-    flex-wrap: wrap;
-    row-gap: 2px;
-  }
-
-  .mixRow .fundName,
-  .mixRow .ownSymbol {
-    flex: 1 1 0;
-  }
-
-  /* A fund added by name fills the line, so "0%, not buying" goes under it */
-  .mixRow .ownSymbol + .fundName {
-    flex-basis: 100%;
-    padding-left: 18px;
-  }
-
-  .mixRow .yourPrice {
-    flex-basis: 100%;
-    padding-left: 18px;
-    white-space: normal;
   }
 
   /* Scrolled into view clear of the header and the copy bar */
