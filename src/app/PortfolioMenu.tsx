@@ -133,6 +133,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                   <input
                     autoFocus
                     aria-label="Portfolio name"
+                    enterKeyHint="done"
                     placeholder="Name it, e.g. Roth IRA"
                     value={draft}
                     onChange={e => setDraft(e.target.value)}

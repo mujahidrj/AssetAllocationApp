@@ -20,7 +20,7 @@ import { Sentence } from './Sentence';
 import { matchingTemplate, templates } from './templates';
 import { Trades, type SellChoice } from './Trades';
 import { tradesCsv, tradesText } from './tradeText';
-import { usePortfolios, type RemovedPortfolio } from './usePortfolios';
+import { usePortfolios, type RemovedFund, type RemovedPortfolio } from './usePortfolios';
 import { usePrices } from './usePrices';
 import { useTheme } from './useTheme';
 import { stocksFromFunds } from './storage';
@@ -29,15 +29,27 @@ const NAME_SUGGESTIONS = ['Roth IRA', 'Traditional IRA', '401(k)', 'Taxable acco
 const MAIN_SITE = 'https://asset-allocation-app-nine.vercel.app/';
 const UNDO_MS = 8000;
 
-/** One message at a time, in the toast spot: an undo, or a problem with what to do about it. */
+/** A message in the toast spot: an undo, or a problem with what to do about it. */
 interface Notice {
   key: string;
   text: string;
   action?: { label: string; run: () => void };
   /** Closes by itself after this long (undo and success messages). Problems stay until dismissed. */
   timeout?: number;
+  /** An Undo: stays until it times out or is used, even when another message comes along. */
+  undo?: boolean;
   onDismiss?: () => void;
 }
+
+const undoNotice = (key: string, text: string, run: () => void): Notice =>
+  ({ key, text, action: { label: 'Undo', run }, timeout: UNDO_MS, undo: true });
+
+/** At most this many messages stacked at once (the oldest goes first). */
+const MAX_NOTICES = 3;
+
+/** "VTI", "VTI and BND", "VTI, BND and VXUS" */
+const listText = (items: string[]) =>
+  items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
 const AUTH_TEXT: Record<AuthProblem, string> = {
   'popup-blocked': 'Your browser blocked the sign-in window. Allow pop-ups for this site, then try again.',
@@ -60,8 +72,18 @@ export function Calculator() {
   const { user, signInWithGoogle, signOut, problem: authProblem, clearProblem } = useAuth();
   const {
     workspace, portfolio, actions, portfolioActions, priceActions,
-    saveState, savedTo, loadFailed, retryLoad, retrySave, deviceSaveFailed,
+    saveState, savedTo, ready, loadFailed, retryLoad, retrySave, deviceSaveFailed,
   } = usePortfolios(user);
+  // Signed in: nothing to show or edit until the account's portfolios have arrived
+  const waitingForAccount = savedTo === 'account' && !ready;
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
   const { funds, holdings, tracksHoldings, sell } = portfolio;
   const wholeShares = portfolio.wholeShares === true;
   const manualPrices = useMemo(() => workspace.manualPrices ?? {}, [workspace.manualPrices]);
@@ -117,7 +139,7 @@ export function Calculator() {
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [textFallback, setTextFallback] = useState<string | null>(null);
   const [importing, setImporting] = useState<{ fileName: string; result: ImportResult | ImportProblem } | null>(null);
-  const [flash, setFlash] = useState<Notice | null>(null);
+  const [flashes, setFlashes] = useState<Notice[]>([]);
   const [dismissed, setDismissed] = useState<string[]>([]);
   const [sharedMix, setSharedMix] = useState<Fund[] | null>(() =>
     readSharedMix()?.map(s => ({ symbol: s.name, target: s.percentage })) ?? null
@@ -125,13 +147,39 @@ export function Calculator() {
   const blankRef = useRef<HTMLButtonElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout>>();
-  const flashTimer = useRef<ReturnType<typeof setTimeout>>();
-  useEffect(() => () => { clearTimeout(copyTimer.current); clearTimeout(flashTimer.current); }, []);
+  const flashTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  useEffect(() => {
+    const timers = flashTimers.current;
+    return () => { clearTimeout(copyTimer.current); timers.forEach(t => clearTimeout(t)); };
+  }, []);
 
-  const showFlash = useCallback((notice: Notice | null) => {
-    clearTimeout(flashTimer.current);
-    setFlash(notice);
-    if (notice?.timeout) flashTimer.current = setTimeout(() => setFlash(f => (f?.key === notice.key ? null : f)), notice.timeout);
+  const dropFlash = useCallback((key: string) => {
+    clearTimeout(flashTimers.current.get(key));
+    flashTimers.current.delete(key);
+    setFlashes(list => list.filter(f => f.key !== key));
+  }, []);
+
+  /**
+   * Shows a message. An Undo that's still showing stays: the new message stacks
+   * with it instead of replacing it. Other messages replace each other.
+   */
+  const showFlash = useCallback((notice: Notice) => {
+    setFlashes(list => {
+      const next = [...list.filter(f => f.undo && f.key !== notice.key), notice];
+      next.slice(0, Math.max(0, next.length - MAX_NOTICES)).forEach(f => {
+        clearTimeout(flashTimers.current.get(f.key));
+        flashTimers.current.delete(f.key);
+      });
+      return next.slice(-MAX_NOTICES);
+    });
+    clearTimeout(flashTimers.current.get(notice.key));
+    flashTimers.current.delete(notice.key);
+    if (notice.timeout) {
+      flashTimers.current.set(notice.key, setTimeout(() => {
+        flashTimers.current.delete(notice.key);
+        setFlashes(list => list.filter(f => f !== notice));
+      }, notice.timeout));
+    }
   }, []);
 
   const effectiveVerb: Verb = !tracksHoldings && verb === 'rebal' ? 'add' : verb;
@@ -211,7 +259,8 @@ export function Calculator() {
     ? `From the ${startedFrom.group === 'sharia' ? `Sharia ${startedFrom.label}` : startedFrom.label} template${matchingTemplate(funds)?.id === startedFrom.id ? '' : ', edited'}`
     : undefined;
 
-  const helper = (() => {
+  const removingAll = effectiveVerb === 'out' && plan.status === 'ok' && plan.heldTotal > 0 && safeAmount > plan.heldTotal + 0.005;
+  const helper: { text: string; error?: boolean; strong?: boolean; addOwn?: string } = (() => {
     if (showingAll) return { text: 'Read-only. Pick one portfolio to get trades.' };
     if (amountInvalid) return { text: 'Type an amount like 2,500 or $2,500.50.', error: true };
     if (!tracksHoldings) {
@@ -221,7 +270,12 @@ export function Calculator() {
       };
     }
     if (effectiveVerb === 'rebal') return { text: 'Moving money between funds so each one lands on target. No new cash.' };
-    if (effectiveVerb === 'out') return { text: "Selling from whatever's furthest over target first." };
+    if (effectiveVerb === 'out') {
+      // Asked for more than there is: say so, rather than quietly selling less
+      return removingAll
+        ? { text: `You own $${formatAmountInput(plan.heldTotal)}, so this sells everything.`, strong: true }
+        : { text: "Selling from whatever's furthest over target first." };
+    }
     return { text: selling ? 'Buying and selling so every fund lands on target.' : "Buying only what's behind target, so nothing gets sold." };
   })();
 
@@ -290,12 +344,20 @@ export function Calculator() {
   const deletePortfolio = (id: string) => {
     const removed: RemovedPortfolio | null = portfolioActions.remove(id);
     if (!removed) return;
-    showFlash({
-      key: 'deleted',
-      text: `Deleted ${displayName(removed.portfolio)}.`,
-      action: { label: 'Undo', run: () => portfolioActions.restore(removed) },
-      timeout: UNDO_MS,
-    });
+    showFlash(undoNotice('deleted', `Deleted ${displayName(removed.portfolio)}.`, () => portfolioActions.restore(removed)));
+  };
+
+  // Funds removed in a row share one Undo that brings them all back
+  const removedFunds = useRef<RemovedFund[]>([]);
+  const removeFund = (symbol: string) => {
+    const removed = actions.removeFund(symbol);
+    if (!removed) return;
+    const list = flashes.some(f => f.key === 'removed-funds') ? [...removedFunds.current, removed] : [removed];
+    removedFunds.current = list;
+    showFlash(undoNotice('removed-funds', `Removed ${listText(list.map(r => r.fund.symbol))}.`, () => {
+      // Newest first, so each fund goes back into the list it left
+      [...list].reverse().forEach(r => actions.restoreFund(r));
+    }));
   };
 
   /* ---------- Import from a broker file ---------- */
@@ -324,19 +386,11 @@ export function Calculator() {
       setAmountText(formatAmountInput(choice.cashAmount));
     }
     setImporting(null);
-    showFlash({
-      key: 'imported',
-      text: broker ? `Holdings imported from ${broker}.` : 'Holdings imported.',
-      action: {
-        label: 'Undo',
-        run: () => {
-          actions.restoreHoldings(snapshot);
-          priceActions.restoreManualPrices(pricesBefore);
-          if (choice.cashAmount) { setVerb(before.verb); setAmountText(before.amountText); }
-        },
-      },
-      timeout: UNDO_MS,
-    });
+    showFlash(undoNotice('imported', broker ? `Holdings imported from ${broker}.` : 'Holdings imported.', () => {
+      actions.restoreHoldings(snapshot);
+      priceActions.restoreManualPrices(pricesBefore);
+      if (choice.cashAmount) { setVerb(before.verb); setAmountText(before.amountText); }
+    }));
   };
 
   /* ---------- Messages ---------- */
@@ -355,21 +409,22 @@ export function Calculator() {
       onDismiss: clearProblem,
     });
   }
-  if (loadFailed) {
-    problems.push({ key: 'load', text: "Couldn't load your portfolios from your account. Nothing will be saved until they load.", action: { label: 'Try again', run: retryLoad } });
-  } else if (savedTo === 'account' && saveState === 'error') {
+  // A failed load is explained in the page itself (see waitingForAccount)
+  if (!loadFailed && savedTo === 'account' && saveState === 'error') {
     problems.push({ key: 'save', text: "Couldn't save to your account. Check your connection.", action: { label: 'Retry', run: retrySave } });
   }
   if (savedTo === 'device' && deviceSaveFailed) {
     problems.push({ key: 'device', text: "This browser isn't saving changes. They'll be gone when you close the tab.", action: { label: 'Sign in to sync', run: () => { void signInWithGoogle(); } } });
   }
   // A problem that was dismissed comes back if it happens again later
-  useEffect(() => { if (!loadFailed) setDismissed(d => d.filter(k => k !== 'load')); }, [loadFailed]);
   useEffect(() => { if (saveState !== 'error') setDismissed(d => d.filter(k => k !== 'save')); }, [saveState]);
 
-  const notice = flash ?? problems.find(p => !dismissed.includes(p.key)) ?? null;
+  // Undo and other passing messages come first; a lasting problem shows when there are none
+  const problem = problems.find(p => !dismissed.includes(p.key)) ?? null;
+  const notices: Notice[] = flashes.length > 0 ? flashes : problem ? [problem] : [];
+  const isFlash = (n: Notice) => flashes.includes(n);
   const dismiss = (n: Notice) => {
-    if (n === flash) showFlash(null);
+    if (isFlash(n)) dropFlash(n.key);
     else if (n.onDismiss) n.onDismiss();
     else setDismissed(d => [...d, n.key]);
   };
@@ -456,6 +511,23 @@ export function Calculator() {
       />
 
       <main className={styles.main}>
+        {waitingForAccount ? (
+          <section className={`${styles.card} ${styles.loadingCard}`} aria-live="polite" data-testid="account-loading">
+            <h2 className={styles.cardTitle}>
+              {!online ? "You're offline" : loadFailed ? "Couldn't load your portfolios" : 'Loading your portfolios…'}
+            </h2>
+            {!online ? (
+              <p>Your portfolios are saved to your account. They'll load here as soon as you're back online.</p>
+            ) : loadFailed ? (
+              <>
+                <p>Nothing in your account has changed. Check your connection and try again.</p>
+                <button type="button" className={styles.primary} onClick={retryLoad}>Try again</button>
+              </>
+            ) : (
+              <p>From your account, so they're the same on all your devices.</p>
+            )}
+          </section>
+        ) : (<>
         {sharedMix && (
           <div className={styles.banner} role="status">
             <p>Someone shared a portfolio: <b className={styles.num}>{sharedMix.map(f => `${f.symbol} ${f.target}`).join(' · ')}</b></p>
@@ -513,7 +585,7 @@ export function Calculator() {
             />
           )}
         </div>
-        <p className={`${styles.helper} ${helper.error ? styles.helperError : ''}`}>
+        <p className={`${styles.helper} ${helper.error ? styles.helperError : ''} ${helper.strong ? styles.helperStrong : ''}`}>
           {helper.text}{' '}
           {helper.addOwn && (
             <>
@@ -533,6 +605,7 @@ export function Calculator() {
               <input
                 className={styles.nameInput}
                 autoFocus
+                enterKeyHint="done"
                 onFocus={e => e.currentTarget.select()}
                 placeholder="Name it, e.g. Roth IRA"
                 value={portfolio.name}
@@ -581,6 +654,7 @@ export function Calculator() {
               onRebalance={rebalance}
               onEnterHoldings={focusHoldings}
               onImport={() => fileInput.current?.click()}
+              priceFailed={missingPrices}
               copyRef={copyRef}
             />
 
@@ -599,7 +673,7 @@ export function Calculator() {
                 onHolding={actions.setHolding}
                 onTracksHoldings={actions.setTracksHoldings}
                 onAddFund={(s, n) => { actions.addFund(s, n); setSearchOpen(false); }}
-                onRemoveFund={actions.removeFund}
+                onRemoveFund={removeFund}
                 onChangeMix={() => { setMenu('mix'); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }}
                 onScale={actions.scaleTo100}
                 onAbsorb={actions.absorbRemainder}
@@ -619,6 +693,8 @@ export function Calculator() {
             )}
           </>
         )}
+
+        </>)}
 
         <input
           ref={fileInput}
@@ -678,27 +754,31 @@ export function Calculator() {
         />
       )}
 
-      {notice && (
-        <div className={`${styles.toast} ${showingAll || plan.status === 'needs-mix' ? styles.toastLow : ''}`} role="status">
-          <span className={styles.toastText}>{notice.text}</span>
-          {notice.action && (
-            <button
-              type="button"
-              className={styles.toastUndo}
-              onClick={() => { notice.action!.run(); if (notice === flash) showFlash(null); }}
-            >
-              {notice.action.label}
-            </button>
-          )}
-          {!notice.timeout && (
-            <button type="button" className={styles.toastClose} onClick={() => dismiss(notice)} aria-label="Dismiss">
-              <CloseIcon />
-            </button>
-          )}
+      {notices.length > 0 && (
+        <div className={`${styles.toasts} ${showingAll || plan.status === 'needs-mix' || waitingForAccount ? styles.toastLow : ''}`}>
+          {notices.map(notice => (
+            <div key={notice.key} className={styles.toast} role="status">
+              <span className={styles.toastText}>{notice.text}</span>
+              {notice.action && (
+                <button
+                  type="button"
+                  className={styles.toastUndo}
+                  onClick={() => { notice.action!.run(); if (isFlash(notice)) dropFlash(notice.key); }}
+                >
+                  {notice.action.label}
+                </button>
+              )}
+              {!notice.timeout && (
+                <button type="button" className={styles.toastClose} onClick={() => dismiss(notice)} aria-label="Dismiss">
+                  <CloseIcon />
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
-      {!showingAll && plan.status !== 'needs-mix' && (
+      {!showingAll && !waitingForAccount && plan.status !== 'needs-mix' && (
         <div className={styles.copyBar}>
           <button type="button" className={styles.primary} onClick={copyTrades} disabled={!ok}>
             <CopyIcon />

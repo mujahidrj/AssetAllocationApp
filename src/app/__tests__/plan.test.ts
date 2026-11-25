@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { furthestOff, heldValues, makePlan, holdingDollars, offTargets, valuesAfter, type PlanInput } from '../plan';
+import { furthestOff, heldValues, makePlan, holdingDollars, offTargets, unpricedShares, valuesAfter, type PlanInput } from '../plan';
 
 const funds = [
   { symbol: 'SPUS', target: 50, name: 'SP Funds S&P 500 Sharia Industry Exclusions ETF' },
@@ -92,6 +92,26 @@ describe('makePlan', () => {
     expect(makePlan({ ...base, tracksHoldings: true, verb: 'rebal' }).status).toBe('needs-holdings');
     const onTarget = { SPUS: { kind: 'dollars' as const, amount: 50 }, SPTE: { kind: 'dollars' as const, amount: 40 }, SPWO: { kind: 'dollars' as const, amount: 10 } };
     expect(makePlan({ ...base, holdings: onTarget, tracksHoldings: true, verb: 'rebal' }).status).toBe('nothing-to-do');
+  });
+
+  it('waits for the price of every holding entered in shares', () => {
+    const inShares = { ...holdings, SPTE: { kind: 'shares' as const, amount: 185 } };
+    const noSpte = { ...prices, SPTE: null };
+    // Unpriced shares would count as $0 and give the wrong trades, so there are none yet
+    expect(makePlan({ ...base, holdings: inShares, tracksHoldings: true, prices: noSpte }))
+      .toMatchObject({ status: 'needs-prices', unpriced: ['SPTE'], trades: [], net: 0 });
+    // Rebalancing too, rather than saying nothing is owned
+    expect(makePlan({ ...base, holdings: { SPTE: { kind: 'shares', amount: 185 } }, tracksHoldings: true, verb: 'rebal', prices: noSpte }).status)
+      .toBe('needs-prices');
+    // No amount yet: nothing to work out either way
+    expect(makePlan({ ...base, amount: 0, holdings: inShares, tracksHoldings: true, prices: noSpte }).status).toBe('needs-amount');
+    // Holdings switched off don't count
+    expect(makePlan({ ...base, holdings: inShares, tracksHoldings: false, prices: noSpte }).status).toBe('ok');
+    // Once the price arrives
+    expect(makePlan({ ...base, holdings: inShares, tracksHoldings: true })).toMatchObject({ status: 'ok', unpriced: [] });
+
+    expect(unpricedShares(inShares, noSpte)).toEqual(['SPTE']);
+    expect(unpricedShares({ CASH: { kind: 'shares', amount: 5 }, X: { kind: 'shares', amount: 0 }, Y: { kind: 'dollars', amount: 5 } }, {})).toEqual([]);
   });
 
   it('leaves shares blank when a price is missing, and prices cash at $1', () => {

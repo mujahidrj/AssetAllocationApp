@@ -31,6 +31,10 @@ function offText(off: OffTarget[]): string {
   return `${off.length} funds would still be off target after this.`;
 }
 
+/** "VTI", "VTI and BND", "VTI, BND and VXUS" */
+const listText = (symbols: string[]) =>
+  symbols.length <= 1 ? symbols.join('') : `${symbols.slice(0, -1).join(', ')} and ${symbols[symbols.length - 1]}`;
+
 /** "Selling $1,450.00 of SPUS so everything lands on target." */
 function sellingText(sells: Trade[], whole: boolean): string {
   const what = sells.length === 1 ? `${money(sells[0].dollars)} of ${sells[0].symbol}`
@@ -72,23 +76,29 @@ interface TradesProps {
   onRetirement: () => void;
   onEnterHoldings: () => void;
   onImport: () => void;
+  /** Funds held as shares whose price lookup failed (no typed price either). */
+  priceFailed: string[];
   /** On the Copy and CSV buttons, so the page can tell when they've scrolled away. */
   copyRef?: Ref<HTMLSpanElement>;
 }
 
 export function Trades(props: TradesProps) {
-  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, sellChoice, onSell, onRetirement, copyRef } = props;
+  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, priceFailed, sellChoice, onSell, onRetirement, copyRef } = props;
   const ok = plan.status === 'ok';
   const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
   const when = priceTime(asOf);
   const typed = Object.entries(manualPrices).filter(([s]) => funds.some(f => f.symbol === s) || plan.trades.some(t => t.symbol === s));
   const cheapest = cheapestShort(plan.shortOfShare);
+  // Held as shares with no price: the lookup either failed or is still going
+  const failed = plan.unpriced.filter(s => priceFailed.includes(s));
+  const waiting = plan.unpriced.filter(s => !priceFailed.includes(s));
 
   const title =
     ok ? tradeTitle(plan.trades)
       : plan.status === 'targets-off' ? 'Targets need to add up to 100%'
       : plan.status === 'needs-mix' ? 'Pick a starting point'
       : plan.status === 'short-of-share' ? 'Not enough for one share'
+      : plan.status === 'needs-prices' ? (failed.length > 1 ? 'Prices are missing' : failed.length === 1 ? 'A price is missing' : 'Getting prices…')
       : 'Your trades';
 
   return (
@@ -141,6 +151,26 @@ export function Trades(props: TradesProps) {
             {' '}or{' '}
             <button type="button" className={styles.linkButton} onClick={onImport}>import from your broker</button>.
           </p>
+        </div>
+      )}
+      {plan.status === 'needs-prices' && (
+        <div className={styles.empty}>
+          {failed.length > 0 ? (
+            <div className={styles.emptyAction}>
+              <p>
+                Couldn't get a price for {listText(failed)}. You entered {failed.length === 1 ? 'it' : 'them'} in shares,
+                so your trades need {failed.length === 1 ? 'its price' : 'their prices'} first.
+              </p>
+              {failed.filter(s => funds.some(f => f.symbol === s)).map(s => (
+                <button key={s} type="button" className={styles.primary} onClick={() => onAddPrice(s)}>Add a price for {s}</button>
+              ))}
+            </div>
+          ) : (
+            <p>
+              Your trades show up once {listText(waiting)} {waiting.length === 1 ? 'has a price' : 'have prices'}.
+              {' '}You entered {waiting.length === 1 ? 'it' : 'them'} in shares.
+            </p>
+          )}
         </div>
       )}
       {plan.status === 'nothing-to-do' && (

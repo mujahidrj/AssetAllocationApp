@@ -119,6 +119,10 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
           value={query}
           autoFocus={autoFocus}
           autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="go"
           onChange={e => { setQuery(e.target.value); setNote(null); }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}

@@ -414,6 +414,103 @@ describe('Calculator', () => {
     expect(within(dialog).getByText('Fidelity:')).toBeInTheDocument();
   });
 
+  it('holds the trades until every fund held in shares has a price', async () => {
+    server.use(http.get('*/api/stock/BND', () => HttpResponse.json({ price: null })));
+    seed({
+      funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'BND', target: 40 }],
+      holdings: { VTI: { kind: 'shares', amount: 10 }, BND: { kind: 'shares', amount: 20 } },
+      tracksHoldings: true,
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await user.type(screen.getByLabelText('Amount'), '1000');
+
+    // BND's lookup fails: no trades worked out as if it were worth $0, and nothing to copy
+    const trades = screen.getByRole('region', { name: /your trades/i });
+    expect(await within(trades).findByRole('heading', { name: 'A price is missing' })).toBeInTheDocument();
+    expect(within(trades).getByText(/Couldn't get a price for BND\. You entered it in shares/)).toBeInTheDocument();
+    expect(within(trades).getByRole('button', { name: 'Copy trades' })).toBeDisabled();
+    expect(within(trades).queryByText(/^\$/)).not.toBeInTheDocument();
+
+    await user.click(within(trades).getByRole('button', { name: 'Add a price for BND' }));
+    await user.type(screen.getByLabelText('Price per share for BND'), '50');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    // VTI 10 × $100 and BND 20 × $50: $1,000 more lands both on 60/40 of $3,000
+    expect(await within(trades).findByText('$800.00')).toBeInTheDocument();
+    expect(within(trades).getByText('$200.00')).toBeInTheDocument();
+    expect(within(trades).getByRole('button', { name: 'Copy trades' })).toBeEnabled();
+  });
+
+  it('says it is waiting for prices while they load', async () => {
+    server.use(http.get('*/api/stock/VXUS', () => new Promise<Response>(() => {})));
+    seed({ funds: [{ symbol: 'VXUS', target: 100 }], holdings: { VXUS: { kind: 'shares', amount: 3 } }, tracksHoldings: true });
+    const user = userEvent.setup();
+    renderApp();
+    await user.type(screen.getByLabelText('Amount'), '500');
+    expect(screen.getByRole('heading', { name: 'Getting prices…' })).toBeInTheDocument();
+    expect(screen.getByText(/Your trades show up once VXUS has a price\./)).toBeInTheDocument();
+  });
+
+  it('says when removing more than you own sells everything', async () => {
+    seed({
+      funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'BND', target: 40 }],
+      holdings: { VTI: { kind: 'dollars', amount: 14000 }, BND: { kind: 'dollars', amount: 7000 } },
+      tracksHoldings: true,
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await user.selectOptions(screen.getByLabelText('What you want to do'), 'out');
+    const amount = screen.getByLabelText('Amount');
+    await user.type(amount, '30000');
+    expect(screen.getByText('You own $21,000, so this sells everything.')).toBeInTheDocument();
+    expect(await screen.findByText('−$14,000.00')).toBeInTheDocument();
+
+    await user.clear(amount);
+    await user.type(amount, '5000');
+    expect(screen.queryByText(/so this sells everything/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Selling from whatever's furthest over target first\./)).toBeInTheDocument();
+  });
+
+  it('brings back a removed fund and what you owned of it, and keeps the Undo when another message comes', async () => {
+    saveDeviceWorkspace({
+      portfolios: [
+        {
+          ...emptyPortfolio('a', 'Roth IRA'),
+          funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'VXUS', target: 30 }, { symbol: 'BND', target: 10 }],
+          holdings: { BND: { kind: 'dollars', amount: 2000 } },
+          tracksHoldings: true,
+        },
+        { ...emptyPortfolio('b', 'HSA'), funds: [{ symbol: 'VTI', target: 100 }] },
+      ],
+      activeId: 'a',
+    });
+    const user = userEvent.setup();
+    renderApp();
+
+    // Two in a row share one Undo
+    await user.click(screen.getByRole('button', { name: 'Remove BND' }));
+    expect(screen.getByText('Removed BND.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Remove VXUS' }));
+    expect(screen.getByText('Removed BND and VXUS.')).toBeInTheDocument();
+    expect(loadDeviceWorkspace()?.portfolios[0].holdings).toEqual({});
+
+    // A new message stacks with it instead of replacing it
+    await user.click(screen.getByRole('button', { name: 'my Roth IRA' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: 'Delete Roth IRA' }));
+    expect(screen.getByText('Removed BND and VXUS.')).toBeInTheDocument();
+    expect(screen.getByText('Deleted Roth IRA.')).toBeInTheDocument();
+    const [undoRemove, undoDelete] = screen.getAllByRole('button', { name: 'Undo' });
+
+    await user.click(undoDelete);
+    await user.click(undoRemove);
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    const roth = loadDeviceWorkspace()?.portfolios.find(p => p.id === 'a');
+    expect(roth?.funds.map(f => f.symbol)).toEqual(['VTI', 'VXUS', 'BND']);
+    expect(roth?.holdings).toEqual({ BND: { kind: 'dollars', amount: 2000 } });
+    expect(screen.getByLabelText('BND you own, in dollars')).toHaveValue('2,000');
+  });
+
   it('lets you type a price for a fund the lookup can’t price', async () => {
     server.use(http.get('*/api/stock/TRUST2050', () => HttpResponse.json({ price: null })));
     seed({ funds: [{ symbol: 'TRUST2050', target: 100 }] });

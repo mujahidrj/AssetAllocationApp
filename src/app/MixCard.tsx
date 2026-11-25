@@ -3,7 +3,7 @@ import styles from './Calculator.module.css';
 import { CheckIcon, CloseIcon, ShareIcon } from './icons';
 import { drift, money, pct1, priceDate } from './format';
 import { shortName, type Fund, type Holding, type ManualPrice } from './model';
-import { holdingDollars, type OffTarget, type PriceMap } from './plan';
+import { holdingDollars, unpricedShares, type OffTarget, type PriceMap } from './plan';
 import { FundSearch } from './FundSearch';
 import { parseAmount } from '../lib/parseAmount';
 
@@ -33,9 +33,11 @@ function NumberField({ value, onCommit, label, className, prefix, suffix, decima
       <input
         aria-label={label}
         inputMode="decimal"
+        enterKeyHint="done"
         autoComplete="off"
         placeholder="0"
         value={draft}
+        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         onFocus={() => setEditing(true)}
         onBlur={() => { setEditing(false); setDraft(show(value)); }}
         onChange={e => {
@@ -71,7 +73,7 @@ function PriceEditor({ symbol, current, onSave, onClose }: {
         Price per share for {symbol}
         <span className={`${styles.field} ${styles.priceField}`}>
           <span>$</span>
-          <input autoFocus inputMode="decimal" autoComplete="off" placeholder="0.00" value={text} onChange={e => setText(e.target.value)} aria-label={`Price per share for ${symbol}`} />
+          <input autoFocus inputMode="decimal" enterKeyHint="done" autoComplete="off" placeholder="0.00" value={text} onChange={e => setText(e.target.value)} aria-label={`Price per share for ${symbol}`} />
         </span>
       </label>
       <span className={styles.priceEditorHint}>From your broker or latest statement.</span>
@@ -161,7 +163,9 @@ export function MixCard(props: MixCardProps) {
   const off = funds.length > 0 && Math.abs(total - 100) > 0.01;
   const diff = Math.round((100 - total) * 100) / 100;
   const largest = funds.length > 0 ? funds.reduce((a, b) => (b.target > a.target ? b : a)) : null;
-  const heldTotal = funds.reduce((sum, f) => sum + holdingDollars(f.symbol, holdings[f.symbol], prices), 0);
+  // Shares with no price have no known value yet, so neither has the total
+  const valued = unpricedShares(holdings, prices).length === 0;
+  const heldTotal = valued ? funds.reduce((sum, f) => sum + holdingDollars(f.symbol, holdings[f.symbol], prices), 0) : 0;
 
   return (
     <section
@@ -343,7 +347,7 @@ export function MixCard(props: MixCardProps) {
               <button type="button" className={styles.linkButton} onClick={onRebalance}>Rebalance</button>
             </span>
           )}
-          {tracksHoldings && <span className={styles.num} style={{ color: 'var(--text-2)' }}>You own {money(heldTotal)}</span>}
+          {tracksHoldings && valued && <span className={styles.num} style={{ color: 'var(--text-2)' }}>You own {money(heldTotal)}</span>}
         </div>
       )}
     </section>

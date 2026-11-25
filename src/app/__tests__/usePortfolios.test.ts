@@ -62,6 +62,28 @@ describe('usePortfolios', () => {
     expect(result.current.portfolio.holdings).toEqual({});
   });
 
+  it('puts a removed fund back where it was, with what you owned of it', () => {
+    const { result } = renderHook(() => usePortfolios(null));
+    act(() => result.current.actions.applyMix([{ symbol: 'VTI', target: 60 }, { symbol: 'VXUS', target: 30 }, { symbol: 'BND', target: 10 }]));
+    act(() => result.current.actions.setHolding('VXUS', { kind: 'shares', amount: 12 }));
+    const homeId = result.current.portfolio.id;
+
+    let removed!: ReturnType<typeof result.current.actions.removeFund>;
+    act(() => { removed = result.current.actions.removeFund('VXUS'); });
+    expect(removed).toEqual({ portfolioId: homeId, fund: { symbol: 'VXUS', target: 30 }, index: 1, holding: { kind: 'shares', amount: 12 } });
+    expect(result.current.actions.removeFund('NOPE')).toBeNull();
+
+    // Undo works from another portfolio too, and only once
+    act(() => { result.current.portfolioActions.create(); });
+    act(() => result.current.actions.restoreFund(removed!));
+    act(() => result.current.actions.restoreFund(removed!));
+    expect(result.current.portfolio.funds).toEqual([]);
+    act(() => result.current.portfolioActions.switchTo(homeId));
+    expect(result.current.portfolio.funds.map(f => f.symbol)).toEqual(['VTI', 'VXUS', 'BND']);
+    expect(result.current.portfolio.holdings).toEqual({ VXUS: { kind: 'shares', amount: 12 } });
+    expect(loadDeviceWorkspace()?.portfolios[0].funds.map(f => f.symbol)).toEqual(['VTI', 'VXUS', 'BND']);
+  });
+
   it('creates, switches, renames, copies and deletes portfolios, with undo', () => {
     const { result } = renderHook(() => usePortfolios(null));
     act(() => result.current.actions.applyMix([{ symbol: 'VTI', target: 100 }]));
@@ -241,6 +263,19 @@ describe('usePortfolios: whole shares, imports and typed prices', () => {
     act(() => result.current.retryLoad());
     await waitFor(() => expect(result.current.portfolio.name).toBe('Roth IRA'));
     expect(result.current.loadFailed).toBe(false);
+    spy.mockRestore();
+  });
+
+  it('tries loading again by itself when the connection comes back', async () => {
+    vi.mocked(loadCloudWorkspace).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(cloud);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => usePortfolios({ uid: 'u-online' } as User));
+    await waitFor(() => expect(result.current.loadFailed).toBe(true));
+    expect(result.current.ready).toBe(false);
+    act(() => { window.dispatchEvent(new Event('online')); });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(result.current.portfolio.name).toBe('Roth IRA');
+    expect(loadCloudWorkspace).toHaveBeenCalledTimes(2);
     spy.mockRestore();
   });
 });

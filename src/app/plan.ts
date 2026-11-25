@@ -25,6 +25,7 @@ export type PlanStatus =
   | 'needs-mix'      // no funds yet
   | 'needs-amount'   // nothing typed in the amount
   | 'targets-off'    // targets don't add up to 100%
+  | 'needs-prices'   // holdings entered in shares are still waiting for a price
   | 'needs-holdings' // rebalancing with nothing entered as owned
   | 'nothing-to-do'  // everything already on target
   | 'short-of-share'; // whole shares: not enough money for one share of anything
@@ -53,6 +54,11 @@ export interface Plan {
   targetTotal: number;
   /** Dollar value of holdings used for the plan (0 when not tracking holdings). */
   heldTotal: number;
+  /**
+   * Funds held as shares with no price yet. Their value is unknown, so there are no
+   * trades until every one has a price (status 'needs-prices').
+   */
+  unpriced: string[];
 }
 
 export interface PlanInput {
@@ -74,7 +80,10 @@ export const priceOf = (symbol: string, prices: PriceMap): number | null => {
   return p != null && p > 0 ? p : null;
 };
 
-/** Dollar value of a holding; shares without a price count as $0. */
+/**
+ * Dollar value of a holding; shares without a price count as $0, so check
+ * unpricedShares() before using a total built from this.
+ */
 export function holdingDollars(symbol: string, holding: Holding | undefined, prices: PriceMap): number {
   if (!holding) return 0;
   if (holding.kind === 'dollars') return holding.amount;
@@ -95,20 +104,23 @@ function allSymbols(funds: Fund[], holdings: Record<string, Holding>): string[] 
 export function makePlan(input: PlanInput): Plan {
   const { funds, tracksHoldings, verb, amount, sell, prices } = input;
   const targetTotal = funds.reduce((sum, f) => sum + f.target, 0);
-  const base: Plan = { status: 'ok', trades: [], skips: [], leftover: 0, shortOfShare: [], net: 0, targetTotal, heldTotal: 0 };
+  const base: Plan = { status: 'ok', trades: [], skips: [], leftover: 0, shortOfShare: [], net: 0, targetTotal, heldTotal: 0, unpriced: [] };
 
   if (funds.length === 0) return { ...base, status: 'needs-mix' };
   if (Math.abs(targetTotal - 100) > 0.01) return { ...base, status: 'targets-off' };
 
   const holdings = tracksHoldings ? input.holdings : {};
   const symbols = allSymbols(funds, holdings);
+  // Shares are worth nothing we can work with until their price arrives (or is typed)
+  const unpriced = unpricedShares(holdings, prices);
   const held: Record<string, number> = {};
   symbols.forEach(s => { held[s] = holdingDollars(s, holdings[s], prices); });
-  const heldTotal = symbols.reduce((sum, s) => sum + held[s], 0);
+  const heldTotal = unpriced.length > 0 ? 0 : symbols.reduce((sum, s) => sum + held[s], 0);
   const targets = Object.fromEntries(funds.map(f => [f.symbol, f.target]));
 
   const effectiveVerb: Verb = !tracksHoldings && verb === 'rebal' ? 'add' : verb;
-  if (effectiveVerb !== 'rebal' && !(amount > 0)) return { ...base, status: 'needs-amount', heldTotal };
+  if (effectiveVerb !== 'rebal' && !(amount > 0)) return { ...base, status: 'needs-amount', heldTotal, unpriced };
+  if (unpriced.length > 0) return { ...base, status: 'needs-prices', unpriced };
   if (effectiveVerb === 'rebal' && heldTotal <= 0) return { ...base, status: 'needs-holdings', heldTotal };
 
   let deltas: Record<string, number>;
@@ -181,7 +193,15 @@ export function makePlan(input: PlanInput): Plan {
     net,
     targetTotal,
     heldTotal,
+    unpriced: [],
   };
+}
+
+/** Holdings entered as shares that have no price yet, so their value is unknown. */
+export function unpricedShares(holdings: Record<string, Holding>, prices: PriceMap): string[] {
+  return Object.entries(holdings)
+    .filter(([symbol, h]) => h.kind === 'shares' && h.amount > 0 && priceOf(symbol, prices) == null)
+    .map(([symbol]) => symbol);
 }
 
 const cents = (n: number) => Math.round(n * 100) / 100;

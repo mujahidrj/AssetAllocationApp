@@ -477,6 +477,11 @@
   border-bottom-color: var(--accent-hover);
 }
 
+/* The verb blank: an invisible select on top does the work (see "Touch screens") */
+.blankSelect {
+  cursor: pointer;
+}
+
 .blank:focus-visible,
 .blank:focus-within {
   outline: none;
@@ -552,6 +557,12 @@
 
 .helperError {
   color: var(--sell);
+}
+
+/* The amount asked for is more than there is to sell */
+.helperStrong {
+  color: var(--text);
+  font-weight: 500;
 }
 
 .linkButton {
@@ -707,7 +718,7 @@
   border: 1px solid var(--accent);
   border-radius: var(--radius);
   background: var(--raised);
-  font-size: 15px;
+  font-size: 16px; /* no zoom on iPhone */
   font-weight: 500;
   outline: 0;
 }
@@ -765,12 +776,22 @@
 }
 
 /* ---------- Undo toast ---------- */
-.toast {
+/* Messages stack here, newest at the bottom, so an Undo is never pushed out by the next message */
+.toasts {
   position: fixed;
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
   z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 32px));
+}
+
+.toast {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -780,11 +801,11 @@
   color: var(--btn-fg);
   font-size: 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  width: max-content;
-  max-width: min(560px, calc(100vw - 32px));
+  max-width: 100%;
 }
 
 .toastText {
+  flex: 1;
   line-height: 1.4;
 }
 
@@ -819,6 +840,25 @@
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* ---------- Signed in, before the portfolios arrive ---------- */
+.card.loadingCard {
+  padding-top: 20px;
+  padding-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.loadingCard p {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.loadingCard .primary {
+  margin-top: 8px;
 }
 
 /* ---------- Cards ---------- */
@@ -1126,6 +1166,7 @@
   background: var(--raised);
   font-family: var(--font-num);
   font-weight: 500;
+  font-size: 16px; /* 16px or more, or iPhone zooms in when the field is tapped */
 }
 
 .field:focus-within {
@@ -1164,8 +1205,16 @@
   display: flex;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
   flex-shrink: 0;
+}
+
+/* Rounded ends instead of overflow: hidden, which would clip the bigger tap areas on touch screens */
+.unitToggle button:first-child {
+  border-radius: calc(var(--radius) - 1px) 0 0 calc(var(--radius) - 1px);
+}
+
+.unitToggle button:last-child {
+  border-radius: 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0;
 }
 
 .unitToggle button {
@@ -1965,7 +2014,7 @@
     min-height: 52px;
   }
 
-  .toast {
+  .toasts {
     bottom: calc(96px + env(safe-area-inset-bottom));
   }
 
@@ -2088,5 +2137,81 @@
 
   .sentence {
     font-size: 24px;
+  }
+}
+
+/* ---------- Touch screens ---------- */
+/*
+ * A fingertip needs about 44px. Small controls keep their look and get a bigger tap
+ * area instead: an invisible layer behind the control, centred on it, at least 44px
+ * tall (and 44px wide for the icon buttons). It sits behind the control's own
+ * content, so tapping a field still puts the cursor where you tapped.
+ */
+@media (pointer: coarse) {
+  .blank:not(.blankSelect),
+  .linkButton,
+  .headLink,
+  .chip,
+  .ghost,
+  .primary,
+  .segment,
+  .switch,
+  .unitToggle button,
+  .remove,
+  .toastUndo,
+  .toastClose,
+  .pickerBack,
+  .recapBlank,
+  .result,
+  .avatarButton {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .blank:not(.blankSelect)::after,
+  .linkButton::after,
+  .headLink::after,
+  .chip::after,
+  .ghost::after,
+  .primary::after,
+  .segment::after,
+  .switch::after,
+  .unitToggle button::after,
+  .remove::after,
+  .toastUndo::after,
+  .toastClose::after,
+  .pickerBack::after,
+  .recapBlank::after,
+  .result::after,
+  .avatarButton::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    left: 50%;
+    top: 50%;
+    width: 100%;
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+
+  .remove::after,
+  .toastClose::after,
+  .avatarButton::after {
+    width: max(100%, 44px);
+  }
+
+  /* The pickers drawn as words: the invisible select on top is what gets tapped */
+  .blank select,
+  .footSelect select {
+    top: 50%;
+    bottom: auto;
+    height: max(100%, 44px);
+    transform: translateY(-50%);
+  }
+
+  /* Read-only fields that take focus: big enough text that iPhone doesn't zoom */
+  .shareFallback input,
+  .textFallback textarea {
+    font-size: 16px;
   }
 }
