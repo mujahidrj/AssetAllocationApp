@@ -54,7 +54,7 @@ function NumberField({ value, onCommit, label, className, prefix, suffix, decima
 }
 
 /** Type a price for a fund the lookup can't price. */
-function PriceEditor({ symbol, current, onSave, onClose }: {
+export function PriceEditor({ symbol, current, onSave, onClose }: {
   symbol: string;
   current: ManualPrice | undefined;
   onSave: (price: number | null) => void;
@@ -249,9 +249,6 @@ export function MixCard(props: MixCardProps) {
                 <span className={styles.swatch} style={{ background: colorOf(f.symbol) }} />
                 <b className={styles.symbol} style={{ fontSize: 15 }}>{f.symbol}</b>
                 <span className={styles.fundName}>{f.target === 0 ? '0%, not buying' : shortName(f)}</span>
-                {missing && !manual && (
-                  <button type="button" className={`${styles.linkButton} ${styles.addPrice}`} onClick={() => onEditPrice(f.symbol)}>Add price</button>
-                )}
                 {manual && (
                   <span className={styles.yourPrice}>
                     <button type="button" className={styles.linkButton} onClick={() => onEditPrice(f.symbol)} aria-label={`Edit your price for ${f.symbol}`}>{money(manual.price)}</button>
@@ -299,8 +296,9 @@ export function MixCard(props: MixCardProps) {
                     )}
                   </div>
                   <span className={styles.nowCell}>
+                    <span className={styles.phoneLabel}>Now </span>
                     {heldTotal > 0 ? (
-                      <><span className={styles.phoneLabel}>Now </span>{pct1(now)} <span className={Math.abs(d) >= 5 ? styles.driftBig : styles.driftSmall}>{drift(d)}</span></>
+                      <>{pct1(now)} <span className={Math.abs(d) >= 5 ? styles.driftBig : styles.driftSmall}>{drift(d)}</span></>
                     ) : '—'}
                   </span>
                 </>
@@ -309,6 +307,12 @@ export function MixCard(props: MixCardProps) {
                 <CloseIcon />
               </button>
             </div>
+            {missing && !manual && editingPrice !== f.symbol && (
+              <div className={styles.rowNote}>
+                No price found.{' '}
+                <button type="button" className={styles.linkButton} onClick={() => onEditPrice(f.symbol)}>Add price</button>
+              </div>
+            )}
             {editingPrice === f.symbol && (
               <PriceEditor
                 symbol={f.symbol}

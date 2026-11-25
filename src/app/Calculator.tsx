@@ -51,6 +51,18 @@ const MAX_NOTICES = 3;
 const listText = (items: string[]) =>
   items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 
+/** True once `waiting` has stayed true for `ms`: time to say it's taking a while. */
+function useLongWait(waiting: boolean, ms = 8000): boolean {
+  const [long, setLong] = useState(false);
+  useEffect(() => {
+    setLong(false);
+    if (!waiting) return;
+    const timer = setTimeout(() => setLong(true), ms);
+    return () => clearTimeout(timer);
+  }, [waiting, ms]);
+  return waiting && long;
+}
+
 const AUTH_TEXT: Record<AuthProblem, string> = {
   'popup-blocked': 'Your browser blocked the sign-in window. Allow pop-ups for this site, then try again.',
   'unauthorized-domain': 'Sign-in only works on the main site.',
@@ -136,7 +148,11 @@ export function Calculator() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [namingId, setNamingId] = useState<string | null>(null);
-  const [editingPrice, setEditingPrice] = useState<string | null>(null);
+  // The price editor: in the trades card when opened from there (so the trades show up
+  // where you're looking), otherwise in the fund's row
+  const [editing, setEditing] = useState<{ symbol: string; at: 'trades' | 'card' } | null>(null);
+  const setEditingPrice = useCallback((symbol: string | null, at: 'trades' | 'card' = 'card') =>
+    setEditing(symbol ? { symbol, at } : null), []);
   const [textFallback, setTextFallback] = useState<string | null>(null);
   const [importing, setImporting] = useState<{ fileName: string; result: ImportResult | ImportProblem } | null>(null);
   const [flashes, setFlashes] = useState<Notice[]>([]);
@@ -259,6 +275,10 @@ export function Calculator() {
     ? `From the ${startedFrom.group === 'sharia' ? `Sharia ${startedFrom.label}` : startedFrom.label} template${matchingTemplate(funds)?.id === startedFrom.id ? '' : ', edited'}`
     : undefined;
 
+  // Taking a while: say so, and offer a way forward
+  const accountSlow = useLongWait(waitingForAccount && !loadFailed && online);
+  const pricesSlow = useLongWait(plan.status === 'needs-prices' && plan.unpriced.some(s => !missingPrices.includes(s)));
+
   const removingAll = effectiveVerb === 'out' && plan.status === 'ok' && plan.heldTotal > 0 && safeAmount > plan.heldTotal + 0.005;
   const helper: { text: string; error?: boolean; strong?: boolean; addOwn?: string } = (() => {
     if (showingAll) return { text: 'Read-only. Pick one portfolio to get trades.' };
@@ -334,25 +354,32 @@ export function Calculator() {
     setView('one');
   };
 
+  // Funds removed in a row (in one portfolio) share one Undo that brings them all back
+  const removedFunds = useRef<RemovedFund[]>([]);
+
   const openPortfolio = (id: string) => {
+    if (id !== portfolio.id) endFundUndo();
     portfolioActions.switchTo(id);
     setSearchOpen(false);
     setEditingPrice(null);
     setView('one');
   };
 
+  /** An Undo for funds taken out of a portfolio that's no longer open would act out of sight. */
+  const endFundUndo = () => { dropFlash('removed-funds'); removedFunds.current = []; };
+
   const deletePortfolio = (id: string) => {
     const removed: RemovedPortfolio | null = portfolioActions.remove(id);
     if (!removed) return;
+    endFundUndo();
     showFlash(undoNotice('deleted', `Deleted ${displayName(removed.portfolio)}.`, () => portfolioActions.restore(removed)));
   };
 
-  // Funds removed in a row share one Undo that brings them all back
-  const removedFunds = useRef<RemovedFund[]>([]);
   const removeFund = (symbol: string) => {
     const removed = actions.removeFund(symbol);
     if (!removed) return;
-    const list = flashes.some(f => f.key === 'removed-funds') ? [...removedFunds.current, removed] : [removed];
+    const showing = flashes.some(f => f.key === 'removed-funds');
+    const list = showing && removedFunds.current[0]?.portfolioId === removed.portfolioId ? [...removedFunds.current, removed] : [removed];
     removedFunds.current = list;
     showFlash(undoNotice('removed-funds', `Removed ${listText(list.map(r => r.fund.symbol))}.`, () => {
       // Newest first, so each fund goes back into the list it left
@@ -523,6 +550,11 @@ export function Calculator() {
                 <p>Nothing in your account has changed. Check your connection and try again.</p>
                 <button type="button" className={styles.primary} onClick={retryLoad}>Try again</button>
               </>
+            ) : accountSlow ? (
+              <>
+                <p>This is taking longer than usual. Check your connection, or try again.</p>
+                <button type="button" className={styles.ghost} style={{ height: 40 }} onClick={retryLoad}>Try again</button>
+              </>
             ) : (
               <p>From your account, so they're the same on all your devices.</p>
             )}
@@ -643,7 +675,12 @@ export function Calculator() {
               wholeShares={wholeShares}
               onWholeShares={actions.setWholeShares}
               manualPrices={manualInUse}
-              onAddPrice={symbol => setEditingPrice(symbol)}
+              onAddPrice={symbol => setEditingPrice(symbol, 'trades')}
+              editingPrice={editing?.at === 'trades' ? editing.symbol : null}
+              onSetPrice={priceActions.setManualPrice}
+              onClosePrice={() => setEditingPrice(null)}
+              pricesSlow={pricesSlow}
+              sellsEverything={removingAll}
               textFallback={textFallback}
               onCloseText={() => setTextFallback(null)}
               hasHoldings={hasHoldings}
@@ -682,7 +719,7 @@ export function Calculator() {
                 onImport={() => fileInput.current?.click()}
                 onImportFile={file => { void readImportFile(file); }}
                 manualPrices={manualInUse}
-                editingPrice={editingPrice}
+                editingPrice={editing?.at === 'card' ? editing.symbol : null}
                 onEditPrice={setEditingPrice}
                 onSetPrice={priceActions.setManualPrice}
                 offTarget={effectiveVerb === 'rebal' ? null : offNow}

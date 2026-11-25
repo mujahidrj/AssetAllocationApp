@@ -1502,9 +1502,24 @@
   border-radius: 2px;
 }
 
-.addPrice {
-  font-size: 12px;
-  white-space: nowrap;
+/* "No price found. Add price" under a fund's row */
+.rowNote {
+  margin: -6px 0 12px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+/* "Add a price for VXUS" buttons in the trades card: one row, under the text when there are several */
+.priceButtons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.priceButtonsWide {
+  flex-basis: 100%;
 }
 
 .yourPrice {
@@ -2014,8 +2029,15 @@
     min-height: 52px;
   }
 
+  /* As wide as the copy bar, with Undo at the right edge where the thumb is */
   .toasts {
+    left: 16px;
+    right: 16px;
     bottom: calc(96px + env(safe-area-inset-bottom));
+    transform: none;
+    width: auto;
+    max-width: none;
+    gap: 6px;
   }
 
   .toastLow {
@@ -2120,6 +2142,13 @@
   }
 }
 
+/* Small or short screens: two messages at most, so they don't cover the trades */
+@media (max-width: 720px), (max-height: 500px) {
+  .toasts > .toast:nth-last-child(n + 3) {
+    display: none;
+  }
+}
+
 /* Small phones (iPhone SE and narrower): a smaller title so the header fits */
 @media (max-width: 400px) {
   .headerInner {
@@ -2198,6 +2227,15 @@
   .toastClose::after,
   .avatarButton::after {
     width: max(100%, 44px);
+  }
+
+  /* Rows of links 8px apart: split the space between them evenly */
+  .cardTools .headLink::after {
+    height: calc(100% + 8px);
+  }
+
+  .unitToggle button {
+    min-width: 32px;
   }
 
   /* The pickers drawn as words: the invisible select on top is what gets tapped */

@@ -473,42 +473,53 @@ describe('Calculator', () => {
   });
 
   it('brings back a removed fund and what you owned of it, and keeps the Undo when another message comes', async () => {
+    seed({
+      name: 'Roth IRA',
+      funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'VXUS', target: 40 }, { symbol: 'BND', target: 0 }],
+      holdings: { BND: { kind: 'dollars', amount: 2000 } },
+      tracksHoldings: true,
+    });
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('blocked'));
+    renderApp();
+
+    // Two in a row share one Undo, which brings both back where they were
+    await user.click(screen.getByRole('button', { name: 'Remove BND' }));
+    expect(screen.getByText('Removed BND.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Remove VXUS' }));
+    expect(screen.getByText('Removed BND and VXUS.')).toBeInTheDocument();
+    expect(loadDeviceWorkspace()?.portfolios[0].holdings).toEqual({});
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(loadDeviceWorkspace()?.portfolios[0].funds.map(f => f.symbol)).toEqual(['VTI', 'VXUS', 'BND']);
+    expect(loadDeviceWorkspace()?.portfolios[0].holdings).toEqual({ BND: { kind: 'dollars', amount: 2000 } });
+    expect(screen.getByLabelText('BND you own, in dollars')).toHaveValue('2,000');
+
+    // A new message stacks with an Undo instead of replacing it
+    await user.click(screen.getByRole('button', { name: 'Remove BND' }));
+    await user.type(screen.getByLabelText('Amount'), '500');
+    await user.click(within(screen.getByRole('region', { name: /your trades/i })).getByRole('button', { name: 'Copy trades' }));
+    expect(await screen.findByText("Couldn't copy.")).toBeInTheDocument();
+    expect(screen.getByText('Removed BND.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByLabelText('BND you own, in dollars')).toHaveValue('2,000');
+  });
+
+  it('ends a fund’s Undo when its portfolio is deleted or left, rather than undo out of sight', async () => {
     saveDeviceWorkspace({
       portfolios: [
-        {
-          ...emptyPortfolio('a', 'Roth IRA'),
-          funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'VXUS', target: 30 }, { symbol: 'BND', target: 10 }],
-          holdings: { BND: { kind: 'dollars', amount: 2000 } },
-          tracksHoldings: true,
-        },
+        { ...emptyPortfolio('a', 'Roth IRA'), funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'BND', target: 40 }] },
         { ...emptyPortfolio('b', 'HSA'), funds: [{ symbol: 'VTI', target: 100 }] },
       ],
       activeId: 'a',
     });
     const user = userEvent.setup();
     renderApp();
-
-    // Two in a row share one Undo
     await user.click(screen.getByRole('button', { name: 'Remove BND' }));
     expect(screen.getByText('Removed BND.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Remove VXUS' }));
-    expect(screen.getByText('Removed BND and VXUS.')).toBeInTheDocument();
-    expect(loadDeviceWorkspace()?.portfolios[0].holdings).toEqual({});
 
-    // A new message stacks with it instead of replacing it
     await user.click(screen.getByRole('button', { name: 'my Roth IRA' }));
-    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: 'Delete Roth IRA' }));
-    expect(screen.getByText('Removed BND and VXUS.')).toBeInTheDocument();
-    expect(screen.getByText('Deleted Roth IRA.')).toBeInTheDocument();
-    const [undoRemove, undoDelete] = screen.getAllByRole('button', { name: 'Undo' });
-
-    await user.click(undoDelete);
-    await user.click(undoRemove);
-    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
-    const roth = loadDeviceWorkspace()?.portfolios.find(p => p.id === 'a');
-    expect(roth?.funds.map(f => f.symbol)).toEqual(['VTI', 'VXUS', 'BND']);
-    expect(roth?.holdings).toEqual({ BND: { kind: 'dollars', amount: 2000 } });
-    expect(screen.getByLabelText('BND you own, in dollars')).toHaveValue('2,000');
+    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: /HSA/ }));
+    expect(screen.queryByText('Removed BND.')).not.toBeInTheDocument();
   });
 
   it('lets you type a price for a fund the lookup can’t price', async () => {
