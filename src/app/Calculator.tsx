@@ -340,6 +340,8 @@ export function Calculator() {
   const helper: { text: string; error?: boolean; strong?: boolean; addOwn?: string } = (() => {
     if (showingAll) return { text: 'Read-only. Pick one portfolio to get trades.' };
     if (amountInvalid) return { text: 'Type an amount like 2,500 or $2,500.50.', error: true };
+    // Nothing set up yet: say what you'll get, not how holdings work
+    if (funds.length === 0) return { text: "You'll get exactly what to buy in each fund, in dollars and shares." };
     if (!tracksHoldings) {
       return {
         text: effectiveVerb === 'out' ? 'No holdings added, so this sells by your targets.' : 'No holdings added, so this splits by your targets.',
@@ -533,19 +535,33 @@ export function Calculator() {
   const ok = plan.status === 'ok';
   const buyCount = plan.trades.filter(t => t.action === 'buy').length;
   const sellCount = plan.trades.length - buyCount;
+  const tradeCount = sellCount === 0 ? `${buyCount} ${buyCount === 1 ? 'buy' : 'buys'}`
+    : buyCount === 0 ? `${sellCount} ${sellCount === 1 ? 'sell' : 'sells'}`
+    : `${plan.trades.length} trades`;
   const copyBarLabel = copied
     ? 'Copied'
     : !ok ? 'Copy trades'
-    : sellCount === 0 ? `Copy ${buyCount} ${buyCount === 1 ? 'buy' : 'buys'} · ${money(plan.net)}`
-    : buyCount === 0 ? `Copy ${sellCount} ${sellCount === 1 ? 'sell' : 'sells'} · ${money(-plan.net)}`
-    : `Copy ${plan.trades.length} trades`;
+    : sellCount === 0 ? `Copy ${tradeCount} · ${money(plan.net)}`
+    : buyCount === 0 ? `Copy ${tradeCount} · ${money(-plan.net)}`
+    : `Copy ${tradeCount}`;
+  // On phones the trades are usually off-screen while you edit: the bar shows the first one
+  const first = plan.trades[0];
+  const firstTrade = first
+    ? `${first.action === 'buy' ? 'Buy' : 'Sell'} ${first.symbol} ${money(first.dollars)}${plan.trades.length > 1 ? ` + ${plan.trades.length - 1} more` : ''}`
+    : '';
 
   // The phone's copy bar: copies the trades, or leads to whatever is stopping them
   // A price that failed, or one still coming after a long wait: the card offers to type it, so the bar does too
   const firstFailedPrice = plan.status !== 'needs-prices' ? undefined
     : plan.unpriced.find(s => missingPrices.includes(s)) ?? (pricesSlow ? plan.unpriced[0] : undefined);
-  const bar: { label: string; run?: () => void } =
-    ok ? { label: copyBarLabel, run: copyTrades }
+  const bar: { label: string; sub?: string; run?: () => void } =
+    ok ? {
+      label: copied ? 'Copied' : firstTrade,
+      sub: copied ? undefined
+        : plan.leftover > 0 ? `Copy ${tradeCount} · ${money(plan.leftover)} ${effectiveVerb === 'out' ? 'extra' : 'left over'}`
+        : copyBarLabel,
+      run: copyTrades,
+    }
       : plan.status === 'needs-amount' ? { label: 'Type an amount', run: focusAmount }
       : plan.status === 'targets-off' ? { label: `Targets add up to ${+plan.targetTotal.toFixed(2)}%`, run: showTotal }
       : plan.status === 'needs-holdings' ? { label: 'Enter what you own', run: focusHoldings }
@@ -746,6 +762,7 @@ export function Calculator() {
               plan={plan}
               funds={funds}
               verb={effectiveVerb}
+              amount={safeAmount}
               colorOf={colorOf}
               asOf={asOf}
               pricesLoading={pricesLoading}
@@ -792,9 +809,14 @@ export function Calculator() {
                 onTarget={actions.setTarget}
                 onHolding={actions.setHolding}
                 onTracksHoldings={actions.setTracksHoldings}
-                onAddFund={(s, n) => { actions.addFund(s, n); setJustAdded({ portfolioId: portfolio.id, symbol: s }); setSearchOpen(false); }}
+                onAddFund={(s, n, own) => {
+                  actions.addFund(s, n);
+                  setJustAdded({ portfolioId: portfolio.id, symbol: s });
+                  setSearchOpen(false);
+                  // A fund of your own (many 401(k) funds have no ticker) needs its price from you
+                  if (own) setEditingPrice(s);
+                }}
                 onRemoveFund={removeFund}
-                onChangeMix={() => { setMenu('mix'); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }}
                 onScale={actions.scaleTo100}
                 onAbsorb={actions.absorbRemainder}
                 searchOpen={searchOpen}
@@ -917,10 +939,8 @@ export function Calculator() {
           <button type="button" className={`${styles.primary} ${bar.run && !ok ? styles.barGo : ''}`} onClick={bar.run} disabled={!bar.run}>
             {ok && <CopyIcon />}
             <span className={styles.copyBarText}>
-              {bar.label}
-              {ok && plan.leftover > 0 && !copied && (
-                <span className={styles.copyBarSub}>{money(plan.leftover)} {effectiveVerb === 'out' ? 'extra' : 'left over'}</span>
-              )}
+              <span className={styles.copyBarMain}>{bar.label}</span>
+              {bar.sub && <span className={styles.copyBarSub}>{bar.sub}</span>}
             </span>
           </button>
         </div>

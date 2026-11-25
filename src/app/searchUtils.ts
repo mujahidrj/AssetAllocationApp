@@ -192,3 +192,16 @@ export function cleanResults(raw: Array<{ symbol?: string; description?: string 
   });
   return out.slice(0, 8);
 }
+
+/**
+ * What to call a fund of your own that search can't find: its ticker if it looks
+ * like one, otherwise its name as typed (without the characters share links use).
+ */
+export function ownFundSymbol(typed: string): string {
+  const upper = typed.trim().toUpperCase();
+  if (looksLikeTicker(upper)) return upper;
+  return typed.replace(/[,:]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
+}
+
+/** Could be a ticker the price lookup knows ("VTI", "BRK.B", "^GSPC"), rather than a fund's name. */
+export const looksLikeTicker = (symbol: string) => /^[A-Za-z0-9.^-]{1,12}$/.test(symbol.trim());

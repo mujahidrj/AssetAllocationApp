@@ -35,8 +35,25 @@ describe('Calculator', () => {
     expect(within(trades).getByRole('heading', { name: 'Buy these 3' })).toBeInTheDocument();
     // Prices come from the mocked API ($100 for these funds)
     expect(await within(trades).findByText('60.0000 shares')).toBeInTheDocument();
-    // The phone's pinned bar (hidden at desktop width)
-    expect(screen.getByRole('button', { name: /copy 3 buys · \$10,000\.00/i, hidden: true })).toBeInTheDocument();
+    // The phone's pinned bar (hidden at desktop width) shows the first trade too
+    const bar = screen.getByRole('button', { name: /copy 3 buys · \$10,000\.00/i, hidden: true });
+    expect(bar).toHaveTextContent('Buy VTI $6,000.00 + 2 more');
+  });
+
+  it('says what you get on a first visit, and acknowledges an amount typed before picking a template', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    expect(screen.getByText("You'll get exactly what to buy in each fund, in dollars and shares.")).toBeInTheDocument();
+    // An empty amount reads as a question, not a number already filled in
+    expect(screen.getByLabelText('Amount')).toHaveAttribute('placeholder', 'how much');
+    // Nothing about holdings until there are funds to hold
+    expect(screen.queryByText(/no holdings added/i)).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Amount'), '2500');
+    expect(screen.getByRole('heading', { name: 'Pick a template to split $2,500' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /vanguard 3-fund/i }));
+    expect(screen.getByText(/no holdings added, so this splits by your targets/i)).toBeInTheDocument();
   });
 
   it('flags an amount it cannot read', async () => {
@@ -504,7 +521,8 @@ describe('Calculator', () => {
     const field = screen.getByLabelText('Portfolio name');
     await user.clear(field);
     await user.type(field, "Sam's IRA{Enter}");
-    expect(screen.getByRole('button', { name: "Sam's IRA" })).toBeInTheDocument();
+    // In the sentence and on the card
+    expect(screen.getAllByRole('button', { name: "Sam's IRA" })).toHaveLength(2);
   });
 
   it('shows the portfolio name on the card, with a way to switch or add portfolios', async () => {
@@ -516,7 +534,11 @@ describe('Calculator', () => {
     renderApp();
 
     expect(screen.getByRole('heading', { name: 'Roth IRA' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Switch or add portfolio' }));
+    // The card's name opens the portfolios; no separate link or template link above the funds
+    const card = screen.getByRole('region', { name: 'Your portfolio' });
+    expect(within(card).queryByRole('button', { name: /switch or add portfolio/i })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: /use a template/i })).not.toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Roth IRA' }));
     await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: /HSA/ }));
     expect(screen.getByRole('heading', { name: 'HSA' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'my HSA' })).toBeInTheDocument();
@@ -740,6 +762,45 @@ describe('Calculator', () => {
     await user.click(screen.getByRole('button', { name: 'my Roth IRA' }));
     await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: /HSA/ }));
     expect(screen.queryByText('Removed BND.')).not.toBeInTheDocument();
+  });
+
+  it('says when a price lookup failed, and tries again when the connection comes back', async () => {
+    server.use(http.get('*/api/stock/VXUS', () => HttpResponse.json({ price: null })));
+    seed({ funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'VXUS', target: 40, name: 'Vanguard Total International Stock' }] });
+    const user = userEvent.setup();
+    renderApp();
+    await user.type(screen.getByLabelText('Amount'), '1000');
+
+    const trades = screen.getByRole('region', { name: /your trades/i });
+    expect(await within(trades).findByText('No price for VXUS')).toBeInTheDocument();
+    const card = screen.getByRole('region', { name: 'Your portfolio' });
+    expect(within(card).getByText(/No price found\./)).toBeInTheDocument();
+
+    server.use(http.get('*/api/stock/VXUS', () => HttpResponse.json({ price: 50 })));
+    act(() => { window.dispatchEvent(new Event('online')); });
+    expect(await within(trades).findByText('8.0000 shares')).toBeInTheDocument();
+    expect(within(trades).queryByText('No price for VXUS')).not.toBeInTheDocument();
+    expect(within(card).queryByText(/No price found/)).not.toBeInTheDocument();
+  });
+
+  it('adds a fund search can’t find by its name, and asks for its price', async () => {
+    server.use(http.get('*/api/search', () => HttpResponse.json({ result: [] })));
+    const fetched: string[] = [];
+    server.events.on('request:start', ({ request }) => { fetched.push(new URL(request.url).pathname); });
+    seed({ funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: '+ Add fund' }));
+    await user.type(screen.getByLabelText(/add a fund/i), 'Target Date 2050 Trust');
+    expect(await screen.findByText(/No US funds or stocks match “Target Date 2050 Trust”\./)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /“Target Date 2050 Trust” as your own fund/ }));
+
+    expect(screen.getByLabelText('Target Date 2050 Trust target percent')).toBeInTheDocument();
+    // Straight to its price, since there's nothing to look up
+    expect(screen.getByLabelText('Price per share for Target Date 2050 Trust')).toHaveFocus();
+    expect(fetched.some(path => path.includes('Target'))).toBe(false);
+    server.events.removeAllListeners();
   });
 
   it('lets you type a price for a fund the lookup can’t price', async () => {

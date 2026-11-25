@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './Calculator.module.css';
 import { SearchIcon } from './icons';
-import { cleanResults, type SearchResult as Result } from './searchUtils';
+import { cleanResults, ownFundSymbol, type SearchResult as Result } from './searchUtils';
 
 
 const DEBOUNCE_MS = 300;
 const MIN_LENGTH = 2;
 const TICKER = /^[A-Z0-9.^-]{1,12}$/;
 
+
 const apiBase = () => (import.meta.env.DEV ? (import.meta.env.VITE_API_URL ?? '') : '');
 
 
 interface FundSearchProps {
-  onAdd: (symbol: string, name?: string) => void;
+  /** `own`: not found by search, added as the person typed it. */
+  onAdd: (symbol: string, name?: string, own?: boolean) => void;
   existing: string[];
   autoFocus?: boolean;
 }
@@ -76,13 +78,14 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
     };
   }, []);
 
-  const add = (symbol: string, name?: string) => {
-    const s = symbol.trim().toUpperCase();
+  const add = (symbol: string, name?: string, own = false) => {
+    const s = own ? ownFundSymbol(symbol) : symbol.trim().toUpperCase();
+    if (!s) return;
     if (existing.includes(s)) {
       setNote(`${s} is already in this portfolio.`);
       return;
     }
-    onAdd(s, name);
+    onAdd(s, name, own);
     setQuery('');
     setResults([]);
     setOpen(false);
@@ -136,11 +139,20 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
       {showList && (
         <ul className={styles.results} id="fund-results" role="listbox">
           {results.length === 0 && (
-            <li className={styles.searchNote}>
-              {failed
-                ? 'Fund search isn’t working right now. Type the exact symbol and press Enter.'
-                : `No US funds or stocks match “${query.trim()}”.`}
-            </li>
+            <>
+              <li className={styles.searchNote}>
+                {failed
+                  ? 'Fund search isn’t working right now.'
+                  : `No US funds or stocks match “${query.trim()}”.`}
+              </li>
+              {/* Many 401(k) funds have no ticker: add it by name and type its price */}
+              <li>
+                <button type="button" className={`${styles.result} ${styles.resultOwn}`} onClick={() => add(query, undefined, true)}>
+                  <span className={styles.resultSymbol}>+ Add</span>
+                  <span className={styles.resultName}>“{ownFundSymbol(query)}” as your own fund, with a price you type</span>
+                </button>
+              </li>
+            </>
           )}
           {results.map((r, i) => (
             <li key={r.symbol} role="option" aria-selected={i === active}>

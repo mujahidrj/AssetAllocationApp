@@ -967,6 +967,29 @@
   font-size: 22px;
 }
 
+/* The portfolio card's name: opens the portfolios, like the name in the sentence */
+.titleButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.titleButton svg {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.titleButton:hover svg {
+  color: var(--accent-hover);
+}
+
 .cardSum {
   font-family: var(--font-num);
   font-size: 14px;
@@ -1108,6 +1131,10 @@
 .footItem:not(:last-child)::after {
   content: '·';
   margin: 0 7px;
+}
+
+.footProblem {
+  color: var(--sell);
 }
 
 .cardFoot .linkButton {
@@ -1416,6 +1443,11 @@
 .resultName {
   color: var(--text-2);
   font-size: 14px;
+}
+
+/* "+ Add "Vanguard Target 2050" as your own fund" when search finds nothing */
+.resultOwn .resultSymbol {
+  color: var(--accent-text);
 }
 
 .searchNote {
@@ -1874,10 +1906,19 @@
 }
 
 .copyBarText {
+  min-width: 0;
+  max-width: 100%;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   line-height: 1.2;
+}
+
+.copyBarMain {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .copyBarSub {
@@ -1952,13 +1993,6 @@
 
   .shareButton {
     height: 44px;
-  }
-
-  /* Title and Share on one line, switching portfolios on the next */
-  .switchLink {
-    flex-basis: 100%;
-    min-height: 32px;
-    text-align: left;
   }
 
   .main {
@@ -2344,6 +2378,7 @@
  */
 @media (pointer: coarse) {
   .blank:not(.blankSelect),
+  .titleButton,
   .linkButton,
   .headLink,
   .chip,
@@ -2364,6 +2399,7 @@
   }
 
   .blank:not(.blankSelect)::after,
+  .titleButton::after,
   .linkButton::after,
   .headLink::after,
   .chip::after,

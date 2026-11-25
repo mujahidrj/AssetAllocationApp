@@ -1,7 +1,7 @@
 import { Fragment, type Ref } from 'react';
 import styles from './Calculator.module.css';
 import { CopyIcon } from './icons';
-import { listText, money, pct1, priceDate, priceTime } from './format';
+import { formatAmountInput, listText, money, pct1, priceDate, priceTime } from './format';
 import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
 import type { Fund, ManualPrice, Verb } from './model';
 import { isCashSymbol, shortName } from './model';
@@ -58,6 +58,8 @@ interface TradesProps {
   plan: Plan;
   funds: Fund[];
   verb: Verb;
+  /** What's typed in the amount (0 when nothing is). */
+  amount: number;
   colorOf: (symbol: string) => string;
   asOf: string | null;
   pricesLoading: boolean;
@@ -102,7 +104,7 @@ interface TradesProps {
 }
 
 export function Trades(props: TradesProps) {
-  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, priceFailed, editingPrice, onSetPrice, onClosePrice, pricesSlow, sellsEverything, sellChoice, onSell, onRetirement, copyRef } = props;
+  const { plan, funds, verb, amount, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, priceFailed, editingPrice, onSetPrice, onClosePrice, pricesSlow, sellsEverything, sellChoice, onSell, onRetirement, copyRef } = props;
   const ok = plan.status === 'ok';
   const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
   const when = priceTime(asOf);
@@ -111,11 +113,13 @@ export function Trades(props: TradesProps) {
   // Held as shares with no price: the lookup either failed or is still going
   const failed = plan.unpriced.filter(s => priceFailed.includes(s));
   const waiting = plan.unpriced.filter(s => !priceFailed.includes(s));
+  // Funds the lookup couldn't price (and nobody typed a price for), named in the footer
+  const noPrice = plan.status === 'needs-prices' ? [] : priceFailed.filter(s => funds.some(f => f.symbol === s));
 
   const title =
     ok ? (sellsEverything ? 'Sell everything' : tradeTitle(plan.trades))
       : plan.status === 'targets-off' ? 'Targets need to add up to 100%'
-      : plan.status === 'needs-mix' ? 'Pick a starting point'
+      : plan.status === 'needs-mix' ? (amount > 0 && verb !== 'rebal' ? `Pick a template to split $${formatAmountInput(amount)}` : 'Pick a starting point')
       : plan.status === 'short-of-share' ? 'Not enough for one share'
       : plan.status === 'needs-prices' ? (failed.length > 1 ? 'Prices are missing' : failed.length === 1 ? 'A price is missing' : pricesSlow ? 'Still getting prices…' : 'Getting prices…')
       : 'Your trades';
@@ -231,7 +235,7 @@ export function Trades(props: TradesProps) {
                   <span className={styles.swatch} style={{ background: colorOf(t.symbol) }} />
                   <div style={{ minWidth: 0 }}>
                     <div className={styles.symbol}>{t.symbol}</div>
-                    <div className={styles.fundName}>{fund ? shortName(fund) : 'Not in this portfolio'}</div>
+                    <div className={styles.fundName}>{!fund ? 'Not in this portfolio' : shortName(fund) !== fund.symbol ? shortName(fund) : ''}</div>
                   </div>
                 </div>
                 <span className={styles.tradeShares}>
@@ -311,6 +315,9 @@ export function Trades(props: TradesProps) {
         <div className={styles.cardFoot}>
           <span className={styles.footItem}>{pricesLoading ? 'Updating prices…' : when ?? 'Prices from Yahoo Finance'}</span>
           {when && !pricesLoading && <span className={styles.footItem}>Yahoo Finance</span>}
+          {noPrice.length > 0 && (
+            <span className={`${styles.footItem} ${styles.footProblem}`}>No price for {listText(noPrice)}</span>
+          )}
           <span className={styles.footItem}>
             <button type="button" className={styles.linkButton} onClick={onRefresh}>Refresh</button>
           </span>

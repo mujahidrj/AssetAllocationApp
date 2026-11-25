@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type DragEvent, type Ref } from 'react';
 import styles from './Calculator.module.css';
-import { CheckIcon, CloseIcon, ShareIcon } from './icons';
+import { CheckIcon, ChevronIcon, CloseIcon, ShareIcon } from './icons';
 import { drift, money, pct1, priceDate } from './format';
 import { shortName, type Fund, type Holding, type ManualPrice } from './model';
 import { holdingDollars, unpricedShares, type OffTarget, type PriceMap } from './plan';
 import { closesKeyboard } from './format';
 import { FundSearch } from './FundSearch';
+import { looksLikeTicker } from './searchUtils';
 import { parseAmount } from '../lib/parseAmount';
 
 /** A number field that lets you type freely and only commits valid numbers. */
@@ -99,9 +100,9 @@ interface MixCardProps {
   onTarget: (symbol: string, target: number) => void;
   onHolding: (symbol: string, holding: Holding | null) => void;
   onTracksHoldings: (on: boolean) => void;
-  onAddFund: (symbol: string, name?: string) => void;
+  /** `own`: a fund of your own that search didn't find. */
+  onAddFund: (symbol: string, name?: string, own?: boolean) => void;
   onRemoveFund: (symbol: string) => void;
-  onChangeMix: () => void;
   onScale: () => void;
   onAbsorb: (symbol: string) => void;
   searchOpen: boolean;
@@ -135,7 +136,7 @@ interface MixCardProps {
 }
 
 export function MixCard(props: MixCardProps) {
-  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare, newFund, totalRef } = props;
+  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare, newFund, totalRef } = props;
   const [dropping, setDropping] = useState(false);
   const [shared, setShared] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
@@ -183,7 +184,12 @@ export function MixCard(props: MixCardProps) {
       {dropping && <div className={styles.dropHint} aria-hidden="true">Drop to import into {title}</div>}
       <div className={styles.cardHead}>
         <div className={styles.titleBlock}>
-          <h2 className={styles.cardTitle}>{title}</h2>
+          {/* The name opens the portfolios: switch, add, rename, templates */}
+          <h2 className={styles.cardTitle}>
+            <button type="button" className={styles.titleButton} onClick={onOpenPortfolios} aria-haspopup="dialog">
+              {title}<ChevronIcon />
+            </button>
+          </h2>
           {subtitle && <span className={styles.cardSub}>{subtitle}</span>}
         </div>
         <button
@@ -196,7 +202,6 @@ export function MixCard(props: MixCardProps) {
           {shared ? <CheckIcon /> : <ShareIcon />}
           {shared ? 'Link copied' : 'Share targets'}
         </button>
-        <button type="button" className={`${styles.headLink} ${styles.switchLink}`} onClick={onOpenPortfolios}>Switch or add portfolio</button>
       </div>
       {shareFallback && (
         <div className={styles.shareFallback}>
@@ -205,7 +210,6 @@ export function MixCard(props: MixCardProps) {
         </div>
       )}
       <div className={styles.cardTools}>
-        <button type="button" className={styles.headLink} onClick={onChangeMix}>Use a template</button>
         <button type="button" className={styles.headLink} onClick={() => onSearchOpen(!searchOpen)} aria-expanded={searchOpen}>+ Add fund</button>
         <button type="button" className={styles.headLink} onClick={onImport}>Import from broker</button>
         <button
@@ -253,7 +257,8 @@ export function MixCard(props: MixCardProps) {
               <div className={styles.fundCell}>
                 <span className={styles.swatch} style={{ background: colorOf(f.symbol) }} />
                 <b className={styles.symbol} style={{ fontSize: 15 }}>{f.symbol}</b>
-                <span className={styles.fundName}>{f.target === 0 ? '0%, not buying' : shortName(f)}</span>
+                {/* A fund of your own is named by its symbol already */}
+                <span className={styles.fundName}>{f.target === 0 ? '0%, not buying' : shortName(f) !== f.symbol ? shortName(f) : ''}</span>
                 {manual && (
                   <span className={styles.yourPrice}>
                     <button type="button" className={styles.linkButton} onClick={() => onEditPrice(f.symbol)} aria-label={`Edit your price for ${f.symbol}`}>{money(manual.price)}</button>
@@ -316,7 +321,7 @@ export function MixCard(props: MixCardProps) {
             </div>
             {missing && !manual && editingPrice !== f.symbol && (
               <div className={styles.rowNote}>
-                No price found.{' '}
+                {looksLikeTicker(f.symbol) ? 'No price found.' : 'No price yet.'}{' '}
                 <button type="button" className={styles.linkButton} onClick={() => onEditPrice(f.symbol)}>Add price</button>
               </div>
             )}
@@ -333,7 +338,7 @@ export function MixCard(props: MixCardProps) {
       })}
 
       {(searchOpen || funds.length === 0) && (
-        <FundSearch onAdd={(s, n) => { onAddFund(s, n); }} existing={funds.map(f => f.symbol)} autoFocus={searchOpen} />
+        <FundSearch onAdd={onAddFund} existing={funds.map(f => f.symbol)} autoFocus={searchOpen} />
       )}
 
       {funds.length > 0 && (
