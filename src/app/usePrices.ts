@@ -25,6 +25,13 @@ async function fetchPrice(symbol: string, signal: AbortSignal): Promise<{ price:
   return { price, asOf: typeof data.asOf === 'string' ? data.asOf : null };
 }
 
+/**
+ * A lookup that failed (offline, rate-limited) keeps the price it had, with its older
+ * time, rather than throwing away a good price: only a fund that never had one is missing.
+ */
+const failed = (before: PriceInfo | undefined): PriceInfo =>
+  before?.price ? { price: before.price, asOf: before.asOf, status: 'ok' } : { price: null, asOf: null, status: 'missing' };
+
 /** Latest prices for the given symbols. Cash is always $1.00. */
 export function usePrices(symbols: string[]) {
   const [prices, setPrices] = useState<Record<string, PriceInfo>>({});
@@ -59,12 +66,12 @@ export function usePrices(symbols: string[]) {
     wanted.forEach(symbol => {
       fetchPrice(symbol, signal)
         .then(({ price, asOf }) => {
-          setPrices(prev => ({ ...prev, [symbol]: { price, asOf, status: price ? 'ok' : 'missing' } }));
+          setPrices(prev => ({ ...prev, [symbol]: price ? { price, asOf, status: 'ok' } : failed(prev[symbol]) }));
         })
         .catch(error => {
           if (signal.aborted) return;
           console.warn(`Couldn't get a price for ${symbol}:`, error);
-          setPrices(prev => ({ ...prev, [symbol]: { price: null, asOf: null, status: 'missing' } }));
+          setPrices(prev => ({ ...prev, [symbol]: failed(prev[symbol]) }));
         });
     });
   }, []);

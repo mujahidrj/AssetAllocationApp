@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './Calculator.module.css';
 import { SearchIcon } from './icons';
-import { cleanResults, ownFundSymbol, type SearchResult as Result } from './searchUtils';
+import { cleanResults, looksLikeTicker, ownFundSymbol, type SearchResult as Result } from './searchUtils';
 
 
 const DEBOUNCE_MS = 300;
@@ -92,11 +92,21 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
     setNote(null);
   };
 
+  // What search didn't find can still be added: a ticker it can't check right now (or doesn't
+  // know), or a fund with no ticker at all, by name (many 401(k) funds). Offered after the
+  // results too when a name was typed, since loosely matching results are usual for names.
+  const typed = query.trim();
+  const tickerLike = looksLikeTicker(typed);
+  const offerOwn = typed.length >= MIN_LENGTH &&
+    (results.length === 0 || (!tickerLike && !results.some(r => r.symbol.toUpperCase() === typed.toUpperCase())));
+  const addOwn = () => (tickerLike ? add(typed) : add(typed, undefined, true));
+  const options = results.length + (offerOwn ? 1 : 0);
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setOpen(true);
-      setActive(i => Math.min(i + 1, results.length - 1));
+      setActive(i => Math.min(i + 1, options - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setActive(i => Math.max(i - 1, -1));
@@ -104,9 +114,10 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
       setOpen(false);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const pick = active >= 0 ? results[active] : results.find(r => r.symbol.toUpperCase() === query.trim().toUpperCase());
+      const pick = active >= 0 ? results[active] : results.find(r => r.symbol.toUpperCase() === typed.toUpperCase());
       if (pick) add(pick.symbol, pick.description);
-      else if (TICKER.test(query.trim().toUpperCase())) add(query);
+      else if (offerOwn && (active === results.length || results.length === 0)) addOwn();
+      else if (TICKER.test(typed.toUpperCase())) add(typed);
     }
   };
 
@@ -139,20 +150,7 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
       {showList && (
         <ul className={styles.results} id="fund-results" role="listbox">
           {results.length === 0 && (
-            <>
-              <li className={styles.searchNote}>
-                {failed
-                  ? 'Fund search isn’t working right now.'
-                  : `No US funds or stocks match “${query.trim()}”.`}
-              </li>
-              {/* Many 401(k) funds have no ticker: add it by name and type its price */}
-              <li>
-                <button type="button" className={`${styles.result} ${styles.resultOwn}`} onClick={() => add(query, undefined, true)}>
-                  <span className={styles.resultSymbol}>+ Add</span>
-                  <span className={styles.resultName}>“{ownFundSymbol(query)}” as your own fund, with a price you type</span>
-                </button>
-              </li>
-            </>
+            <li className={styles.searchNote}>{failed ? 'Fund search isn’t working right now.' : 'No funds match.'}</li>
           )}
           {results.map((r, i) => (
             <li key={r.symbol} role="option" aria-selected={i === active}>
@@ -167,6 +165,19 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
               </button>
             </li>
           ))}
+          {offerOwn && (
+            <li role="option" aria-selected={active === results.length}>
+              <button
+                type="button"
+                className={`${styles.result} ${styles.resultOwn} ${active === results.length ? styles.resultOn : ''}`}
+                onMouseEnter={() => setActive(results.length)}
+                onClick={addOwn}
+              >
+                <span className={styles.resultOwnAdd}>+ Add {tickerLike ? typed.toUpperCase() : `“${ownFundSymbol(typed)}”`}</span>
+                <span className={styles.resultOwnNote}>{tickerLike ? 'Looks up its price' : 'As your own fund. You’ll type its price.'}</span>
+              </button>
+            </li>
+          )}
         </ul>
       )}
       {note && <div className={styles.searchNote} role="status" style={{ position: 'absolute', top: 52, left: 0 }}>{note}</div>}

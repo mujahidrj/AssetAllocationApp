@@ -21,8 +21,6 @@ interface PortfolioMenuProps {
   onDelete: (id: string) => void;
   onPickMix: (funds: Fund[], templateId: string) => void;
   onBuildOwn: () => void;
-  /** Open straight on the template list. */
-  startOnMix?: boolean;
   /** "All portfolios" row, shown when there are two or more portfolios. */
   all?: {
     /** Portfolios with holdings entered, and their combined value. */
@@ -40,9 +38,9 @@ interface PortfolioMenuProps {
  * sheet on phones.
  */
 export function PortfolioMenu(props: PortfolioMenuProps) {
-  const { portfolios, activeId, anchor, onClose, onSwitch, onNew, onDuplicate, onRename, onDelete, onPickMix, onBuildOwn, startOnMix, all } = props;
+  const { portfolios, activeId, anchor, onClose, onSwitch, onNew, onDuplicate, onRename, onDelete, onPickMix, onBuildOwn, all } = props;
   const showingAll = all?.showing ?? false;
-  const [step, setStep] = useState<'list' | 'mix'>(startOnMix ? 'mix' : 'list');
+  const [step, setStep] = useState<'list' | 'mix'>('list');
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState('');
   const [left, setLeft] = useState(0);
@@ -51,7 +49,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
   const active = portfolios.find(p => p.id === activeId) ?? portfolios[0];
 
   // Back closes the sheet, or from the template list goes back to the portfolios
-  useSheetHistory('portfolios', startOnMix || step === 'list' ? 1 : 2, level => {
+  useSheetHistory('portfolios', step === 'list' ? 1 : 2, level => {
     if (level === 0) onClose(); else setStep('list');
   });
 
@@ -113,7 +111,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
       >
         <SheetBar
           onClose={onClose}
-          back={step === 'mix' && !startOnMix && (
+          back={step === 'mix' && (
             <button type="button" className={styles.pickerBack} onClick={() => setStep('list')}>
               <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}><ChevronIcon /></span> {displayName(active)}
             </button>

@@ -669,7 +669,10 @@
 }
 
 .pickerFund {
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pickerNote {
@@ -965,13 +968,13 @@
   font-family: var(--font-serif);
   font-weight: 500;
   font-size: 22px;
+  text-wrap: balance;
 }
 
-/* The portfolio card's name: opens the portfolios, like the name in the sentence */
+/* The portfolio card's name: opens the portfolios, like the name in the sentence.
+   Inline, so a long name wraps and the chevron follows its last word. */
 .titleButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline;
   margin: 0;
   padding: 0;
   border: 0;
@@ -982,7 +985,9 @@
 }
 
 .titleButton svg {
-  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: 0.12em;
+  margin-left: 6px;
   color: var(--accent);
 }
 
@@ -1123,9 +1128,10 @@
   row-gap: 4px;
 }
 
-/* Separators trail each item, so a wrapped line never starts with "·" */
+/* Separators trail each item, so a wrapped line never starts with "·". Items can
+   wrap: a fund added by name can be long. */
 .footItem {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .footItem:not(:last-child)::after {
@@ -1134,12 +1140,13 @@
 }
 
 .footProblem {
-  color: var(--sell);
+  color: var(--text-2);
 }
 
 .cardFoot .linkButton {
   font-weight: 500;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 /* ---------- Mix table ---------- */
@@ -1445,9 +1452,22 @@
   font-size: 14px;
 }
 
-/* "+ Add "Vanguard Target 2050" as your own fund" when search finds nothing */
-.resultOwn .resultSymbol {
+/* "+ Add "Target 2050 Trust"" with what happens next under it: what search didn't find */
+.resultOwn {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.resultOwnAdd {
   color: var(--accent-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.resultOwnNote {
+  color: var(--text-3);
+  font-size: 13px;
 }
 
 .searchNote {
@@ -1557,6 +1577,7 @@
 /* "Fractional shares ▾" in the footer: the words are the control, the real select sits on top */
 .footSelect {
   position: relative;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1914,17 +1935,50 @@
   line-height: 1.2;
 }
 
+/* "Buy VTI $1,750.00 + 2 more": a long fund name shortens, the amount never does */
 .copyBarMain {
+  display: flex;
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.copyBarFund {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copyBarRest {
+  flex: none;
+  white-space: pre; /* keeps the space before the amount */
+}
+
 .copyBarSub {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  opacity: 0.75;
+  opacity: 0.85;
+}
+
+.copyBar .primary svg {
+  flex: none;
+}
+
+/* A fund added by name: words, not a ticker, so the text face, and three lines at most */
+.ownSymbol {
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+/* "No price found." beside the Add price link in a trade row */
+.tradeNote {
+  color: var(--text-3);
 }
 
 @media (max-width: 720px) {
@@ -2339,6 +2393,35 @@
   /* The quick fixes sit together on their own line, under the total */
   .mixFoot .totalText {
     flex-basis: 100%;
+  }
+
+  /* A fund's row: "your price" goes on its own line under the name. The name and the
+     words beside it shrink to share the first line rather than wrap under it. */
+  .mixRow .fundCell {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .mixRow .fundName,
+  .mixRow .ownSymbol {
+    flex: 1 1 0;
+  }
+
+  /* A fund added by name fills the line, so "0%, not buying" goes under it */
+  .mixRow .ownSymbol + .fundName {
+    flex-basis: 100%;
+    padding-left: 18px;
+  }
+
+  .mixRow .yourPrice {
+    flex-basis: 100%;
+    padding-left: 18px;
+    white-space: normal;
+  }
+
+  /* Scrolled into view clear of the header and the copy bar */
+  .priceEditor {
+    scroll-margin: 72px 0 96px;
   }
 }
 

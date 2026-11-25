@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isUSTicker, isPrimaryTicker, getBaseTicker, isOption, isFutures } from '../searchUtils';
+import { isUSTicker, isPrimaryTicker, getBaseTicker, isOption, isFutures, ownFundSymbol, looksLikeTicker } from '../searchUtils';
 
 describe('stockSearchUtils', () => {
   describe('isUSTicker', () => {
@@ -178,6 +178,22 @@ describe('stockSearchUtils', () => {
     it('should return false for stocks with F suffix that are not futures', () => {
       expect(isFutures('AAPLF')).toBe(false); // Not a known futures symbol
       expect(isFutures('MSFTF')).toBe(false); // Not a known futures symbol
+    });
+  });
+
+  describe('funds of your own', () => {
+    it('keeps a name as typed, and a ticker in capitals', () => {
+      expect(ownFundSymbol('  Target Date 2050:  Trust, Class K ')).toBe('Target Date 2050 Trust Class K');
+      expect(ownFundSymbol('trust2050')).toBe('TRUST2050');
+      expect(looksLikeTicker('BRK.B')).toBe(true);
+      expect(looksLikeTicker('Target Date 2050')).toBe(false);
+    });
+
+    it('ends a long name at a whole word', () => {
+      const name = ownFundSymbol('Vanguard Target Retirement 2050 Trust Select Institutional Class Shares');
+      expect(name).toBe('Vanguard Target Retirement 2050 Trust Select Institutional');
+      expect(name.length).toBeLessThanOrEqual(60);
+      expect(ownFundSymbol('Vanguard Target Retirement 2050 Trust Select')).toBe('Vanguard Target Retirement 2050 Trust Select');
     });
   });
 });

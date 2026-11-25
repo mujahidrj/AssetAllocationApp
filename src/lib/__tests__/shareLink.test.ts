@@ -30,6 +30,16 @@ describe('shareLink', () => {
     ]);
   });
 
+  it('carries funds added by name, as they were written', () => {
+    const own = [
+      { name: 'VTI', percentage: 60 },
+      { name: 'Target Retirement 2050 Trust Select', percentage: 30 },
+      { name: 'Stable Value Fund (Class 3) & Co', percentage: 10 },
+    ];
+    const link = new URL(buildShareLink(own, { origin: 'https://example.com', pathname: '/' }));
+    expect(readSharedMix(link.search)).toEqual(own);
+  });
+
   it.each([
     [''],
     ['SPUS:50,SPTE:40'],
@@ -39,6 +49,10 @@ describe('shareLink', () => {
     ['<script>:100'],
     ['SPUS:50:1,SPTE:50'],
     ['SPUS'],
+    ['SPUS:50,<b>x</b>:50'],
+    ['SPUS:50,  :50'],
+    ['SPUS:50,2050:50,2050:0'],
+    [`SPUS:50,${'Long name '.repeat(7)}:50`],
   ])('rejects %j', (value) => {
     expect(decodeMix(value)).toBeNull();
   });

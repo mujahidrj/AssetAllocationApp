@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
+import { looksLikeTicker } from './searchUtils';
 import { useAuth } from '../lib/useAuth';
 import type { AuthProblem } from '../lib/authContext';
 import { parseAmount } from '../lib/parseAmount';
@@ -144,7 +145,7 @@ export function Calculator() {
   const [view, setView] = useState<'one' | 'all'>('one');
   const [verb, setVerb] = useState<Verb>('add');
   const [amountText, setAmountText] = useState('');
-  const [menu, setMenu] = useState<null | 'list' | 'mix'>(null);
+  const [menu, setMenu] = useState<null | 'list'>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [namingId, setNamingId] = useState<string | null>(null);
@@ -341,7 +342,13 @@ export function Calculator() {
     if (showingAll) return { text: 'Read-only. Pick one portfolio to get trades.' };
     if (amountInvalid) return { text: 'Type an amount like 2,500 or $2,500.50.', error: true };
     // Nothing set up yet: say what you'll get, not how holdings work
-    if (funds.length === 0) return { text: "You'll get exactly what to buy in each fund, in dollars and shares." };
+    if (funds.length === 0) {
+      return {
+        text: verb === 'out' ? "You'll get exactly what to sell in each fund, in dollars and shares."
+          : verb === 'rebal' ? "You'll get exactly what to buy and sell to get back on target."
+          : "You'll get exactly what to buy in each fund, in dollars and shares.",
+      };
+    }
     if (!tracksHoldings) {
       return {
         text: effectiveVerb === 'out' ? 'No holdings added, so this sells by your targets.' : 'No holdings added, so this splits by your targets.',
@@ -546,9 +553,10 @@ export function Calculator() {
     : `Copy ${tradeCount}`;
   // On phones the trades are usually off-screen while you edit: the bar shows the first one
   const first = plan.trades[0];
-  const firstTrade = first
-    ? `${first.action === 'buy' ? 'Buy' : 'Sell'} ${first.symbol} ${money(first.dollars)}${plan.trades.length > 1 ? ` + ${plan.trades.length - 1} more` : ''}`
-    : '';
+  // In two parts, so a long fund name can shorten and the amount never does
+  const firstFund = first ? `${first.action === 'buy' ? 'Buy' : 'Sell'} ${first.symbol}` : '';
+  const firstRest = first ? ` ${money(first.dollars)}${plan.trades.length > 1 ? ` + ${plan.trades.length - 1} more` : ''}` : '';
+  const firstTrade = firstFund + firstRest;
 
   // The phone's copy bar: copies the trades, or leads to whatever is stopping them
   // A price that failed, or one still coming after a long wait: the card offers to type it, so the bar does too
@@ -695,7 +703,6 @@ export function Calculator() {
               portfolios={workspace.portfolios}
               activeId={portfolio.id}
               anchor={blankRef.current}
-              startOnMix={menu === 'mix'}
               onClose={closeMenu}
               onSwitch={openPortfolio}
               onNew={() => newPortfolio()}
@@ -814,7 +821,7 @@ export function Calculator() {
                   setJustAdded({ portfolioId: portfolio.id, symbol: s });
                   setSearchOpen(false);
                   // A fund of your own (many 401(k) funds have no ticker) needs its price from you
-                  if (own) setEditingPrice(s);
+                  if (own && !looksLikeTicker(s)) setEditingPrice(s);
                 }}
                 onRemoveFund={removeFund}
                 onScale={actions.scaleTo100}
@@ -939,7 +946,12 @@ export function Calculator() {
           <button type="button" className={`${styles.primary} ${bar.run && !ok ? styles.barGo : ''}`} onClick={bar.run} disabled={!bar.run}>
             {ok && <CopyIcon />}
             <span className={styles.copyBarText}>
-              <span className={styles.copyBarMain}>{bar.label}</span>
+              <span className={styles.copyBarMain}>
+                {ok && !copied ? <>
+                  <span className={styles.copyBarFund}>{firstFund}</span>
+                  <span className={styles.copyBarRest}>{firstRest}</span>
+                </> : bar.label}
+              </span>
               {bar.sub && <span className={styles.copyBarSub}>{bar.sub}</span>}
             </span>
           </button>

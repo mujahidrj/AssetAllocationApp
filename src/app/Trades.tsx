@@ -1,5 +1,6 @@
 import { Fragment, type Ref } from 'react';
 import styles from './Calculator.module.css';
+import { looksLikeTicker } from './searchUtils';
 import { CopyIcon } from './icons';
 import { formatAmountInput, listText, money, pct1, priceDate, priceTime } from './format';
 import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
@@ -113,14 +114,15 @@ export function Trades(props: TradesProps) {
   // Held as shares with no price: the lookup either failed or is still going
   const failed = plan.unpriced.filter(s => priceFailed.includes(s));
   const waiting = plan.unpriced.filter(s => !priceFailed.includes(s));
-  // Funds the lookup couldn't price (and nobody typed a price for), named in the footer
+  // Tickers the lookup couldn't price (and nobody typed a price for) that have no trade row
+  // to say so: named in the footer. Funds added by name never get a looked-up price.
   const noPrice = plan.status === 'needs-prices' ? []
-    : priceFailed.filter(s => funds.some(f => f.symbol === s && f.target > 0) || plan.trades.some(t => t.symbol === s));
+    : priceFailed.filter(s => looksLikeTicker(s) && !plan.trades.some(t => t.symbol === s) && funds.some(f => f.symbol === s && f.target > 0));
 
   const title =
     ok ? (sellsEverything ? 'Sell everything' : tradeTitle(plan.trades))
       : plan.status === 'targets-off' ? 'Targets need to add up to 100%'
-      : plan.status === 'needs-mix' ? (amount > 0 && verb !== 'rebal' ? `Pick a template to split $${formatAmountInput(amount)}` : 'Pick a starting point')
+      : plan.status === 'needs-mix' ? (amount > 0 && verb === 'add' ? `Pick a template to split $${formatAmountInput(amount)}` : 'Pick a starting point')
       : plan.status === 'short-of-share' ? 'Not enough for one share'
       : plan.status === 'needs-prices' ? (failed.length > 1 ? 'Prices are missing' : failed.length === 1 ? 'A price is missing' : pricesSlow ? 'Still getting prices…' : 'Getting prices…')
       : 'Your trades';
@@ -235,15 +237,16 @@ export function Trades(props: TradesProps) {
                 <div className={styles.fundCell}>
                   <span className={styles.swatch} style={{ background: colorOf(t.symbol) }} />
                   <div style={{ minWidth: 0 }}>
-                    <div className={styles.symbol}>{t.symbol}</div>
+                    <div className={`${styles.symbol} ${looksLikeTicker(t.symbol) ? '' : styles.ownSymbol}`}>{t.symbol}</div>
                     <div className={styles.fundName}>{!fund ? 'Not in this portfolio' : shortName(fund) !== fund.symbol ? shortName(fund) : ''}</div>
                   </div>
                 </div>
                 <span className={styles.tradeShares}>
                   {isCashSymbol(t.symbol) ? 'cash'
                     : t.shares != null ? sharesText(t.shares, wholeShares)
+                    : fund && !looksLikeTicker(t.symbol) ? <button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Type its price to see shares</button>
                     : pricesLoading ? '…'
-                    : fund ? <button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add a price to see shares</button>
+                    : fund ? <><span className={styles.tradeNote}>No price found.</span>{' '}<button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add price</button></>
                     : 'no price'}
                 </span>
                 <span className={styles.tradeAmount}>{t.action === 'sell' ? money(-t.dollars) : money(t.dollars)}</span>

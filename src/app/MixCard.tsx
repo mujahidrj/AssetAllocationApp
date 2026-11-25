@@ -65,8 +65,12 @@ export function PriceEditor({ symbol, current, onSave, onClose }: {
   const [text, setText] = useState(current ? String(current.price) : '');
   const price = parseAmount(text);
   const valid = Number.isFinite(price) && price > 0;
+  const formRef = useRef<HTMLFormElement>(null);
+  // Fully in view, clear of the phone's copy bar (its scroll margins say how far)
+  useEffect(() => { formRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); }, []);
   return (
     <form
+      ref={formRef}
       className={styles.priceEditor}
       onSubmit={e => { e.preventDefault(); if (valid) { onSave(price); onClose(); } }}
       onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}
@@ -256,9 +260,11 @@ export function MixCard(props: MixCardProps) {
             <div className={`${styles.mixRow} ${f.target === 0 ? styles.zero : ''}`}>
               <div className={styles.fundCell}>
                 <span className={styles.swatch} style={{ background: colorOf(f.symbol) }} />
-                <b className={styles.symbol} style={{ fontSize: 15 }}>{f.symbol}</b>
+                <b className={`${styles.symbol} ${looksLikeTicker(f.symbol) ? '' : styles.ownSymbol}`} style={{ fontSize: 15 }}>{f.symbol}</b>
                 {/* A fund of your own is named by its symbol already */}
-                <span className={styles.fundName}>{f.target === 0 ? '0%, not buying' : shortName(f) !== f.symbol ? shortName(f) : ''}</span>
+                {(f.target === 0 || shortName(f) !== f.symbol) && (
+                  <span className={styles.fundName}>{f.target === 0 ? '0%, not buying' : shortName(f)}</span>
+                )}
                 {manual && (
                   <span className={styles.yourPrice}>
                     <button type="button" className={styles.linkButton} onClick={() => onEditPrice(f.symbol)} aria-label={`Edit your price for ${f.symbol}`}>{money(manual.price)}</button>
