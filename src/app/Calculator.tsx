@@ -511,7 +511,7 @@ export function Calculator() {
     : `Copy ${plan.trades.length} trades`;
 
   // The phone's copy bar: copies the trades, or leads to whatever is stopping them
-  const firstFailedPrice = plan.status === 'needs-prices' ? plan.unpriced.find(s => missingPrices.includes(s) && funds.some(f => f.symbol === s)) : undefined;
+  const firstFailedPrice = plan.status === 'needs-prices' ? plan.unpriced.find(s => missingPrices.includes(s)) : undefined;
   const bar: { label: string; run?: () => void } =
     ok ? { label: copyBarLabel, run: copyTrades }
       : plan.status === 'needs-amount' ? { label: 'Type an amount', run: focusAmount }
