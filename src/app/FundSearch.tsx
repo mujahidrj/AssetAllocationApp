@@ -101,6 +101,13 @@ export function FundSearch({ onAdd, existing, autoFocus, onFocusChange }: FundSe
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const focusChange = useRef(onFocusChange);
   useEffect(() => { focusChange.current = onFocusChange; });
+  // A result tapped is gone as soon as its fund is added, and a focused element that goes
+  // away says nothing (no blur). So also watch where the cursor goes next.
+  useEffect(() => {
+    const onFocusIn = (e: FocusEvent) => focusChange.current?.(!!boxRef.current?.contains(e.target as Node));
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
   // Closed while it had the cursor: no blur comes, so say so here. (Still in the page
   // with the cursor means React is only trying the effect twice, in development.)
   useEffect(() => {
