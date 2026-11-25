@@ -517,7 +517,7 @@ export function Calculator() {
       : plan.status === 'needs-amount' ? { label: 'Type an amount', run: focusAmount }
       : plan.status === 'targets-off' ? { label: `Targets add up to ${+plan.targetTotal.toFixed(2)}%`, run: showTotal }
       : plan.status === 'needs-holdings' ? { label: 'Enter what you own', run: focusHoldings }
-      : plan.status === 'needs-prices' && firstFailedPrice ? { label: `Add a price for ${firstFailedPrice}`, run: () => setEditingPrice(firstFailedPrice) }
+      : plan.status === 'needs-prices' && firstFailedPrice ? { label: `Add a price for ${firstFailedPrice}`, run: () => setEditingPrice(firstFailedPrice, 'trades') }
       : plan.status === 'needs-prices' ? { label: 'Getting prices…' }
       : plan.status === 'nothing-to-do' ? { label: 'Nothing to buy or sell' }
       : plan.status === 'short-of-share' ? { label: 'Not enough for one share' }
