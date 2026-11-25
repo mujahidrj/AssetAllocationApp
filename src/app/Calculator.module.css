@@ -1080,6 +1080,11 @@
   font-size: 12px;
 }
 
+/* A fund added by name stays beside its swatch, its words wrapping there */
+.mixRow .ownSymbol {
+  flex: 1 1 0;
+}
+
 .swatch {
   width: 8px;
   height: 8px;
@@ -1699,24 +1704,7 @@
   font-weight: 500;
 }
 
-/* A fund's row: "your price" goes on its own line under the name. The name and the
-   words beside it shrink to share the first line rather than wrap under it. */
-.mixRow .fundCell {
-  flex-wrap: wrap;
-  row-gap: 2px;
-}
-
-.mixRow .fundName,
-.mixRow .ownSymbol {
-  flex: 1 1 0;
-}
-
-/* A fund added by name fills the line, so "0%, not buying" goes under it */
-.mixRow .ownSymbol + .fundName {
-  flex-basis: 100%;
-  padding-left: 18px;
-}
-
+/* "Your price" goes on its own line under the name */
 .mixRow .yourPrice {
   flex-basis: 100%;
   padding-left: 18px;
