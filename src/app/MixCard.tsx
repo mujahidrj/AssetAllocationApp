@@ -350,7 +350,7 @@ export function MixCard(props: MixCardProps) {
                 </button>
               ) : largest && (
                 <button type="button" className={styles.linkButton} onClick={() => onAbsorb(largest.symbol)}>
-                  {diff > 0 ? `Put ${diff}% in ${largest.symbol}` : `Take ${Math.abs(diff)}% from ${largest.symbol}`}
+                  {diff > 0 ? `Give ${largest.symbol} the ${diff}%` : `Take ${Math.abs(diff)}% from ${largest.symbol}`}
                 </button>
               )}
               <button type="button" className={styles.linkButton} onClick={onScale}>Scale to 100%</button>

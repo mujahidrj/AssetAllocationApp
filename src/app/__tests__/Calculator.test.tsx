@@ -136,7 +136,7 @@ describe('Calculator', () => {
     expect(screen.getByRole('heading', { name: /targets need to add up to 100%/i })).toBeInTheDocument();
     expect(screen.getByText('Total 90% · 10% left')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Put 10% in VTI' }));
+    await user.click(screen.getByRole('button', { name: 'Give VTI the 10%' }));
     expect(screen.getByText('Total 100%')).toBeInTheDocument();
     expect(loadDeviceWorkspace()?.portfolios[0].funds.map(f => f.target)).toEqual([60, 40]);
   });
@@ -154,10 +154,16 @@ describe('Calculator', () => {
     await user.type(vti, '50');
 
     // Not the biggest fund: the new one, which is at 0%
-    expect(screen.queryByRole('button', { name: 'Put 10% in VTI' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Give VTI the 10%' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Give AAPL the 10%' }));
     expect(screen.getByText('Total 100%')).toBeInTheDocument();
     expect(loadDeviceWorkspace()?.portfolios[0].funds.map(f => [f.symbol, f.target])).toEqual([['VTI', 50], ['VXUS', 40], ['AAPL', 10]]);
+
+    // Once it has its share, the quick fix goes back to the biggest fund
+    await user.clear(vti);
+    await user.type(vti, '45');
+    expect(screen.queryByRole('button', { name: 'Give AAPL the 5%' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Give VTI the 5%' })).toBeInTheDocument();
   });
 
   it("makes the phone's copy bar lead to whatever is stopping the trades", async () => {
@@ -179,9 +185,9 @@ describe('Calculator', () => {
     expect(bar()).toHaveTextContent('Targets add up to 90%');
     fireEvent.click(bar());
     // Takes you to the total, ready for its quick fix
-    expect(screen.getByRole('button', { name: 'Put 10% in VTI' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Give VTI the 10%' })).toHaveFocus();
 
-    await user.click(screen.getByRole('button', { name: 'Put 10% in VTI' }));
+    await user.click(screen.getByRole('button', { name: 'Give VTI the 10%' }));
     expect(bar()).toHaveTextContent('Copy 2 buys · $1,000.00');
   });
 
@@ -212,23 +218,73 @@ describe('Calculator', () => {
     expect(window.location.pathname).toBe('/');
   });
 
-  it('explains where to get the file before opening the file picker', async () => {
-    seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 100 }] });
+  it('explains where to get the file before opening the file picker, and stays until a file is picked', async () => {
+    seed({ name: 'Roth IRA', funds: [{ symbol: 'SPUS', target: 60 }, { symbol: 'SPWO', target: 40 }] });
     const user = userEvent.setup();
     renderApp();
-    const pick = vi.spyOn(screen.getByTestId('import-file'), 'click');
+    const input = screen.getByTestId('import-file');
+    const pick = vi.spyOn(input, 'click');
 
     await user.click(screen.getByRole('button', { name: 'Import from broker' }));
-    const guide = screen.getByRole('dialog', { name: 'Import from your broker' });
-    expect(within(guide).getByText('Into Roth IRA')).toBeInTheDocument();
+    const guide = screen.getByRole('dialog', { name: 'Import holdings into Roth IRA' });
+    expect(within(guide).getByText('From Fidelity, Schwab or Vanguard')).toBeInTheDocument();
     expect(within(guide).getByText('Fidelity:')).toBeInTheDocument();
     expect(within(guide).getByText('Schwab:')).toBeInTheDocument();
     expect(within(guide).getByText('Vanguard:')).toBeInTheDocument();
     expect(pick).not.toHaveBeenCalled();
+    expect(window.history.state).toMatchObject({ aaSheet: 'import-guide', level: 1 });
+    const entries = window.history.length;
 
+    // Closing the picker without a file comes back to the guide
     await user.click(within(guide).getByRole('button', { name: 'Choose file' }));
     expect(pick).toHaveBeenCalledTimes(1);
+    expect(guide).toBeInTheDocument();
+
+    // A file: the import takes over the guide's place, and its history entry
+    fireEvent.change(input, {
+      target: { files: [new File([fidelityCsv], 'Portfolio_Positions_Nov-22-2026.csv', { type: 'text/csv' })] },
+    });
+    const dialog = await screen.findByRole('dialog', { name: 'Import holdings into Roth IRA' });
+    expect(within(dialog).getByText('Fidelity · Portfolio_Positions_Nov-22-2026.csv')).toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(window.history.state).toMatchObject({ aaSheet: 'import', level: 1 });
+    expect(window.history.length).toBe(entries);
+
+    // So one Back closes it and leaves the page as it was
+    act(() => { window.history.back(); });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.history.state).toBeNull();
+  });
+
+  it('keeps Back on the page when one tap closes a sheet and opens another', async () => {
+    seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+    const start = window.history.length;
+
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(window.history.state).toMatchObject({ aaSheet: 'account', level: 1 });
+    // The press outside closes the panel; the same tap opens the guide
+    await user.click(screen.getByRole('button', { name: 'Import from broker' }));
+    expect(screen.getByRole('dialog', { name: 'Import holdings into Roth IRA' })).toBeInTheDocument();
+    await waitFor(() => expect(window.history.state).toMatchObject({ aaSheet: 'import-guide', level: 1 }));
+    expect(window.history.length).toBe(start + 1);
+
+    act(() => { window.history.back(); });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.history.state).toBeNull();
+  });
+
+  it('lets you type what you own instead of importing', async () => {
+    seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 100 }], holdings: {}, tracksHoldings: false });
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'Import from broker' }));
+    await user.click(screen.getByRole('button', { name: 'Enter by hand' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /i already own some of these/i })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByLabelText(/VTI you own, in/)).toHaveFocus();
   });
 
   it('adds and removes funds', async () => {

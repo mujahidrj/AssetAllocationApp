@@ -5,6 +5,7 @@ import './mocks'
 
 // MSW setup - API mocking for tests
 import { server } from './server'
+import { resetSheetHistory } from '../app/sheetHistory'
 
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'warn' })
@@ -48,6 +49,7 @@ afterEach(() => {
   vi.clearAllMocks()
   cleanup()
   // The app saves to the browser and reads share links from the URL; start each test clean
+  resetSheetHistory()
   window.localStorage.clear()
   window.history.replaceState(null, '', '/')
 })

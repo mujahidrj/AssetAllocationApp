@@ -854,6 +854,16 @@
   background: var(--border-strong);
 }
 
+/* Where sheets are popovers, a bar holding a way back shows just that */
+.sheetBarBack {
+  display: flex;
+}
+
+.sheetBarBack .sheetHandle,
+.sheetBarBack .sheetClose {
+  display: none;
+}
+
 .sheetClose {
   position: absolute;
   top: -4px;
@@ -1636,7 +1646,8 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(20, 19, 17, 0.38);
+  /* --drag: how far a sheet has been dragged down, 0 to 1 */
+  background: rgba(20, 19, 17, calc(0.38 * (1 - var(--drag, 0))));
 }
 
 .dialog {
@@ -1675,6 +1686,17 @@
   flex-wrap: wrap;
   gap: 10px;
   padding-top: 6px;
+}
+
+/* In a dialog taller than the screen, its buttons stay at the bottom edge */
+.dialog .dialogActions {
+  position: sticky;
+  bottom: -20px;
+  z-index: 1;
+  margin: 0 -24px -20px;
+  padding: 12px 24px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }
 
 .howTo {
@@ -1897,6 +1919,7 @@
     inset: 0;
     z-index: 55;
     background: rgba(0, 0, 0, 0.32);
+    opacity: calc(1 - var(--drag, 0));
   }
 
   .accountPanel {
@@ -2045,6 +2068,7 @@
     inset: 0;
     z-index: 39;
     background: rgba(0, 0, 0, 0.3);
+    opacity: calc(1 - var(--drag, 0));
   }
 
   .menu {
@@ -2087,34 +2111,77 @@
     padding: 12px;
   }
 
-  /* The grab handle, with room for the Close button on its right */
+  /* One header for every sheet: the grab handle centred at the top, Close at the
+     right, and a way back to the first step (if there is one) at the left */
   .sheetBar {
     display: flex;
-    justify-content: center;
+    align-items: center;
     position: relative;
-    height: 28px;
-    padding-top: 2px;
+    height: 44px;
     touch-action: none;
   }
 
-  .accountPanel .sheetBar {
-    height: 36px;
+  .sheetHandle,
+  .sheetBarBack .sheetHandle {
+    display: block;
+    position: absolute;
+    top: 6px;
+    left: calc(50% - 18px);
   }
 
-  /* The portfolio sheet scrolls (the template list is long): the handle and Close stay put */
-  .menu .sheetBar {
+  .sheetClose,
+  .sheetBarBack .sheetClose {
+    display: inline-flex;
+    top: 0;
+    right: 0;
+  }
+
+  .sheetBar .pickerBack {
+    height: 44px;
+    padding: 0 8px;
+  }
+
+  .accountPanel .sheetBar {
+    margin: -8px -8px 0;
+    padding-top: 8px;
+    height: 52px;
+  }
+
+  .accountPanel .sheetClose {
+    top: 8px;
+    right: 4px;
+  }
+
+  /* Sheets that scroll (the template list, a long import) keep their header */
+  .menu .sheetBar,
+  .dialog .sheetBar {
     position: sticky;
     top: -8px;
     z-index: 2;
-    height: 44px;
     margin: -8px -8px 0;
-    padding: 10px 8px 0;
+    padding-top: 8px;
+    height: 52px;
     background: var(--raised);
   }
 
-  .menu .sheetClose {
-    top: 4px;
+  .menu .sheetClose,
+  .dialog .sheetClose {
+    top: 8px;
     right: 4px;
+  }
+
+  .dialog .sheetBar {
+    margin: -8px -16px 0;
+    background: var(--surface);
+  }
+
+  .dialog .sheetClose {
+    right: 8px;
+  }
+
+  /* The sheet header has the Close */
+  .dialogClose {
+    display: none;
   }
 
   /* The import steps rise from the bottom like the other sheets */
@@ -2125,7 +2192,7 @@
 
   .dialog {
     max-width: none;
-    max-height: calc(100% - 24px);
+    max-height: calc(100% - max(24px, env(safe-area-inset-top) + 8px));
     border-radius: 14px 14px 0 0;
     border-width: 1px 0 0;
     padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
@@ -2133,6 +2200,13 @@
 
   .dialog .dialogHead {
     padding-top: 0;
+    touch-action: none;
+  }
+
+  .dialog .dialogActions {
+    bottom: calc(-20px - env(safe-area-inset-bottom));
+    margin: 0 -16px calc(-20px - env(safe-area-inset-bottom));
+    padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
   }
 
   .importRow {
@@ -2209,6 +2283,28 @@
     height: 52px;
     justify-content: center;
     font-size: 16px;
+    border: 1px solid transparent;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  /* Ink means the trades are ready. Until then the bar is a plain button that leads
+     to what's missing, or quiet words when there's nothing to do. */
+  .copyBar .barGo {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  .copyBar .primary:disabled {
+    opacity: 1;
+    background: none;
+    border-color: var(--border);
+    color: var(--text-3);
+  }
+
+  /* The quick fixes sit together on their own line, under the total */
+  .mixFoot .totalText {
+    flex-basis: 100%;
   }
 }
 

@@ -5,7 +5,7 @@ import { money } from './format';
 import { holdingsFromAccount, sameSymbol, type ImportedAccount, type ImportedPosition, type ImportResult } from './brokerImport';
 import { displayName, isCashSymbol, type Fund, type Holding, type Portfolio } from './model';
 import { holdingDollars, type PriceMap } from './plan';
-import { SheetBar } from './SheetBar';
+import { SheetBar, useSheetDrag } from './SheetBar';
 import { useSheetHistory } from './sheetHistory';
 
 export interface ImportChoice {
@@ -80,6 +80,7 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
   const [useCash, setUseCash] = useState(false);
   const [howTo, setHowTo] = useState(false);
   useSheetHistory('import', 1, onClose);
+  const drag = useSheetDrag(onClose);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -163,17 +164,17 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
   const problem = typeof result === 'string' ? result : accounts.length === 0 ? (parsed?.recognized ? 'empty' : 'unreadable') : null;
 
   return (
-    <div className={styles.dialogBackdrop} onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className={styles.dialogBackdrop} data-sheet-backdrop onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panelRef} tabIndex={-1} data-sheet>
-        <SheetBar onClose={onClose} close={false} />
-        <div className={styles.dialogHead}>
+        <SheetBar onClose={onClose} />
+        <div className={styles.dialogHead} {...drag}>
           <div className={styles.titleBlock}>
             <h2 className={styles.cardTitle} id={titleId}>
               {problem ? "We couldn't read this file" : `Import holdings into ${name}`}
             </h2>
             {brokerLine && <span className={styles.cardSub}>{brokerLine}</span>}
           </div>
-          <button type="button" className={`${styles.remove} ${styles.pushRight}`} onClick={onClose} aria-label="Close">
+          <button type="button" className={`${styles.remove} ${styles.pushRight} ${styles.dialogClose}`} onClick={onClose} aria-label="Close">
             <CloseIcon />
           </button>
         </div>

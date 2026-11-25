@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useAuth } from '../lib/useAuth';
 import type { AuthProblem } from '../lib/authContext';
 import { parseAmount } from '../lib/parseAmount';
@@ -153,7 +154,9 @@ export function Calculator() {
   const setEditingPrice = useCallback((symbol: string | null, at: 'trades' | 'card' = 'card') =>
     setEditing(symbol ? { symbol, at } : null), []);
   const [textFallback, setTextFallback] = useState<string | null>(null);
-  const [importing, setImporting] = useState<{ fileName: string; result: ImportResult | ImportProblem } | null>(null);
+  // `n` counts files read, so a file picked from the import sheet starts it afresh
+  const [importing, setImporting] = useState<{ fileName: string; result: ImportResult | ImportProblem; n: number } | null>(null);
+  const filesRead = useRef(0);
   const [flashes, setFlashes] = useState<Notice[]>([]);
   // Funds removed in a row (in one portfolio) share one Undo that brings them all back
   const removedFunds = useRef<RemovedFund[]>([]);
@@ -266,6 +269,14 @@ export function Calculator() {
     if (next === 'rebal' && !tracksHoldings) actions.setTracksHoldings(true);
   };
 
+  // The fund just added is the one the quick fix offers the rest to, until it has its share
+  useEffect(() => {
+    if (!justAdded) return;
+    const fund = funds.find(f => f.symbol === justAdded.symbol);
+    const total = funds.reduce((sum, f) => sum + f.target, 0);
+    if (justAdded.portfolioId !== portfolio.id || !fund || (fund.target > 0 && Math.abs(total - 100) < 0.01)) setJustAdded(null);
+  }, [justAdded, funds, portfolio.id]);
+
   const focusHoldings = () => {
     document.querySelector<HTMLInputElement>('input[aria-label*="you own, in"]')?.focus();
   };
@@ -281,9 +292,22 @@ export function Calculator() {
     el.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
   };
 
+  /** The trades card's way out of "not enough for one share": fractional shares. */
+  const showShortOfShare = () => {
+    const card = document.querySelector<HTMLElement>('section[aria-label="Your trades"]');
+    card?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+    card?.querySelector<HTMLButtonElement>('p button')?.focus({ preventScroll: true });
+  };
+
   /** Import from a broker: a short guide first, then the file picker. */
   const startImport = () => setImportGuide(true);
-  const chooseImportFile = () => { setImportGuide(false); fileInput.current?.click(); };
+  const chooseImportFile = () => { fileInput.current?.click(); };
+  /** From the guide: type what you own instead. Inside the tap, so the keyboard opens. */
+  const enterByHand = () => {
+    setImportGuide(false);
+    if (!tracksHoldings) flushSync(() => actions.setTracksHoldings(true));
+    focusHoldings();
+  };
 
   // Copied-text fallback goes stale as soon as the trades change
   const tradesKey = tradesText(plan, asOf, wholeShares, effectiveVerb === 'out');
@@ -426,13 +450,19 @@ export function Calculator() {
   /* ---------- Import from a broker file ---------- */
 
   const readImportFile = async (file: File) => {
-    if (file.size > 5_000_000) { setImporting({ fileName: file.name, result: 'too-big' }); return; }
+    // The guide (or the import sheet, for another file) stays up until this one opens,
+    // so a picker closed without a file goes back to it, and its history entry is reused
+    const open = (result: ImportResult | ImportProblem) => {
+      setImportGuide(false);
+      setImporting({ fileName: file.name, result, n: ++filesRead.current });
+    };
+    if (file.size > 5_000_000) { open('too-big'); return; }
     const looksLikeText = /\.(csv|txt|tsv)$/i.test(file.name) || /csv|text\/plain|tab-separated/.test(file.type);
-    if (!looksLikeText) { setImporting({ fileName: file.name, result: 'not-csv' }); return; }
+    if (!looksLikeText) { open('not-csv'); return; }
     try {
-      setImporting({ fileName: file.name, result: parseBrokerCsv(await readText(file)) });
+      open(parseBrokerCsv(await readText(file)));
     } catch {
-      setImporting({ fileName: file.name, result: 'unreadable' });
+      open('unreadable');
     }
   };
 
@@ -511,7 +541,9 @@ export function Calculator() {
     : `Copy ${plan.trades.length} trades`;
 
   // The phone's copy bar: copies the trades, or leads to whatever is stopping them
-  const firstFailedPrice = plan.status === 'needs-prices' ? plan.unpriced.find(s => missingPrices.includes(s)) : undefined;
+  // A price that failed, or one still coming after a long wait: the card offers to type it, so the bar does too
+  const firstFailedPrice = plan.status !== 'needs-prices' ? undefined
+    : plan.unpriced.find(s => missingPrices.includes(s)) ?? (pricesSlow ? plan.unpriced[0] : undefined);
   const bar: { label: string; run?: () => void } =
     ok ? { label: copyBarLabel, run: copyTrades }
       : plan.status === 'needs-amount' ? { label: 'Type an amount', run: focusAmount }
@@ -520,7 +552,7 @@ export function Calculator() {
       : plan.status === 'needs-prices' && firstFailedPrice ? { label: `Add a price for ${firstFailedPrice}`, run: () => setEditingPrice(firstFailedPrice, 'trades') }
       : plan.status === 'needs-prices' ? { label: 'Getting prices…' }
       : plan.status === 'nothing-to-do' ? { label: 'Nothing to buy or sell' }
-      : plan.status === 'short-of-share' ? { label: 'Not enough for one share' }
+      : plan.status === 'short-of-share' ? { label: 'Not enough for one share', run: showShortOfShare }
       : { label: 'Copy trades' };
 
   const naming = namingId === portfolio.id && !showingAll;
@@ -833,17 +865,24 @@ export function Calculator() {
       )}
 
       {importGuide && (
-        <ImportGuide portfolioName={displayName(portfolio)} onChoose={chooseImportFile} onClose={closeImportGuide} />
+        <ImportGuide
+          portfolioName={displayName(portfolio)}
+          signedIn={!!user}
+          onChoose={chooseImportFile}
+          onEnterByHand={enterByHand}
+          onClose={closeImportGuide}
+        />
       )}
 
       {importing && (
         <ImportDialog
+          key={importing.n}
           portfolio={portfolio}
           fileName={importing.fileName}
           result={importing.result}
           prices={prices}
           onApply={applyImport}
-          onChooseAnother={() => { setImporting(null); fileInput.current?.click(); }}
+          onChooseAnother={chooseImportFile}
           onClose={closeImport}
         />
       )}
@@ -875,7 +914,7 @@ export function Calculator() {
       {!showingAll && !waitingForAccount && plan.status !== 'needs-mix' && (
         <div className={styles.copyBar}>
           {/* Always there (it would flicker as targets are typed), and when there's nothing to copy yet it takes you to what's missing */}
-          <button type="button" className={styles.primary} onClick={bar.run} disabled={!bar.run}>
+          <button type="button" className={`${styles.primary} ${bar.run && !ok ? styles.barGo : ''}`} onClick={bar.run} disabled={!bar.run}>
             {ok && <CopyIcon />}
             <span className={styles.copyBarText}>
               {bar.label}

@@ -101,7 +101,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
 
   return (
     <>
-      <div className={styles.menuBackdrop} onClick={onClose} aria-hidden="true" />
+      <div className={styles.menuBackdrop} onClick={onClose} aria-hidden="true" data-sheet-backdrop />
       <div
         ref={menuRef}
         className={styles.menu}
@@ -111,7 +111,14 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
         onKeyDown={onKeyDown}
         data-sheet
       >
-        <SheetBar onClose={onClose} />
+        <SheetBar
+          onClose={onClose}
+          back={step === 'mix' && !startOnMix && (
+            <button type="button" className={styles.pickerBack} onClick={() => setStep('list')}>
+              <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}><ChevronIcon /></span> {displayName(active)}
+            </button>
+          )}
+        />
         {step === 'list' ? (
           <>
             {all && portfolios.length > 1 && (
@@ -191,11 +198,6 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
           </>
         ) : (
           <>
-            {!startOnMix && (
-              <button type="button" className={styles.pickerBack} onClick={() => setStep('list')}>
-                <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}><ChevronIcon /></span> {displayName(active)}
-              </button>
-            )}
             <MixPicker
               current={active.funds}
               heading="Start from a template"

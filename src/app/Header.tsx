@@ -122,7 +122,7 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
 
         {open && (
           <>
-            <div className={styles.sheetBackdrop} aria-hidden="true" onClick={close} />
+            <div className={styles.sheetBackdrop} aria-hidden="true" onClick={close} data-sheet-backdrop />
             <div
               ref={panel}
               id={panelId}
