@@ -5,6 +5,8 @@ import { money } from './format';
 import { holdingsFromAccount, sameSymbol, type ImportedAccount, type ImportedPosition, type ImportResult } from './brokerImport';
 import { displayName, isCashSymbol, type Fund, type Holding, type Portfolio } from './model';
 import { holdingDollars, type PriceMap } from './plan';
+import { SheetBar } from './SheetBar';
+import { useSheetHistory } from './sheetHistory';
 
 export interface ImportChoice {
   holdings: Record<string, Holding>;
@@ -27,6 +29,18 @@ interface ImportDialogProps {
   onApply: (choice: ImportChoice) => void;
   onChooseAnother: () => void;
   onClose: () => void;
+}
+
+/** Where each broker keeps its positions download. */
+export function HowToExport() {
+  return (
+    <ul className={styles.howTo}>
+      <li><b>Fidelity:</b> Accounts &amp; Trade → Portfolio → Positions, then Download (top right).</li>
+      <li><b>Schwab:</b> Accounts → Positions, then Export (top right).</li>
+      <li><b>Vanguard:</b> Download center, then choose a CSV file of your holdings.</li>
+      <li><b>Anything else:</b> a CSV with a Symbol column and a Shares or Value column.</li>
+    </ul>
+  );
 }
 
 const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -65,6 +79,7 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
   const [adding, setAdding] = useState<Set<string>>(new Set());
   const [useCash, setUseCash] = useState(false);
   const [howTo, setHowTo] = useState(false);
+  useSheetHistory('import', 1, onClose);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -149,7 +164,8 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
 
   return (
     <div className={styles.dialogBackdrop} onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panelRef} tabIndex={-1}>
+      <div className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={panelRef} tabIndex={-1} data-sheet>
+        <SheetBar onClose={onClose} close={false} />
         <div className={styles.dialogHead}>
           <div className={styles.titleBlock}>
             <h2 className={styles.cardTitle} id={titleId}>
@@ -170,14 +186,7 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
                 : problem === 'empty' ? 'This file has no positions in it.'
                 : 'Use the Positions export from Fidelity, Schwab or Vanguard, saved as CSV.'}
             </p>
-            {howTo && (
-              <ul className={styles.howTo}>
-                <li><b>Fidelity:</b> Accounts &amp; Trade → Portfolio → Positions, then Download (top right).</li>
-                <li><b>Schwab:</b> Accounts → Positions, then Export (top right).</li>
-                <li><b>Vanguard:</b> Download center, then choose a CSV file of your holdings.</li>
-                <li><b>Anything else:</b> a CSV with a Symbol column and a Shares or Value column.</li>
-              </ul>
-            )}
+            {howTo && <HowToExport />}
             <div className={styles.dialogActions}>
               <button type="button" className={styles.primary} onClick={onChooseAnother}>Choose another file</button>
               {!howTo && <button type="button" className={styles.ghost} style={{ height: 40 }} onClick={() => setHowTo(true)}>How to export</button>}

@@ -20,6 +20,8 @@ describe('Calculator', () => {
     expect(screen.getByRole('heading', { name: /pick a starting point/i })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /vanguard 3-fund/i }));
 
+    // The amount is all that's left, so the cursor is already there
+    expect(screen.getByLabelText('Amount')).toHaveFocus();
     expect(screen.getByRole('button', { name: 'my portfolio' })).toBeInTheDocument();
     expect(screen.getByText('From the Vanguard 3-Fund template')).toBeInTheDocument();
     expect(screen.getByText(/type an amount above/i)).toBeInTheDocument();
@@ -137,6 +139,96 @@ describe('Calculator', () => {
     await user.click(screen.getByRole('button', { name: 'Put 10% in VTI' }));
     expect(screen.getByText('Total 100%')).toBeInTheDocument();
     expect(loadDeviceWorkspace()?.portfolios[0].funds.map(f => f.target)).toEqual([60, 40]);
+  });
+
+  it('offers the room left over to the fund just added', async () => {
+    seed({ funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'VXUS', target: 40 }] });
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: '+ Add fund' }));
+    await user.type(screen.getByLabelText(/add a fund/i), 'AAPL');
+    await user.click(await screen.findByRole('button', { name: /AAPL Apple Inc\./ }));
+    const vti = screen.getByLabelText('VTI target percent');
+    await user.clear(vti);
+    await user.type(vti, '50');
+
+    // Not the biggest fund: the new one, which is at 0%
+    expect(screen.queryByRole('button', { name: 'Put 10% in VTI' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Give AAPL the 10%' }));
+    expect(screen.getByText('Total 100%')).toBeInTheDocument();
+    expect(loadDeviceWorkspace()?.portfolios[0].funds.map(f => [f.symbol, f.target])).toEqual([['VTI', 50], ['VXUS', 40], ['AAPL', 10]]);
+  });
+
+  it("makes the phone's copy bar lead to whatever is stopping the trades", async () => {
+    seed({ funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'BND', target: 40 }] });
+    const user = userEvent.setup();
+    renderApp();
+    // The bar is only shown on phones, so it's hidden at this width
+    const bar = () => document.querySelector<HTMLButtonElement>('[class*="copyBar"] button')!;
+
+    expect(bar()).toHaveTextContent('Type an amount');
+    expect(bar()).toBeEnabled();
+    fireEvent.click(bar());
+    expect(screen.getByLabelText('Amount')).toHaveFocus();
+    await user.type(screen.getByLabelText('Amount'), '1000');
+
+    const vti = screen.getByLabelText('VTI target percent');
+    await user.clear(vti);
+    await user.type(vti, '50');
+    expect(bar()).toHaveTextContent('Targets add up to 90%');
+    fireEvent.click(bar());
+    // Takes you to the total, ready for its quick fix
+    expect(screen.getByRole('button', { name: 'Put 10% in VTI' })).toHaveFocus();
+
+    await user.click(screen.getByRole('button', { name: 'Put 10% in VTI' }));
+    expect(bar()).toHaveTextContent('Copy 2 buys · $1,000.00');
+  });
+
+  it('closes the portfolio sheet with Back, a step at a time, and takes its history entries off when closed otherwise', async () => {
+    seed({ funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'my portfolio' }));
+    expect(window.history.state).toMatchObject({ aaSheet: 'portfolios', level: 1 });
+    await user.click(screen.getByRole('button', { name: 'Use a template…' }));
+    expect(screen.getByRole('dialog', { name: 'Templates' })).toBeInTheDocument();
+    expect(window.history.state).toMatchObject({ aaSheet: 'portfolios', level: 2 });
+
+    // Back steps out of the templates, then closes the sheet
+    act(() => { window.history.back(); });
+    expect(await screen.findByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
+    act(() => { window.history.back(); });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.history.state).toBeNull();
+
+    // Closed some other way: both its entries come off, and nothing more
+    await user.click(screen.getByRole('button', { name: 'my portfolio' }));
+    await user.click(screen.getByRole('button', { name: 'Use a template…' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(window.history.state).toBeNull());
+    expect(window.location.pathname).toBe('/');
+  });
+
+  it('explains where to get the file before opening the file picker', async () => {
+    seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+    const pick = vi.spyOn(screen.getByTestId('import-file'), 'click');
+
+    await user.click(screen.getByRole('button', { name: 'Import from broker' }));
+    const guide = screen.getByRole('dialog', { name: 'Import from your broker' });
+    expect(within(guide).getByText('Into Roth IRA')).toBeInTheDocument();
+    expect(within(guide).getByText('Fidelity:')).toBeInTheDocument();
+    expect(within(guide).getByText('Schwab:')).toBeInTheDocument();
+    expect(within(guide).getByText('Vanguard:')).toBeInTheDocument();
+    expect(pick).not.toHaveBeenCalled();
+
+    await user.click(within(guide).getByRole('button', { name: 'Choose file' }));
+    expect(pick).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('adds and removes funds', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type Ref } from 'react';
 import styles from './Calculator.module.css';
 import { CheckIcon, CloseIcon, ShareIcon } from './icons';
 import { drift, money, pct1, priceDate } from './format';
@@ -128,10 +128,14 @@ interface MixCardProps {
   onShare: () => Promise<string | null>;
   /** Targets add up to 100%, so there's something to share. */
   canShare: boolean;
+  /** The fund just added from the search, if it's in this portfolio: the quick fix offers it the rest. */
+  newFund: string | null;
+  /** The total line, so the page can bring it into view. */
+  totalRef?: Ref<HTMLDivElement>;
 }
 
 export function MixCard(props: MixCardProps) {
-  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare } = props;
+  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare, newFund, totalRef } = props;
   const [dropping, setDropping] = useState(false);
   const [shared, setShared] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
@@ -333,18 +337,23 @@ export function MixCard(props: MixCardProps) {
       )}
 
       {funds.length > 0 && (
-        <div className={styles.mixFoot}>
+        <div className={styles.mixFoot} ref={totalRef}>
           <span className={`${styles.totalText} ${off ? styles.totalOff : ''}`}>
             {off ? `Total ${+total.toFixed(2)}% · ${Math.abs(diff)}% ${diff > 0 ? 'left' : 'over'}` : 'Total 100%'}
           </span>
           {off && (
             <>
-              <button type="button" className={styles.linkButton} onClick={onScale}>Scale to 100%</button>
-              {largest && (
+              {diff > 0 && newFund ? (
+                // Room left after adding a fund is usually meant for that fund
+                <button type="button" className={styles.linkButton} onClick={() => onAbsorb(newFund)}>
+                  Give {newFund} the {diff}%
+                </button>
+              ) : largest && (
                 <button type="button" className={styles.linkButton} onClick={() => onAbsorb(largest.symbol)}>
                   {diff > 0 ? `Put ${diff}% in ${largest.symbol}` : `Take ${Math.abs(diff)}% from ${largest.symbol}`}
                 </button>
               )}
+              <button type="button" className={styles.linkButton} onClick={onScale}>Scale to 100%</button>
             </>
           )}
           {offTarget && (

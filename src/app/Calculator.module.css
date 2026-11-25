@@ -842,6 +842,41 @@
   text-underline-offset: 3px;
 }
 
+/* ---------- Top of a bottom sheet (phones only) ---------- */
+.sheetBar {
+  display: none;
+}
+
+.sheetHandle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
+.sheetClose {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-2);
+}
+
+.sheetClose:hover {
+  color: var(--text);
+}
+
+[data-sheet] {
+  transition: transform 0.2s ease;
+}
+
 /* ---------- Signed in, before the portfolios arrive ---------- */
 .card.loadingCard {
   padding-top: 20px;
@@ -2052,17 +2087,52 @@
     padding: 12px;
   }
 
+  /* The grab handle, with room for the Close button on its right */
+  .sheetBar {
+    display: flex;
+    justify-content: center;
+    position: relative;
+    height: 28px;
+    padding-top: 2px;
+    touch-action: none;
+  }
+
+  .accountPanel .sheetBar {
+    height: 36px;
+  }
+
+  /* The portfolio sheet scrolls (the template list is long): the handle and Close stay put */
+  .menu .sheetBar {
+    position: sticky;
+    top: -8px;
+    z-index: 2;
+    height: 44px;
+    margin: -8px -8px 0;
+    padding: 10px 8px 0;
+    background: var(--raised);
+  }
+
+  .menu .sheetClose {
+    top: 4px;
+    right: 4px;
+  }
+
+  /* The import steps rise from the bottom like the other sheets */
   .dialogBackdrop {
     padding: 0;
-    align-items: stretch;
+    align-items: flex-end;
   }
 
   .dialog {
     max-width: none;
-    max-height: none;
-    border-radius: 0;
-    border: 0;
-    padding: 0 16px calc(20px + env(safe-area-inset-bottom));
+    max-height: calc(100% - 24px);
+    border-radius: 14px 14px 0 0;
+    border-width: 1px 0 0;
+    padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .dialog .dialogHead {
+    padding-top: 0;
   }
 
   .importRow {
