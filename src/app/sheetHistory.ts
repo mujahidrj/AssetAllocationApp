@@ -15,9 +15,13 @@ import { useEffect, useRef } from 'react';
  *   sheet's entry instead of going back and pushing a new one: a push made while our
  *   own going-back is still under way is lost, and Back would then leave the site.
  * - Any other push waits until our going-back has finished, for the same reason.
+ * - With a mouse, a sheet closed on mousedown waits for the click before going back,
+ *   so a sheet that click opens can take its entry over too.
+ * - A sheet opened while another is still open (from the keyboard, say) closes it.
  * - The popstate that our own going-back causes is ignored.
  * - Landing on an entry of a sheet that isn't open (after a reload, or one left under
- *   a sheet that took over) steps back over it.
+ *   a sheet that took over) steps back over it, and Forward onto a step the sheet has
+ *   left steps back to where it is.
  */
 
 const MARK = 'aaSheet';
@@ -25,6 +29,8 @@ const MARK = 'aaSheet';
 interface SheetState {
   [MARK]: string;
   level: number;
+  /** Entries of sheets this one took over, under its first. */
+  under?: number;
 }
 
 interface Owner {
@@ -45,6 +51,9 @@ let owner: Owner | null = null;
  * opened by the same tap can take them over.
  */
 let leaving: { key: string; timer: ReturnType<typeof setTimeout> } | null = null;
+/** A mouse button or finger is down; what to do once it's up. */
+let pointerDown = false;
+let afterPointer: (() => void) | null = null;
 /** Goings-back we started whose popstate hasn't arrived yet. */
 let pending = 0;
 let pendingTimer: ReturnType<typeof setTimeout> | null = null;
@@ -103,11 +112,26 @@ function install() {
           if (level === 0) owner = null;
           o.onBack(level);
         }
+      } else if (level > o.pushed) {
+        // Forward onto a step the sheet has left: back to the step it's on
+        goBack(level - o.pushed);
+        return;
       }
       if (ours(state, o.key)) return;
     }
-    if (ours(state) && state.level > 0) goBack(state.level);
+    if (ours(state) && state.level > 0) goBack(state.level + (state.under ?? 0));
   });
+  const down = () => { pointerDown = true; };
+  const up = () => {
+    pointerDown = false;
+    const next = afterPointer;
+    afterPointer = null;
+    // After the click that follows
+    if (next) setTimeout(next, 0);
+  };
+  document.addEventListener('pointerdown', down, true);
+  document.addEventListener('pointerup', up, true);
+  document.addEventListener('pointercancel', up, true);
 }
 
 /** Takes off the entries a sheet pushed, down to `level`, if they're still the current ones. */
@@ -126,7 +150,15 @@ function leave(key: string, level: number) {
 function closeSoon(key: string) {
   if (owner?.key !== key) return;
   if (leaving) clearTimeout(leaving.timer);
-  leaving = { key, timer: setTimeout(() => { leaving = null; leave(key, 0); }, 0) };
+  const go = () => {
+    if (leaving?.key !== key) return; // Taken over, or back already
+    clearTimeout(leaving.timer);
+    leaving = null;
+    leave(key, 0);
+  };
+  // Closed on mousedown: wait for the click (with a limit, should the button never come up)
+  if (pointerDown) afterPointer = go;
+  leaving = { key, timer: setTimeout(go, pointerDown ? 1000 : 0) };
 }
 
 /** After a reload with a sheet's entry current, step back over it to the page itself. */
@@ -137,7 +169,7 @@ export function clearLeftoverSheetEntries() {
   if (checkedLeftovers) return;
   checkedLeftovers = true;
   const state: unknown = window.history.state;
-  if (ours(state) && state.level > 0) goBack(state.level);
+  if (ours(state) && state.level > 0) goBack(state.level + (state.under ?? 0));
 }
 
 /** Forgets everything, for tests: each one starts with a fresh page. */
@@ -150,6 +182,8 @@ export function resetSheetHistory() {
   pendingTimer = null;
   waiting = false;
   checkedLeftovers = false;
+  pointerDown = false;
+  afterPointer = null;
 }
 
 /**
@@ -164,6 +198,8 @@ export function useSheetHistory(key: string, level: number, onBack: (level: numb
     install();
     if (owner?.key === key) {
       if (leaving?.key === key) { clearTimeout(leaving.timer); leaving = null; }
+      // Mounted again (a new import file): Back goes to this one now
+      owner.onBack = l => onBackRef.current(l);
       if (level === 0) closeSoon(key);
       else if (level < owner.level) leave(key, level);
       else { owner.level = level; push(); }
@@ -174,14 +210,22 @@ export function useSheetHistory(key: string, level: number, onBack: (level: numb
     // tap, or one still open. Take it over rather than going back and pushing.
     let pushed = 0;
     let under = 0;
-    if (owner) {
-      if (leaving?.key === owner.key) { clearTimeout(leaving.timer); leaving = null; }
+    const old = owner;
+    if (old) {
+      const closing = leaving?.key === old.key;
+      if (closing && leaving) { clearTimeout(leaving.timer); leaving = null; }
       const state: unknown = window.history.state;
-      if (pending === 0 && ours(state, owner.key) && state.level > 0) {
-        window.history.replaceState({ ...state, [MARK]: key, level: 1 }, '');
+      if (pending === 0 && ours(state, old.key) && state.level > 0) {
+        under = old.under + state.level - 1;
+        window.history.replaceState({ ...state, [MARK]: key, level: 1, under }, '');
         pushed = 1;
-        under = owner.under + state.level - 1;
+        owner = null;
+      } else {
+        // Can't take it over: its entries come off first, and ours wait for that
+        leave(old.key, 0);
       }
+      // Still open (opened from the keyboard, say): one sheet at a time
+      if (!closing) old.onBack(0);
     }
     owner = { key, level, pushed, under, onBack: l => onBackRef.current(l) };
     push();

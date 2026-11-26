@@ -5,7 +5,8 @@ import { money } from './format';
 import { holdingsFromAccount, sameSymbol, type ImportedAccount, type ImportedPosition, type ImportResult } from './brokerImport';
 import { displayName, isCashSymbol, type Fund, type Holding, type Portfolio } from './model';
 import { holdingDollars, type PriceMap } from './plan';
-import { SheetBar, useSheetDrag } from './SheetBar';
+import { SheetBar } from './SheetBar';
+import { useSheetDrag } from './sheetDrag';
 import { useSheetHistory } from './sheetHistory';
 
 export interface ImportChoice {

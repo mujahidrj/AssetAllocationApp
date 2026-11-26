@@ -2,7 +2,8 @@ import { useEffect, useId, useRef } from 'react';
 import styles from './Calculator.module.css';
 import { CloseIcon } from './icons';
 import { HowToExport } from './ImportDialog';
-import { SheetBar, useSheetDrag } from './SheetBar';
+import { SheetBar } from './SheetBar';
+import { useSheetDrag } from './sheetDrag';
 import { useSheetHistory } from './sheetHistory';
 
 /**

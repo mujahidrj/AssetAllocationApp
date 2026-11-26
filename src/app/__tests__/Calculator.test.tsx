@@ -205,6 +205,10 @@ describe('Calculator', () => {
     // Back steps out of the templates, then closes the sheet
     act(() => { window.history.back(); });
     expect(await screen.findByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
+    // Forward onto the step it left goes back to where it is, so one Back still closes it
+    act(() => { window.history.forward(); });
+    await waitFor(() => expect(window.history.state).toMatchObject({ aaSheet: 'portfolios', level: 1 }));
+    expect(screen.getByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
     act(() => { window.history.back(); });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(window.history.state).toBeNull();
@@ -273,6 +277,21 @@ describe('Calculator', () => {
     act(() => { window.history.back(); });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(window.history.state).toBeNull();
+  });
+
+  it('closes the portfolio sheet when another sheet is opened from the keyboard', async () => {
+    seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 100 }] });
+    const user = userEvent.setup();
+    renderApp();
+    const start = window.history.length;
+
+    await user.click(screen.getByRole('button', { name: 'my Roth IRA' }));
+    screen.getByRole('button', { name: 'Import from broker' }).focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('dialog', { name: 'Import holdings into Roth IRA' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Portfolios' })).not.toBeInTheDocument();
+    await waitFor(() => expect(window.history.state).toMatchObject({ aaSheet: 'import-guide', level: 1 }));
+    expect(window.history.length).toBe(start + 1);
   });
 
   it('lets you type what you own instead of importing', async () => {
