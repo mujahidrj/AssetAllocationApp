@@ -839,8 +839,7 @@ export function Calculator() {
                 if ((p?.lastVerb ?? 'add') !== 'add') setAmountText('');
                 setVerb('add');
               });
-              amountRef.current?.focus({ preventScroll: true });
-              amountRef.current?.select();
+              focusDrawn(() => amountRef.current, { preventScroll: true }, el => (el as HTMLInputElement).select());
               window.scrollTo?.({ top: 0, behavior: 'smooth' });
             }}
           />
