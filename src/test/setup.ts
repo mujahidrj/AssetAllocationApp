@@ -52,4 +52,6 @@ afterEach(() => {
   resetSheetHistory()
   window.localStorage.clear()
   window.history.replaceState(null, '', '/')
+  // A test that ended with Back leaves a Forward entry, which would count in the next test's history.length
+  window.history.pushState(null, '', '/')
 })

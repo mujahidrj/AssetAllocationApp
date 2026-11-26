@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { looksLikeTicker } from './searchUtils';
 import { useAuth } from '../lib/useAuth';
@@ -80,6 +80,9 @@ const readText = (file: File) => new Promise<string>((resolve, reject) => {
   reader.onerror = () => reject(reader.error);
   reader.readAsText(file);
 });
+
+/** The first "you own" field, when shown. */
+const holdingsField = () => document.querySelector<HTMLInputElement>('input[aria-label*="you own, in"]');
 
 export function Calculator() {
   const { user, signInWithGoogle, signOut, problem: authProblem, clearProblem } = useAuth();
@@ -278,9 +281,13 @@ export function Calculator() {
     if (justAdded.portfolioId !== portfolio.id || !fund || (fund.target > 0 && Math.abs(total - 100) < 0.01)) setJustAdded(null);
   }, [justAdded, funds, portfolio.id]);
 
-  const focusHoldings = () => {
-    document.querySelector<HTMLInputElement>('input[aria-label*="you own, in"]')?.focus();
-  };
+  const focusHoldings = () => { holdingsField()?.focus(); };
+  const focusHoldingsOnShow = useRef(false);
+  useLayoutEffect(() => {
+    if (!tracksHoldings || !focusHoldingsOnShow.current) return;
+    focusHoldingsOnShow.current = false;
+    holdingsField()?.focus();
+  }, [tracksHoldings]);
 
   /** Puts the cursor in the amount. Call it inside the tap itself, or iPhone won't open the keyboard. */
   const focusAmount = () => { amountRef.current?.focus(); };
@@ -306,8 +313,11 @@ export function Calculator() {
   /** From the guide: type what you own instead. Inside the tap, so the keyboard opens. */
   const enterByHand = () => {
     setImportGuide(false);
-    if (!tracksHoldings) flushSync(() => actions.setTracksHoldings(true));
-    focusHoldings();
+    if (tracksHoldings) { focusHoldings(); return; }
+    // The fields aren't there yet: focus them as they appear. flushSync makes that happen
+    // inside this tap in the browser, which iPhone needs to open the keyboard.
+    focusHoldingsOnShow.current = true;
+    flushSync(() => actions.setTracksHoldings(true));
   };
 
   // Copied-text fallback goes stale as soon as the trades change
