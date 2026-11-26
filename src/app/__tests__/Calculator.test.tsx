@@ -12,6 +12,13 @@ const seed = (p: Partial<Portfolio>) => saveDeviceWorkspace({ portfolios: [{ ...
 
 const renderApp = () => render(<Calculator />);
 
+/** Resolves once `count` more popstate events have fired (jsdom moves through history asynchronously). */
+const popstates = (count: number) => new Promise<void>(resolve => {
+  let seen = 0;
+  const onPop = () => { if (++seen === count) { window.removeEventListener('popstate', onPop); resolve(); } };
+  window.addEventListener('popstate', onPop);
+});
+
 describe('Calculator', () => {
   it('starts by asking for a starting point, then splits new money by target', async () => {
     const user = userEvent.setup();
@@ -206,8 +213,11 @@ describe('Calculator', () => {
     act(() => { window.history.back(); });
     expect(await screen.findByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
     // Forward onto the step it left goes back to where it is, so one Back still closes it
+    // Forward, then the sheet's own step back: wait for both, as the state reads level 1 before either
+    const settled = popstates(2);
     act(() => { window.history.forward(); });
-    await waitFor(() => expect(window.history.state).toMatchObject({ aaSheet: 'portfolios', level: 1 }));
+    await act(() => settled);
+    expect(window.history.state).toMatchObject({ aaSheet: 'portfolios', level: 1 });
     expect(screen.getByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
     act(() => { window.history.back(); });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -248,8 +258,10 @@ describe('Calculator', () => {
     fireEvent.change(input, {
       target: { files: [new File([fidelityCsv], 'Portfolio_Positions_Nov-22-2026.csv', { type: 'text/csv' })] },
     });
-    const dialog = await screen.findByRole('dialog', { name: 'Import holdings into Roth IRA' });
-    expect(within(dialog).getByText('Fidelity · Portfolio_Positions_Nov-22-2026.csv')).toBeInTheDocument();
+    // The guide has the same title, so wait for the file's name rather than the dialog
+    await waitFor(() => expect(guide).not.toBeInTheDocument());
+    const dialog = screen.getByRole('dialog', { name: 'Import holdings into Roth IRA' });
+    expect(await within(dialog).findByText('Fidelity · Portfolio_Positions_Nov-22-2026.csv')).toBeInTheDocument();
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(window.history.state).toMatchObject({ aaSheet: 'import', level: 1 });
     expect(window.history.length).toBe(entries);
