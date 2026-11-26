@@ -231,7 +231,9 @@ export function ImportDialog({ portfolio, fileName, result, prices, onApply, onC
                     <span>Not in file, set to 0</span>
                     <span className={styles.importWas}>
                       {(portfolio.holdings[f.symbol]?.amount ?? 0) > 0
-                        ? `was ${money(holdingDollars(f.symbol, portfolio.holdings[f.symbol], prices))}`
+                        ? portfolio.holdings[f.symbol].kind === 'shares' && prices[f.symbol] == null
+                          ? wasText(portfolio.holdings[f.symbol])
+                          : `was ${money(holdingDollars(f.symbol, portfolio.holdings[f.symbol], prices))}`
                         : ''}
                     </span>
                   </div>

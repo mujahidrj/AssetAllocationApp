@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import styles from './Calculator.module.css';
+import { closesKeyboard } from './format';
 import type { Verb } from './model';
 
 /** A small chevron sized to the sentence's type, with no empty space on its right. */
@@ -23,7 +24,7 @@ function BlankSelect<T extends string>({ value, options, onChange, label }: {
 }) {
   const current = options.find(o => o.value === value) ?? options[0];
   return (
-    <span className={styles.blank}>
+    <span className={`${styles.blank} ${styles.blankSelect}`}>
       {current.label}<Caret />
       <select aria-label={label} value={value} onChange={e => onChange(e.target.value as T)}>
         {options.map(o => <option key={o.value} value={o.value}>{o.menuLabel ?? o.label}</option>)}
@@ -102,11 +103,13 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
                   aria-label="Amount"
                   size={1}
                   inputMode="decimal"
+                  enterKeyHint="done"
                   autoComplete="off"
                   placeholder={AMOUNT_PLACEHOLDER}
                   value={amount}
                   onChange={e => onAmount(e.target.value)}
                   onBlur={onAmountBlur}
+                  onKeyDown={e => { if (e.key === 'Enter' && closesKeyboard()) e.currentTarget.blur(); }}
                 />
               </span>
             </label>

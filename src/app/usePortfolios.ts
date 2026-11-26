@@ -25,9 +25,18 @@ export interface HoldingsSnapshot {
   tracksHoldings: boolean;
 }
 
+/** A fund taken out of a portfolio with the ×, and what was typed for it, so it can come back. */
+export interface RemovedFund {
+  portfolioId: string;
+  fund: Fund;
+  index: number;
+  holding?: Holding;
+}
+
 export interface RemovedPortfolio {
   portfolio: Portfolio;
-  index: number;
+  /** The portfolios that came after it, so Undo puts it back in place even if others were deleted since */
+  followedBy: string[];
   wasActive: boolean;
 }
 
@@ -62,6 +71,7 @@ export function usePortfolios(user: User | null) {
       setWorkspace(loadDeviceWorkspace() ?? emptyWorkspace());
       setLoadedFor(DEVICE);
       setSaveState('saved');
+      setLoadFailed(false);
       return;
     }
 
@@ -99,6 +109,14 @@ export function usePortfolios(user: User | null) {
 
     return () => { cancelled = true; };
   }, [uid, loadAttempt]);
+
+  // Couldn't load (often because the connection dropped): try again once it's back
+  useEffect(() => {
+    if (!loadFailed) return;
+    const retry = () => setLoadAttempt(n => n + 1);
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+  }, [loadFailed]);
 
   // Save after changes, once the saved copy has been read
   useEffect(() => {
@@ -150,12 +168,35 @@ export function usePortfolios(user: User | null) {
         ? p
         : { ...p, funds: [...p.funds, { symbol, target: 0, ...(name ? { name } : {}) }] })), [update]),
 
-    removeFund: useCallback((symbol: string) =>
+    /** Takes a fund and what you own of it out of the open portfolio. Returns what's needed to undo. */
+    removeFund: useCallback((symbol: string): RemovedFund | null => {
+      const current = activePortfolio(workspaceRef.current);
+      const index = current.funds.findIndex(f => f.symbol === symbol);
+      if (index === -1) return null;
+      const holding = current.holdings[symbol];
       update(p => {
         const holdings = { ...p.holdings };
         delete holdings[symbol];
         return { ...p, funds: p.funds.filter(f => f.symbol !== symbol), holdings };
-      }), [update]),
+      });
+      return { portfolioId: current.id, fund: current.funds[index], index, ...(holding ? { holding } : {}) };
+    }, [update]),
+
+    /** Puts a removed fund back where it was, with what you owned of it. */
+    restoreFund: useCallback((removed: RemovedFund) =>
+      setWorkspace(ws => ({
+        ...ws,
+        portfolios: ws.portfolios.map(p => {
+          if (p.id !== removed.portfolioId) return p;
+          const funds = p.funds.some(f => f.symbol === removed.fund.symbol)
+            ? p.funds
+            : [...p.funds.slice(0, removed.index), removed.fund, ...p.funds.slice(removed.index)];
+          const holdings = removed.holding && !p.holdings[removed.fund.symbol]
+            ? { ...p.holdings, [removed.fund.symbol]: removed.holding }
+            : p.holdings;
+          return funds === p.funds && holdings === p.holdings ? p : { ...p, funds, holdings };
+        }),
+      })), []),
 
     setHolding: useCallback((symbol: string, holding: Holding | null) =>
       update(p => {
@@ -269,7 +310,11 @@ export function usePortfolios(user: User | null) {
     remove: useCallback((id: string): RemovedPortfolio | null => {
       const index = workspace.portfolios.findIndex(p => p.id === id);
       if (index === -1 || workspace.portfolios.length <= 1) return null;
-      const removed: RemovedPortfolio = { portfolio: workspace.portfolios[index], index, wasActive: workspace.activeId === id };
+      const removed: RemovedPortfolio = {
+        portfolio: workspace.portfolios[index],
+        followedBy: workspace.portfolios.slice(index + 1).map(p => p.id),
+        wasActive: workspace.activeId === id,
+      };
       setWorkspace(ws => {
         const portfolios = ws.portfolios.filter(p => p.id !== id);
         if (portfolios.length === 0 || portfolios.length === ws.portfolios.length) return ws;
@@ -284,7 +329,8 @@ export function usePortfolios(user: User | null) {
       setWorkspace(ws => {
         if (ws.portfolios.some(p => p.id === saved.portfolio.id)) return ws;
         const portfolios = [...ws.portfolios];
-        portfolios.splice(Math.min(saved.index, portfolios.length), 0, saved.portfolio);
+        const next = portfolios.findIndex(p => saved.followedBy.includes(p.id));
+        portfolios.splice(next === -1 ? portfolios.length : next, 0, saved.portfolio);
         return { ...ws, portfolios, activeId: saved.wasActive ? saved.portfolio.id : ws.activeId };
       }), []),
   };
