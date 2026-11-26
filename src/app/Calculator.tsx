@@ -630,8 +630,9 @@ export function Calculator() {
     setMenu('list');
   };
 
+  // Room below the search while it's in use, kept between funds added in a row so the page doesn't jump
   return (
-    <div className={`${styles.page} ${searchFocused ? styles.searching : ''}`}>
+    <div className={`${styles.page} ${searchFocused || (searchOpen && funds.length > 0) ? styles.searching : ''}`}>
       <Header
         user={user}
         savedTo={savedTo}
@@ -829,9 +830,11 @@ export function Calculator() {
                     if (askPrice) setEditingPrice(s);
                   });
                   if (!askPrice) {
-                    [...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" target percent"]')]
-                      .find(i => i.getAttribute('aria-label') === `${s} target percent`)
-                      ?.focus();
+                    const target = [...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" target percent"]')]
+                      .find(i => i.getAttribute('aria-label') === `${s} target percent`);
+                    // Where the search was: no need to move the page (the browser would centre it)
+                    target?.focus({ preventScroll: true });
+                    target?.scrollIntoView?.({ block: 'nearest' });
                   }
                 }}
                 onSearchFocus={setSearchFocused}

@@ -202,6 +202,8 @@ describe('stockSearchUtils', () => {
       expect(rankResults('VOO', [])[0]).toEqual({ symbol: 'VOO', description: 'Vanguard S&P 500 ETF' });
       expect(rankResults('vt', []).map(r => r.symbol)[0]).toBe('VT');
       expect(rankResults('AAPL', [{ symbol: 'AAPL', description: 'Apple Inc.' }])[0].symbol).toBe('AAPL');
+      // Before common funds that only start with it
+      expect(rankResults('vo', [{ symbol: 'VO', description: 'Vanguard Mid-Cap ETF' }]).map(r => r.symbol).slice(0, 2)).toEqual(['VO', 'VOO']);
     });
 
     it('matches every word of a name', () => {

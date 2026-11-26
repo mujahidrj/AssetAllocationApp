@@ -343,9 +343,33 @@ describe('Calculator', () => {
     // The cursor moves to the new fund's target, and the search stays for the next one
     expect(screen.getByLabelText('AAPL target percent')).toHaveFocus();
     expect(screen.getByLabelText(/add a fund/i)).toHaveValue('');
+    // "+ Add fund" again goes back to the search, rather than closing it
+    await user.click(screen.getByRole('button', { name: '+ Add fund' }));
+    expect(screen.getByLabelText(/add a fund/i)).toHaveFocus();
 
     await user.click(screen.getByRole('button', { name: 'Remove VTI' }));
     expect(screen.queryByLabelText('VTI target percent')).not.toBeInTheDocument();
+  });
+
+  it('shows the funds a portfolio has, and common funds when search isn’t working', async () => {
+    server.use(http.get('*/api/search', () => new HttpResponse(null, { status: 500 })));
+    seed({ funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'VXUS', target: 40 }] });
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: '+ Add fund' }));
+    await user.type(screen.getByLabelText(/add a fund/i), 'total');
+    expect(await screen.findByText('Search isn’t working right now. These are common funds.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /VTI Already in this portfolio/ })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /BND Vanguard Total Bond Market ETF/ }));
+    expect(screen.getByLabelText('BND target percent')).toHaveFocus();
+  });
+
+  it('writes "You own" in each fund’s field', () => {
+    seed({ funds: [{ symbol: 'VTI', target: 100 }], holdings: { VTI: { kind: 'shares', amount: 3 } }, tracksHoldings: true });
+    renderApp();
+    const field = screen.getByLabelText('VTI you own, in shares').closest('label')!;
+    expect(within(field).getByText('You own')).toBeInTheDocument();
   });
 
   it('keeps the last results up while a new search runs, and moves the copy bar aside meanwhile', async () => {
@@ -361,7 +385,9 @@ describe('Calculator', () => {
     await user.type(screen.getByLabelText(/add a fund/i), 'O');
     // Still there while "VOO" is looked up
     expect(screen.getByRole('option', { name: /VOO Vanguard S&P 500 ETF/ })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getAllByRole('option')[0]).toHaveTextContent('VOO'));
+    // The new results: the exact "VO" from the last ones is gone
+    await waitFor(() => expect(screen.queryByRole('option', { name: /VO Corporation/ })).not.toBeInTheDocument());
+    expect(screen.getAllByRole('option')[0]).toHaveTextContent('VOO');
 
     await user.click(screen.getByRole('button', { name: /VOO Vanguard S&P 500 ETF/ }));
     expect(bar().className).not.toMatch(/copyBarAway/);

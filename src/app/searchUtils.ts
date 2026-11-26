@@ -211,7 +211,7 @@ export function ownFundSymbol(typed: string): string {
   return (space > OWN_NAME_MAX / 2 ? cut.slice(0, space) : name.slice(0, OWN_NAME_MAX)).trim();
 }
 
-/** Could be a ticker the price lookup knows ("VTI", "BRK.B", "^GSPC"), rather than a fund's name. */
+/** Could be a ticker the price lookup knows ("VTI", "BRK.B"), rather than a fund's name. Indexes (^GSPC) can't be bought. */
 export const looksLikeTicker = (symbol: string) => /^[A-Za-z0-9.-]{1,12}$/.test(symbol.trim());
 
 /**
@@ -267,22 +267,22 @@ const MAX_RESULTS = 8;
 const nameWords = (text: string) => text.toUpperCase().split(/[^A-Z0-9&+]+/).filter(Boolean);
 
 /**
- * What the fund search shows: common funds that match (an exact ticker among them
- * first), then an exact ticker from the search, then the rest of its results. Indexes (^GSPC, ^TNX) are left out, since
- * they can't be bought.
+ * What the fund search shows: a ticker typed in full first ("VO" before VOO), then common
+ * funds that match, then the rest of the search's results. A word that's also a ticker
+ * ("bond" is PIMCO's BOND) means the common funds named by it first. Indexes (^GSPC, ^TNX)
+ * are left out, since they can't be bought.
  */
 export function rankResults(query: string, raw: Array<{ symbol?: string; description?: string }>): SearchResult[] {
   const q = query.trim().toUpperCase();
   const words = nameWords(q);
   const found = cleanResults(raw.filter(r => !r.symbol?.startsWith('^')));
-  const matches = (r: SearchResult) =>
-    r.symbol.startsWith(q) || (words.length > 0 && words.every(w => nameWords(r.description).some(n => n.startsWith(w))));
+  const byName = (r: SearchResult) => words.length > 0 && words.every(w => nameWords(r.description).some(n => n.startsWith(w)));
+  const common = COMMON_FUNDS.filter(r => r.symbol.startsWith(q) || byName(r)).slice(0, MAX_COMMON);
   const exactCommon = COMMON_FUNDS.find(r => r.symbol === q);
-  const common = COMMON_FUNDS.filter(matches).slice(0, MAX_COMMON);
-  // A word that's also a ticker ("bond" is PIMCO's BOND) still means the common funds first
   const exactFound = found.find(r => r.symbol === q);
+  const first = exactCommon ?? (common.some(byName) ? undefined : exactFound);
   const out: SearchResult[] = [];
-  [...(exactCommon ? [exactCommon] : []), ...common, ...(exactFound ? [exactFound] : []), ...found].forEach(r => {
+  [...(first ? [first] : []), ...common, ...(exactFound ? [exactFound] : []), ...found].forEach(r => {
     if (!out.some(x => x.symbol === r.symbol)) out.push(r);
   });
   return out.slice(0, MAX_RESULTS);

@@ -34,7 +34,7 @@ function NumberField({ value, onCommit, label, className, lead, prefix, suffix, 
   return (
     <label className={`${styles.field} ${className ?? ''}`}>
       {lead && <span className={styles.fieldLead}>{lead}</span>}
-      {prefix && <span>{prefix}</span>}
+      {prefix && <span className={styles.fieldPrefix}>{prefix}</span>}
       <input
         aria-label={label}
         inputMode="decimal"
@@ -53,7 +53,7 @@ function NumberField({ value, onCommit, label, className, lead, prefix, suffix, 
           if (Number.isFinite(n)) onCommit(n);
         }}
       />
-      {suffix && <span>{suffix}</span>}
+      {suffix && <span className={styles.fieldSuffix}>{suffix}</span>}
     </label>
   );
 }
@@ -218,7 +218,16 @@ export function MixCard(props: MixCardProps) {
         </div>
       )}
       <div className={styles.cardTools}>
-        <button type="button" className={styles.headLink} onClick={() => onSearchOpen(!searchOpen)} aria-expanded={searchOpen}>+ Add fund</button>
+        <button
+          type="button"
+          className={styles.headLink}
+          // Open: back to the search for the next fund (inside the tap, so iPhone opens the keyboard)
+          onClick={() => {
+            if (!searchOpen) { onSearchOpen(true); return; }
+            document.querySelector<HTMLInputElement>('input[aria-label="Add a fund by ticker or name"]')?.focus();
+          }}
+          aria-expanded={searchOpen}
+        >+ Add fund</button>
         <button type="button" className={styles.headLink} onClick={onImport}>Import from broker</button>
         <button
           type="button"
