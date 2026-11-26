@@ -33,6 +33,9 @@ export interface Portfolio {
   wholeShares?: boolean;
   /** Said to be a retirement account (selling inside it isn't taxed). Unset: guessed from the name. */
   retirement?: boolean;
+  /** What was last typed in the sentence for this portfolio, brought back when you return to it. */
+  lastAmount?: string;
+  lastVerb?: Verb;
 }
 
 /** A price the person typed (or that came from a broker file) for a fund the lookup can't price. */
@@ -48,6 +51,8 @@ export interface Workspace {
   activeId: string;
   /** Typed prices by symbol, shared by every portfolio. Used only when the lookup has none. */
   manualPrices?: Record<string, ManualPrice>;
+  /** Each fund's colour (0–9) by symbol, kept so a fund's colour never changes. See colors.ts. */
+  fundColors?: Record<string, number>;
 }
 
 export const newPortfolioId = () =>

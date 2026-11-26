@@ -2,7 +2,7 @@ import { Fragment, type Ref } from 'react';
 import styles from './Calculator.module.css';
 import { looksLikeTicker } from './searchUtils';
 import { CopyIcon } from './icons';
-import { formatAmountInput, listText, money, pct1, priceDate, priceTime } from './format';
+import { driftWords, formatAmountInput, listText, money, pct1, priceDate, priceTime } from './format';
 import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
 import type { Fund, ManualPrice, Verb } from './model';
 import { isCashSymbol, shortName } from './model';
@@ -21,12 +21,12 @@ export interface SellChoice {
   taxNote: boolean;
 }
 
-/** "SPUS would still be at 56.6% after this. Target is 50%." */
+/** "SPUS would still be 6.6 pts over target after this (56.6%, target 50%)." */
 function offText(off: OffTarget[]): string {
   if (off.length === 1) {
     const [o] = off;
     return o.targetPct > 0
-      ? `${o.symbol} would still be at ${pct1(o.nowPct)} after this. Target is ${+o.targetPct.toFixed(2)}%.`
+      ? `${o.symbol} would still be ${driftWords(o.nowPct - o.targetPct, true)} after this (${pct1(o.nowPct)}, target ${+o.targetPct.toFixed(2)}%).`
       : `${o.symbol} isn't in your targets and would still be ${pct1(o.nowPct)} of this portfolio after this.`;
   }
   if (off.length === 2) return `${off[0].symbol} and ${off[1].symbol} would still be off target after this.`;
@@ -107,7 +107,8 @@ interface TradesProps {
 export function Trades(props: TradesProps) {
   const { plan, funds, verb, amount, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, priceFailed, editingPrice, onSetPrice, onClosePrice, pricesSlow, sellsEverything, sellChoice, onSell, onRetirement, copyRef } = props;
   const ok = plan.status === 'ok';
-  const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
+  // 0% funds that get no trade, and why
+  const skippedZero = funds.filter(f => f.target === 0 && !plan.trades.some(t => t.symbol === f.symbol)).map(f => f.symbol);
   const when = priceTime(asOf);
   const typed = Object.entries(manualPrices).filter(([s]) => funds.some(f => f.symbol === s) || plan.trades.some(t => t.symbol === s));
   const cheapest = cheapestShort(plan.shortOfShare);
@@ -152,7 +153,7 @@ export function Trades(props: TradesProps) {
           {offNow ? (
             <div className={styles.emptyAction}>
               <p>
-                {offNow.symbol} is at {pct1(offNow.nowPct)}, target {+offNow.targetPct.toFixed(2)}%.
+                {offNow.symbol} is {driftWords(offNow.nowPct - offNow.targetPct, true)} ({pct1(offNow.nowPct)}, target {+offNow.targetPct.toFixed(2)}%).
                 {' '}Type an amount above, or rebalance what you own.
               </p>
               <button type="button" className={styles.primary} onClick={onRebalance}>Rebalance now</button>
@@ -263,7 +264,8 @@ export function Trades(props: TradesProps) {
           {plan.skips.map(s => (
             <div key={s.symbol} className={styles.skipRow}>
               <span className={styles.action}>Skip</span>
-              {s.symbol} · already {pct1(s.nowPct)}, target {+s.targetPct.toFixed(2)}%
+              {/* Why: it needs nothing to get closer to its target */}
+              {s.symbol} · {driftWords(s.nowPct - s.targetPct, true)} already, so nothing to {{ out: 'sell', rebal: 'buy or sell', add: 'buy' }[verb]}
             </div>
           ))}
           {plan.leftover > 0 && (
@@ -341,7 +343,12 @@ export function Trades(props: TradesProps) {
               </select>
             </span>
           </span>
-          {zeroFunds.length > 0 && <span className={styles.footItem}>{zeroFunds.join(', ')} at 0%, skipped</span>}
+          {/* Only when buying: taking money out, a 0% fund is what gets sold first */}
+          {skippedZero.length > 0 && plan.status === 'ok' && verb !== 'out' && (
+            <span className={styles.footItem}>
+              {listText(skippedZero)} {skippedZero.length === 1 ? 'has' : 'have'} a 0% target, so {skippedZero.length === 1 ? "it isn't" : "they aren't"} bought
+            </span>
+          )}
 
         </div>
       )}

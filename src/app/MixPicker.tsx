@@ -51,8 +51,8 @@ export function MixPicker({ current, onPick, onBuildOwn, heading }: MixPickerPro
       <div className={styles.pickerHeading}>{heading}</div>
       <button type="button" className={styles.pickerItem} aria-expanded={shariaOpen} onClick={() => setShariaOpen(o => !o)}>
         <span className={styles.pickerText}>
-          <span className={styles.pickerLabel}>Sharia portfolios</span>
-          <span className={styles.pickerNote}>{sharia.length} templates · SP Funds, gold, cash</span>
+          <span className={styles.pickerLabel}>Sharia templates</span>
+          <span className={styles.pickerNote}>{sharia.length} to choose from · SP Funds, gold, cash</span>
         </span>
         <span className={styles.pickerCheck} style={{ transform: shariaOpen ? 'rotate(180deg)' : undefined }}><ChevronIcon /></span>
       </button>

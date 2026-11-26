@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type DragEvent, type Ref } from 'react';
 import styles from './Calculator.module.css';
 import { CheckIcon, ChevronIcon, CloseIcon, ShareIcon } from './icons';
-import { drift, money, pct1, priceDate } from './format';
+import { driftWords, money, pct1, priceDate } from './format';
 import { shortName, type Fund, type Holding, type ManualPrice } from './model';
 import { holdingDollars, unpricedShares, type OffTarget, type PriceMap } from './plan';
 import { closesKeyboard } from './format';
 import { FundSearch } from './FundSearch';
 import { looksLikeTicker } from './searchUtils';
 import { parseAmount } from '../lib/parseAmount';
+
+export type ShareResult = 'shared' | 'copied' | 'cancelled' | { link: string };
 
 /** A number field that lets you type freely and only commits valid numbers. */
 function NumberField({ value, onCommit, label, className, lead, prefix, suffix, decimals }: {
@@ -133,7 +135,8 @@ interface MixCardProps {
   offTarget: OffTarget | null;
   onRebalance: () => void;
   /** Copies a link with this portfolio's targets; resolves to the link if copying failed. */
-  onShare: () => Promise<string | null>;
+  /** 'shared' (system share sheet), 'copied', 'cancelled', or the link when it couldn't be copied. */
+  onShare: () => Promise<ShareResult>;
   /** Targets add up to 100%, so there's something to share. */
   canShare: boolean;
   /** The fund just added from the search, if it's in this portfolio: the quick fix offers it the rest. */
@@ -154,9 +157,11 @@ export function MixCard(props: MixCardProps) {
   useEffect(() => { setShareFallback(null); }, [funds]);
 
   const share = async () => {
-    const failedLink = await onShare();
-    if (failedLink) { setShareFallback(failedLink); return; }
+    const result = await onShare();
+    if (typeof result === 'object') { setShareFallback(result.link); return; }
     setShareFallback(null);
+    // The share sheet says what happened itself; a copied link needs saying
+    if (result !== 'copied') return;
     setShared(true);
     clearTimeout(shareTimer.current);
     shareTimer.current = setTimeout(() => setShared(false), 2000);
@@ -330,7 +335,7 @@ export function MixCard(props: MixCardProps) {
                   <span className={styles.nowCell}>
                     <span className={styles.phoneLabel}>Now </span>
                     {heldTotal > 0 ? (
-                      <>{pct1(now)} <span className={Math.abs(d) >= 5 ? styles.driftBig : styles.driftSmall}>{drift(d)}</span></>
+                      <>{pct1(now)}<span className={`${styles.driftWords} ${Math.abs(d) >= 5 ? styles.driftBig : styles.driftSmall}`}>{driftWords(d)}</span></>
                     ) : '—'}
                   </span>
                 </>
@@ -383,7 +388,7 @@ export function MixCard(props: MixCardProps) {
           )}
           {offTarget && (
             <span className={styles.furthestOff}>
-              Furthest off: {offTarget.symbol} {drift(offTarget.drift)}
+              Furthest off: {offTarget.symbol}, {driftWords(offTarget.drift, true)}
               {' · '}
               <button type="button" className={styles.linkButton} onClick={onRebalance}>Rebalance</button>
             </span>

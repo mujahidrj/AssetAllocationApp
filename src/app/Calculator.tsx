@@ -16,12 +16,13 @@ import { CloseIcon, CopyIcon } from './icons';
 import { ImportDialog, type ImportChoice, type ImportProblem } from './ImportDialog';
 import { ImportGuide } from './ImportGuide';
 import { clearLeftoverSheetEntries } from './sheetHistory';
-import { MixCard } from './MixCard';
+import { MixCard, type ShareResult } from './MixCard';
 import { displayName, isRetirement, sentenceName, type Fund, type ManualPrice, type Verb } from './model';
 import { furthestOff, heldValues, makePlan, offTargets, valuesAfter, type PriceMap } from './plan';
 import { PortfolioMenu } from './PortfolioMenu';
 import { Sentence } from './Sentence';
 import { matchingTemplate, templates } from './templates';
+import { assignFundColors, colorVar, symbolsOf } from './colors';
 import { Trades, type SellChoice } from './Trades';
 import { tradesCsv, tradesText } from './tradeText';
 import { usePortfolios, type RemovedFund, type RemovedPortfolio } from './usePortfolios';
@@ -177,6 +178,28 @@ export function Calculator() {
   const [searchFocused, setSearchFocused] = useState(false);
   // The fund just added from the search: when targets fall short, the quick fix offers it the rest
   const [justAdded, setJustAdded] = useState<{ portfolioId: string; symbol: string } | null>(null);
+
+  // Each portfolio remembers what was last typed in the sentence: brought back on
+  // returning to it (or to the page), saved as it changes
+  // (Not until the portfolios in use have loaded: just after signing out, the account's are
+  // still showing, and must not be taken for the device's.)
+  const sentenceKey = ready ? `${savedTo}:${portfolio.id}` : null;
+  const sentenceFor = useRef<string | null>(null);
+  const openId = useRef(portfolio.id);
+  useEffect(() => { openId.current = portfolio.id; });
+  useEffect(() => {
+    if (sentenceKey === null || sentenceFor.current === sentenceKey) return;
+    sentenceFor.current = sentenceKey;
+    setAmountText(portfolio.lastAmount ?? '');
+    setVerb(portfolio.lastVerb ?? 'add');
+  }, [sentenceKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const savedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (sentenceKey === null || sentenceFor.current !== sentenceKey) return;
+    // Just switched: these are still the last portfolio's words, about to be replaced
+    if (savedFor.current !== sentenceKey) { savedFor.current = sentenceKey; return; }
+    actions.setLast(portfolio.id, amountText, verb);
+  }, [amountText, verb, sentenceKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A reload while a sheet was open leaves its history entry behind: step back over it
   useEffect(() => { clearLeftoverSheetEntries(); }, []);
@@ -342,13 +365,10 @@ export function Calculator() {
   const combined = useMemo(() => combinePortfolios(workspace.portfolios, prices), [workspace.portfolios, prices]);
   const showingAll = view === 'all' && combined.portfolios.length >= 2;
 
-  const colorSymbols = showingAll ? combined.funds.map(f => f.symbol) : symbols;
-  const fundColors = useMemo(() => {
-    const map: Record<string, string> = {};
-    colorSymbols.forEach((s, i) => { map[s] = `var(--fund-${(i % 5) + 1})`; });
-    return map;
-  }, [colorSymbols.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
-  const colorOf = useCallback((s: string) => fundColors[s] ?? 'var(--fund-5)', [fundColors]);
+  // Each fund keeps one colour in every view (colors.ts). A fund just added shows the colour
+  // it's about to be given.
+  const fundColors = useMemo(() => assignFundColors(symbolsOf(workspace), workspace.fundColors), [workspace]);
+  const colorOf = useCallback((s: string) => colorVar(Object.prototype.hasOwnProperty.call(fundColors, s) ? fundColors[s] : 4), [fundColors]);
 
   const missingPrices = symbols.filter(s => priceData.info[s]?.status === 'missing' && !manualPrices[s]);
 
@@ -387,7 +407,7 @@ export function Calculator() {
         ? { text: `You own $${formatAmountInput(plan.heldTotal)}, so this sells everything.`, strong: true }
         : { text: "Selling from whatever's furthest over target first." };
     }
-    return { text: selling ? 'Buying and selling so every fund lands on target.' : "Buying only what's behind target, so nothing gets sold." };
+    return { text: selling ? 'Buying and selling so every fund lands on target.' : "Buying only what's under target, so nothing gets sold." };
   })();
 
   const copyTrades = async () => {
@@ -412,13 +432,25 @@ export function Calculator() {
     URL.revokeObjectURL(url);
   };
 
-  const share = async (): Promise<string | null> => {
+  /** On phones, the system share sheet; elsewhere (or where there's none), the link is copied. */
+  const share = async (): Promise<ShareResult> => {
     const link = buildShareLink(stocksFromFunds(funds));
+    if (typeof navigator.share === 'function' && window.matchMedia?.('(pointer: coarse)').matches) {
+      try {
+        // The message reads "Roth IRA targets: VTI 60%, VXUS 30%, BND 10%", then the link
+        const targets = funds.filter(f => f.target > 0).map(f => `${f.symbol} ${+f.target.toFixed(2)}%`).join(', ');
+        await navigator.share({ text: `${displayName(portfolio)} targets: ${targets}`, url: link });
+        return 'shared';
+      } catch (e) {
+        if ((e as DOMException)?.name === 'AbortError') return 'cancelled';
+        // Not allowed here: copy instead
+      }
+    }
     try {
       await navigator.clipboard.writeText(link);
-      return null;
+      return 'copied';
     } catch {
-      return link;
+      return { link };
     }
   };
 
@@ -513,10 +545,12 @@ export function Calculator() {
       setAmountText(formatAmountInput(choice.cashAmount));
     }
     setImporting(null);
+    const importedInto = portfolio.id;
     showFlash(undoNotice(`imported-${Date.now()}`, broker ? `Holdings imported from ${broker}.` : 'Holdings imported.', () => {
       actions.restoreHoldings(snapshot);
       priceActions.restoreManualPrices(pricesBefore);
-      if (choice.cashAmount) { setVerb(before.verb); setAmountText(before.amountText); }
+      // The sentence only if it's still that portfolio's (another one's would be overwritten)
+      if (choice.cashAmount && openId.current === importedInto) { setVerb(before.verb); setAmountText(before.amountText); }
     }));
   };
 
@@ -655,7 +689,7 @@ export function Calculator() {
 
   // Room below the search while it's in use, kept between funds added in a row so the page doesn't jump
   return (
-    <div className={`${styles.page} ${searchFocused || (searchOpen && funds.length > 0) ? styles.searching : ''}`}>
+    <div className={`${styles.page} ${searchFocused || (searchOpen && funds.length > 0) ? styles.searching : ''} ${hasCopy ? styles.withCopyBar : ''}`}>
       <Header
         user={user}
         savedTo={savedTo}
@@ -788,7 +822,27 @@ export function Calculator() {
         )}
 
         {showingAll ? (
-          <CombinedView combined={combined} colorOf={colorOf} onOpen={id => { openPortfolio(id); window.scrollTo?.({ top: 0, behavior: 'smooth' }); }} />
+          <CombinedView
+            combined={combined}
+            colorOf={colorOf}
+            onOpen={id => {
+              openPortfolio(id);
+              window.scrollTo?.({ top: 0, behavior: 'smooth' });
+            }}
+            onAddMoney={id => {
+              // Ready to type the new money: "add", the cursor in the amount (inside the tap,
+              // for the keyboard), and the amount selected so typing replaces it. An amount
+              // that was being taken out isn't new money: it's cleared.
+              const p = workspace.portfolios.find(x => x.id === id);
+              flushSync(() => openPortfolio(id));
+              flushSync(() => {
+                if ((p?.lastVerb ?? 'add') !== 'add') setAmountText('');
+                setVerb('add');
+              });
+              focusDrawn(() => amountRef.current, { preventScroll: true }, el => (el as HTMLInputElement).select());
+              window.scrollTo?.({ top: 0, behavior: 'smooth' });
+            }}
+          />
         ) : (
           <>
             <Trades
