@@ -5,6 +5,8 @@ import { displayName, type Fund, type Portfolio } from './model';
 import { money } from './format';
 import { FundList, MixPicker } from './MixPicker';
 import { describeMix } from './templates';
+import { SheetBar } from './SheetBar';
+import { useSheetHistory } from './sheetHistory';
 
 interface PortfolioMenuProps {
   portfolios: Portfolio[];
@@ -19,8 +21,6 @@ interface PortfolioMenuProps {
   onDelete: (id: string) => void;
   onPickMix: (funds: Fund[], templateId: string) => void;
   onBuildOwn: () => void;
-  /** Open straight on the template list. */
-  startOnMix?: boolean;
   /** "All portfolios" row, shown when there are two or more portfolios. */
   all?: {
     /** Portfolios with holdings entered, and their combined value. */
@@ -38,15 +38,46 @@ interface PortfolioMenuProps {
  * sheet on phones.
  */
 export function PortfolioMenu(props: PortfolioMenuProps) {
-  const { portfolios, activeId, anchor, onClose, onSwitch, onNew, onDuplicate, onRename, onDelete, onPickMix, onBuildOwn, startOnMix, all } = props;
+  const { portfolios, activeId, anchor, onClose, onSwitch, onNew, onDuplicate, onRename, onDelete, onPickMix, onBuildOwn, all } = props;
   const showingAll = all?.showing ?? false;
-  const [step, setStep] = useState<'list' | 'mix'>(startOnMix ? 'mix' : 'list');
+  const [step, setStep] = useState<'list' | 'mix'>('list');
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState('');
   const [left, setLeft] = useState(0);
   const [top, setTop] = useState(0);
+  // Room between the blank and the bottom of the window, so a short (landscape) screen
+  // doesn't put the end of the popover off the bottom
+  const [room, setRoom] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const active = portfolios.find(p => p.id === activeId) ?? portfolios[0];
+
+  // "All portfolios": at the top once it can be used, below the list (greyed) until then
+  const allRow = (below: boolean) => all && (
+    <div className={below ? styles.pickerAllBelow : styles.pickerAll}>
+      <button
+        type="button"
+        className={styles.pickerItem}
+        aria-current={showingAll}
+        disabled={all.count < 2}
+        onClick={() => { all.onShow(); onClose(); }}
+      >
+        <span className={styles.pickerText}>
+          <span className={styles.pickerLabel}>All portfolios</span>
+          <span className={styles.pickerNote}>
+            {all.count < 2
+              ? 'Needs two portfolios with holdings, prices and targets at 100%'
+              : `${all.count} with holdings · ${money(all.total)}`}
+          </span>
+        </span>
+        <span className={styles.pickerCheck}>{showingAll && <CheckIcon />}</span>
+      </button>
+    </div>
+  );
+
+  // Back closes the sheet, or from the template list goes back to the portfolios
+  useSheetHistory('portfolios', step === 'list' ? 1 : 2, level => {
+    if (level === 0) onClose(); else setStep('list');
+  });
 
   // Sit under the blank, kept inside the column
   useLayoutEffect(() => {
@@ -58,6 +89,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
     if (!w) return;
     setLeft(Math.max(0, Math.min(a.left - w.left, w.width - width)));
     setTop(a.bottom - w.top + 8);
+    setRoom(Math.max(200, window.innerHeight - a.bottom - 16));
   }, [anchor, step]);
 
   // Close on Escape or a click outside, and give focus back to the blank
@@ -94,38 +126,27 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
 
   return (
     <>
-      <div className={styles.menuBackdrop} onClick={onClose} aria-hidden="true" />
+      <div className={styles.menuBackdrop} onClick={onClose} aria-hidden="true" data-sheet-backdrop />
       <div
         ref={menuRef}
         className={styles.menu}
-        style={{ left, top }}
+        style={{ left, top, ...(room ? { '--menu-room': `${room}px` } as React.CSSProperties : {}) }}
         role="dialog"
         aria-label={step === 'list' ? 'Portfolios' : 'Templates'}
         onKeyDown={onKeyDown}
+        data-sheet
       >
+        <SheetBar
+          onClose={onClose}
+          back={step === 'mix' && (
+            <button type="button" className={styles.pickerBack} onClick={() => setStep('list')}>
+              <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}><ChevronIcon /></span> {displayName(active)}
+            </button>
+          )}
+        />
         {step === 'list' ? (
           <>
-            {all && portfolios.length > 1 && (
-              <div className={styles.pickerAll}>
-                <button
-                  type="button"
-                  className={styles.pickerItem}
-                  aria-current={showingAll}
-                  disabled={all.count < 2}
-                  onClick={() => { all.onShow(); onClose(); }}
-                >
-                  <span className={styles.pickerText}>
-                    <span className={styles.pickerLabel}>All portfolios</span>
-                    <span className={styles.pickerNote}>
-                      {all.count < 2
-                        ? 'Needs two portfolios with holdings, prices and targets at 100%'
-                        : `${all.count} with holdings · ${money(all.total)}`}
-                    </span>
-                  </span>
-                  <span className={styles.pickerCheck}>{showingAll && <CheckIcon />}</span>
-                </button>
-              </div>
-            )}
+            {all && portfolios.length > 1 && all.count >= 2 && allRow(false)}
             <div className={styles.pickerHeading}>Portfolios</div>
             {portfolios.map(p => (
               p.id === active.id && renaming ? (
@@ -166,11 +187,11 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                 <span className={styles.pickerCheck} style={{ transform: 'rotate(-90deg)' }}><ChevronIcon /></span>
               </button>
               <button type="button" className={styles.pickerItem} onClick={startRename}>
-                <span className={styles.pickerLabel}>Rename</span>
+                <span className={styles.pickerLabel}>Rename {displayName(active)}</span>
               </button>
               {active.funds.length > 0 && (
                 <button type="button" className={styles.pickerItem} onClick={() => { onDuplicate(); onClose(); }}>
-                  <span className={styles.pickerLabel}>Copy to a new portfolio</span>
+                  <span className={styles.pickerLabel}>Make a copy of {displayName(active)}</span>
                 </button>
               )}
               {portfolios.length > 1 && (
@@ -179,14 +200,11 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                 </button>
               )}
             </div>}
+            {/* Not usable yet: last, so the actions above don't look like they belong to it */}
+            {all && portfolios.length > 1 && all.count < 2 && allRow(true)}
           </>
         ) : (
           <>
-            {!startOnMix && (
-              <button type="button" className={styles.pickerBack} onClick={() => setStep('list')}>
-                <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}><ChevronIcon /></span> {displayName(active)}
-              </button>
-            )}
             <MixPicker
               current={active.funds}
               heading="Start from a template"

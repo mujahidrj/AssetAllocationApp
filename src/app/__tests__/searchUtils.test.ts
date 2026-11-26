@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isUSTicker, isPrimaryTicker, getBaseTicker, isOption, isFutures } from '../searchUtils';
+import { isUSTicker, isPrimaryTicker, getBaseTicker, isOption, isFutures, rankResults, ownFundSymbol, looksLikeTicker } from '../searchUtils';
 
 describe('stockSearchUtils', () => {
   describe('isUSTicker', () => {
@@ -178,6 +178,53 @@ describe('stockSearchUtils', () => {
     it('should return false for stocks with F suffix that are not futures', () => {
       expect(isFutures('AAPLF')).toBe(false); // Not a known futures symbol
       expect(isFutures('MSFTF')).toBe(false); // Not a known futures symbol
+    });
+  });
+
+  describe('rankResults', () => {
+    const yahooBond = [
+      { symbol: 'BOND', description: 'PIMCO Active Bond Exchange-Traded Fund' },
+      { symbol: 'MUB', description: 'iShares National Muni Bond ETF' },
+      { symbol: '^TNX', description: 'CBOE Interest Rate 10 Year T No' },
+      { symbol: 'TLT', description: 'iShares 20+ Year Treasury Bond ETF' },
+    ];
+
+    it('offers the common funds first, then the search’s own results, without indexes', () => {
+      const symbols = rankResults('bond', yahooBond).map(r => r.symbol);
+      // "bond" is also PIMCO's ticker: it comes right after the common bond funds
+      expect(symbols.slice(0, 5)).toEqual(['BND', 'AGG', 'FXNAX', 'VBTLX', 'BOND']);
+      expect(symbols).not.toContain('^TNX');
+      expect(symbols.length).toBeLessThanOrEqual(8);
+    });
+
+    it('puts an exact ticker first', () => {
+      expect(rankResults('tlt', yahooBond)[0].symbol).toBe('TLT');
+      expect(rankResults('VOO', [])[0]).toEqual({ symbol: 'VOO', description: 'Vanguard S&P 500 ETF' });
+      expect(rankResults('vt', []).map(r => r.symbol)[0]).toBe('VT');
+      expect(rankResults('AAPL', [{ symbol: 'AAPL', description: 'Apple Inc.' }])[0].symbol).toBe('AAPL');
+      // Before common funds that only start with it
+      expect(rankResults('vo', [{ symbol: 'VO', description: 'Vanguard Mid-Cap ETF' }]).map(r => r.symbol).slice(0, 2)).toEqual(['VO', 'VOO']);
+    });
+
+    it('matches every word of a name', () => {
+      expect(rankResults('total international', []).map(r => r.symbol)).toEqual(['VXUS', 'FTIHX', 'VTIAX', 'BNDX']);
+    });
+  });
+
+  describe('funds of your own', () => {
+    it('keeps a name as typed, and a ticker in capitals', () => {
+      expect(ownFundSymbol('  Target Date 2050:  Trust, Class K ')).toBe('Target Date 2050 Trust Class K');
+      expect(ownFundSymbol('trust2050')).toBe('TRUST2050');
+      expect(looksLikeTicker('BRK.B')).toBe(true);
+      expect(looksLikeTicker('Target Date 2050')).toBe(false);
+      expect(looksLikeTicker('^GSPC')).toBe(false);
+    });
+
+    it('ends a long name at a whole word', () => {
+      const name = ownFundSymbol('Vanguard Target Retirement 2050 Trust Select Institutional Class Shares');
+      expect(name).toBe('Vanguard Target Retirement 2050 Trust Select Institutional');
+      expect(name.length).toBeLessThanOrEqual(60);
+      expect(ownFundSymbol('Vanguard Target Retirement 2050 Trust Select')).toBe('Vanguard Target Retirement 2050 Trust Select');
     });
   });
 });

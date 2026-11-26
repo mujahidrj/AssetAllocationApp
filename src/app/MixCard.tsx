@@ -1,19 +1,24 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type Ref } from 'react';
 import styles from './Calculator.module.css';
-import { CheckIcon, CloseIcon, ShareIcon } from './icons';
-import { drift, money, pct1, priceDate } from './format';
+import { CheckIcon, ChevronIcon, CloseIcon, ShareIcon } from './icons';
+import { driftWords, money, pct1, priceDate } from './format';
 import { shortName, type Fund, type Holding, type ManualPrice } from './model';
 import { holdingDollars, unpricedShares, type OffTarget, type PriceMap } from './plan';
 import { closesKeyboard } from './format';
 import { FundSearch } from './FundSearch';
+import { looksLikeTicker } from './searchUtils';
 import { parseAmount } from '../lib/parseAmount';
 
+export type ShareResult = 'shared' | 'copied' | 'cancelled' | { link: string };
+
 /** A number field that lets you type freely and only commits valid numbers. */
-function NumberField({ value, onCommit, label, className, prefix, suffix, decimals }: {
+function NumberField({ value, onCommit, label, className, lead, prefix, suffix, decimals }: {
   value: number;
   onCommit: (n: number) => void;
   label: string;
   className?: string;
+  /** Words inside the field, before the number, on phones only (where there are no column headings). */
+  lead?: string;
   prefix?: string;
   suffix?: string;
   decimals?: number;
@@ -30,7 +35,8 @@ function NumberField({ value, onCommit, label, className, prefix, suffix, decima
 
   return (
     <label className={`${styles.field} ${className ?? ''}`}>
-      {prefix && <span>{prefix}</span>}
+      {lead && <span className={styles.fieldLead}>{lead}</span>}
+      {prefix && <span className={styles.fieldPrefix}>{prefix}</span>}
       <input
         aria-label={label}
         inputMode="decimal"
@@ -49,7 +55,7 @@ function NumberField({ value, onCommit, label, className, prefix, suffix, decima
           if (Number.isFinite(n)) onCommit(n);
         }}
       />
-      {suffix && <span>{suffix}</span>}
+      {suffix && <span className={styles.fieldSuffix}>{suffix}</span>}
     </label>
   );
 }
@@ -64,8 +70,12 @@ export function PriceEditor({ symbol, current, onSave, onClose }: {
   const [text, setText] = useState(current ? String(current.price) : '');
   const price = parseAmount(text);
   const valid = Number.isFinite(price) && price > 0;
+  const formRef = useRef<HTMLFormElement>(null);
+  // Fully in view, clear of the phone's copy bar (its scroll margins say how far)
+  useEffect(() => { formRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }); }, []);
   return (
     <form
+      ref={formRef}
       className={styles.priceEditor}
       onSubmit={e => { e.preventDefault(); if (valid) { onSave(price); onClose(); } }}
       onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onClose(); } }}
@@ -99,9 +109,9 @@ interface MixCardProps {
   onTarget: (symbol: string, target: number) => void;
   onHolding: (symbol: string, holding: Holding | null) => void;
   onTracksHoldings: (on: boolean) => void;
-  onAddFund: (symbol: string, name?: string) => void;
+  /** `own`: a fund of your own that search didn't find. */
+  onAddFund: (symbol: string, name?: string, own?: boolean) => void;
   onRemoveFund: (symbol: string) => void;
-  onChangeMix: () => void;
   onScale: () => void;
   onAbsorb: (symbol: string) => void;
   searchOpen: boolean;
@@ -125,13 +135,19 @@ interface MixCardProps {
   offTarget: OffTarget | null;
   onRebalance: () => void;
   /** Copies a link with this portfolio's targets; resolves to the link if copying failed. */
-  onShare: () => Promise<string | null>;
+  /** 'shared' (system share sheet), 'copied', 'cancelled', or the link when it couldn't be copied. */
+  onShare: () => Promise<ShareResult>;
   /** Targets add up to 100%, so there's something to share. */
   canShare: boolean;
+  /** The fund just added from the search, if it's in this portfolio: the quick fix offers it the rest. */
+  newFund: string | null;
+  /** The total line, so the page can bring it into view. */
+  totalRef?: Ref<HTMLDivElement>;
+  onSearchFocus?: (focused: boolean) => void;
 }
 
 export function MixCard(props: MixCardProps) {
-  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onChangeMix, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare } = props;
+  const { funds, holdings, tracksHoldings, prices, missingPrices, colorOf, onTarget, onHolding, onTracksHoldings, onAddFund, onRemoveFund, onScale, onAbsorb, searchOpen, onSearchOpen, title, subtitle, onOpenPortfolios, onImport, onImportFile, manualPrices, editingPrice, onEditPrice, onSetPrice, offTarget, onRebalance, onShare, canShare, newFund, totalRef, onSearchFocus } = props;
   const [dropping, setDropping] = useState(false);
   const [shared, setShared] = useState(false);
   const [shareFallback, setShareFallback] = useState<string | null>(null);
@@ -141,9 +157,11 @@ export function MixCard(props: MixCardProps) {
   useEffect(() => { setShareFallback(null); }, [funds]);
 
   const share = async () => {
-    const failedLink = await onShare();
-    if (failedLink) { setShareFallback(failedLink); return; }
+    const result = await onShare();
+    if (typeof result === 'object') { setShareFallback(result.link); return; }
     setShareFallback(null);
+    // The share sheet says what happened itself; a copied link needs saying
+    if (result !== 'copied') return;
     setShared(true);
     clearTimeout(shareTimer.current);
     shareTimer.current = setTimeout(() => setShared(false), 2000);
@@ -179,7 +197,12 @@ export function MixCard(props: MixCardProps) {
       {dropping && <div className={styles.dropHint} aria-hidden="true">Drop to import into {title}</div>}
       <div className={styles.cardHead}>
         <div className={styles.titleBlock}>
-          <h2 className={styles.cardTitle}>{title}</h2>
+          {/* The name opens the portfolios: switch, add, rename, templates */}
+          <h2 className={styles.cardTitle}>
+            <button type="button" className={styles.titleButton} onClick={onOpenPortfolios} aria-haspopup="dialog">
+              {title}<ChevronIcon />
+            </button>
+          </h2>
           {subtitle && <span className={styles.cardSub}>{subtitle}</span>}
         </div>
         <button
@@ -192,7 +215,6 @@ export function MixCard(props: MixCardProps) {
           {shared ? <CheckIcon /> : <ShareIcon />}
           {shared ? 'Link copied' : 'Share targets'}
         </button>
-        <button type="button" className={`${styles.headLink} ${styles.switchLink}`} onClick={onOpenPortfolios}>Switch or add portfolio</button>
       </div>
       {shareFallback && (
         <div className={styles.shareFallback}>
@@ -201,8 +223,16 @@ export function MixCard(props: MixCardProps) {
         </div>
       )}
       <div className={styles.cardTools}>
-        <button type="button" className={styles.headLink} onClick={onChangeMix}>Use a template</button>
-        <button type="button" className={styles.headLink} onClick={() => onSearchOpen(!searchOpen)} aria-expanded={searchOpen}>+ Add fund</button>
+        <button
+          type="button"
+          className={styles.headLink}
+          // Open: back to the search for the next fund (inside the tap, so iPhone opens the keyboard)
+          onClick={() => {
+            if (!searchOpen) { onSearchOpen(true); return; }
+            document.querySelector<HTMLInputElement>('input[aria-label="Add a fund by ticker or name"]')?.focus();
+          }}
+          aria-expanded={searchOpen}
+        >+ Add fund</button>
         <button type="button" className={styles.headLink} onClick={onImport}>Import from broker</button>
         <button
           type="button"
@@ -245,11 +275,14 @@ export function MixCard(props: MixCardProps) {
 
         return (
           <div key={f.symbol} className={styles.rowGroup}>
-            <div className={`${styles.mixRow} ${f.target === 0 ? styles.zero : ''}`}>
+            <div className={`${styles.mixRow} ${f.target === 0 ? styles.zero : ''} ${!tracksHoldings || heldTotal <= 0 ? styles.noNow : ''}`}>
               <div className={styles.fundCell}>
                 <span className={styles.swatch} style={{ background: colorOf(f.symbol) }} />
-                <b className={styles.symbol} style={{ fontSize: 15 }}>{f.symbol}</b>
-                <span className={styles.fundName}>{f.target === 0 ? '0%, not buying' : shortName(f)}</span>
+                <b className={`${styles.symbol} ${looksLikeTicker(f.symbol) ? '' : styles.ownSymbol}`} style={{ fontSize: 15 }}>{f.symbol}</b>
+                {/* A fund of your own is named by its symbol already */}
+                {(f.target === 0 || shortName(f) !== f.symbol) && (
+                  <span className={styles.fundName}>{f.target === 0 ? '0%, not buying' : shortName(f)}</span>
+                )}
                 {manual && (
                   <span className={styles.yourPrice}>
                     <button type="button" className={styles.linkButton} onClick={() => onEditPrice(f.symbol)} aria-label={`Edit your price for ${f.symbol}`}>{money(manual.price)}</button>
@@ -270,6 +303,7 @@ export function MixCard(props: MixCardProps) {
                     <div className={styles.ownCell}>
                       <NumberField
                         label={`${f.symbol} you own, in ${kind === 'dollars' ? 'dollars' : 'shares'}`}
+                        lead="You own"
                         value={holding?.amount ?? 0}
                         prefix={kind === 'dollars' ? '$' : undefined}
                         suffix={kind === 'shares' ? 'shares' : undefined}
@@ -301,7 +335,7 @@ export function MixCard(props: MixCardProps) {
                   <span className={styles.nowCell}>
                     <span className={styles.phoneLabel}>Now </span>
                     {heldTotal > 0 ? (
-                      <>{pct1(now)} <span className={Math.abs(d) >= 5 ? styles.driftBig : styles.driftSmall}>{drift(d)}</span></>
+                      <>{pct1(now)}<span className={`${styles.driftWords} ${Math.abs(d) >= 5 ? styles.driftBig : styles.driftSmall}`}>{driftWords(d)}</span></>
                     ) : '—'}
                   </span>
                 </>
@@ -312,7 +346,7 @@ export function MixCard(props: MixCardProps) {
             </div>
             {missing && !manual && editingPrice !== f.symbol && (
               <div className={styles.rowNote}>
-                No price found.{' '}
+                {looksLikeTicker(f.symbol) ? 'No price found.' : 'No price yet.'}{' '}
                 <button type="button" className={styles.linkButton} onClick={() => onEditPrice(f.symbol)}>Add price</button>
               </div>
             )}
@@ -329,27 +363,32 @@ export function MixCard(props: MixCardProps) {
       })}
 
       {(searchOpen || funds.length === 0) && (
-        <FundSearch onAdd={(s, n) => { onAddFund(s, n); }} existing={funds.map(f => f.symbol)} autoFocus={searchOpen} />
+        <FundSearch onAdd={onAddFund} existing={funds.map(f => f.symbol)} autoFocus={searchOpen} onFocusChange={onSearchFocus} />
       )}
 
       {funds.length > 0 && (
-        <div className={styles.mixFoot}>
+        <div className={styles.mixFoot} ref={totalRef}>
           <span className={`${styles.totalText} ${off ? styles.totalOff : ''}`}>
             {off ? `Total ${+total.toFixed(2)}% · ${Math.abs(diff)}% ${diff > 0 ? 'left' : 'over'}` : 'Total 100%'}
           </span>
           {off && (
             <>
-              <button type="button" className={styles.linkButton} onClick={onScale}>Scale to 100%</button>
-              {largest && (
+              {diff > 0 && newFund ? (
+                // Room left after adding a fund is usually meant for that fund
+                <button type="button" className={styles.linkButton} onClick={() => onAbsorb(newFund)}>
+                  Give {newFund} the {diff}%
+                </button>
+              ) : largest && (
                 <button type="button" className={styles.linkButton} onClick={() => onAbsorb(largest.symbol)}>
-                  {diff > 0 ? `Put ${diff}% in ${largest.symbol}` : `Take ${Math.abs(diff)}% from ${largest.symbol}`}
+                  {diff > 0 ? `Give ${largest.symbol} the ${diff}%` : `Take ${Math.abs(diff)}% from ${largest.symbol}`}
                 </button>
               )}
+              <button type="button" className={styles.linkButton} onClick={onScale}>Scale to 100%</button>
             </>
           )}
           {offTarget && (
             <span className={styles.furthestOff}>
-              Furthest off: {offTarget.symbol} {drift(offTarget.drift)}
+              Furthest off: {offTarget.symbol}, {driftWords(offTarget.drift, true)}
               {' · '}
               <button type="button" className={styles.linkButton} onClick={onRebalance}>Rebalance</button>
             </span>

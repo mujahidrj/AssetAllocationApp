@@ -27,6 +27,11 @@
   --fund-3: #5E8C6A;
   --fund-4: #8C5E83;
   --fund-5: #6F7A86;
+  --fund-6: #3E7C80;
+  --fund-7: #4B4F8A;
+  --fund-8: #7D8338;
+  --fund-9: #A0606F;
+  --fund-10: #8A6A4C;
 }
 
 :root[data-theme='dark'] {
@@ -53,6 +58,11 @@
   --fund-3: #86B593;
   --fund-4: #B98AAE;
   --fund-5: #9AA5B1;
+  --fund-6: #6FB2B6;
+  --fund-7: #9296D4;
+  --fund-8: #B7BD6C;
+  --fund-9: #D598A8;
+  --fund-10: #C6A27E;
 }
 
 :root {

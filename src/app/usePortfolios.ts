@@ -10,10 +10,20 @@ import {
   type Holding,
   type ManualPrice,
   type Portfolio,
+  type Verb,
   type Workspace,
 } from './model';
 import { loadCloudWorkspace, loadDeviceWorkspace, mergeDeviceIntoAccount, saveCloudWorkspace, saveDeviceWorkspace } from './storage';
 import { reportTiming } from '../lib/timing';
+import { assignFundColors, symbolsOf } from './colors';
+
+const NO_COLORS: Record<string, number> = {};
+/** The workspace with a colour for every fund (the same object if each has one). */
+function withFundColors(ws: Workspace): Workspace {
+  const current = ws.fundColors ?? NO_COLORS;
+  const next = assignFundColors(symbolsOf(ws), current);
+  return next === current ? ws : { ...ws, fundColors: next };
+}
 
 export type SaveState = 'loading' | 'saved' | 'saving' | 'error';
 
@@ -43,6 +53,15 @@ export interface RemovedPortfolio {
 const DEVICE = '__device__';
 const CLOUD_SAVE_DELAY = 800;
 
+/** What changes without editing the portfolios: the amount and verb last typed, and fund colours given out. */
+const QUIET = ['lastAmount', 'lastVerb', 'fundColors'];
+
+/** The same portfolios, apart from what changes on its own. */
+function sameApartFromLast(a: Workspace, b: Workspace): boolean {
+  const strip = (ws: Workspace) => JSON.stringify(ws, (key, value) => (QUIET.includes(key) ? undefined : value));
+  return a === b || strip(a) === strip(b);
+}
+
 /**
  * Everyone's saved portfolios: in their Google account when signed in, otherwise on
  * this device. Nothing is saved until the saved copy has been read, so starting
@@ -51,7 +70,12 @@ const CLOUD_SAVE_DELAY = 800;
  */
 export function usePortfolios(user: User | null) {
   const uid = user?.uid ?? null;
-  const [workspace, setWorkspace] = useState<Workspace>(() => (uid ? emptyWorkspace() : loadDeviceWorkspace() ?? emptyWorkspace()));
+  const [workspace, setLoaded] = useState<Workspace>(() => (uid ? emptyWorkspace() : loadDeviceWorkspace() ?? emptyWorkspace()));
+  // Every edit keeps the fund colours given out (colors.ts): any fund without one gets it
+  // before the edit, so it's the colour it was showing, and again after, for funds just
+  // added. They're saved with the edit; nothing is written just for colours.
+  const setWorkspace = useCallback((change: Workspace | ((ws: Workspace) => Workspace)) =>
+    setLoaded(ws => withFundColors(typeof change === 'function' ? change(withFundColors(ws)) : change)), []);
   const [loadedFor, setLoadedFor] = useState<string | null>(uid ? null : DEVICE);
   const [saveState, setSaveState] = useState<SaveState>(uid ? 'loading' : 'saved');
   const [loadFailed, setLoadFailed] = useState(false);
@@ -68,7 +92,7 @@ export function usePortfolios(user: User | null) {
     skipNextSave.current = true;
 
     if (!uid) {
-      setWorkspace(loadDeviceWorkspace() ?? emptyWorkspace());
+      setLoaded(loadDeviceWorkspace() ?? emptyWorkspace());
       setLoadedFor(DEVICE);
       setSaveState('saved');
       setLoadFailed(false);
@@ -86,12 +110,12 @@ export function usePortfolios(user: User | null) {
         const device = loadDeviceWorkspace();
         if (saved) {
           const { workspace: merged, added } = mergeDeviceIntoAccount(saved, device);
-          setWorkspace(merged);
+          setLoaded(merged);
           if (added > 0) skipNextSave.current = false; // keep what was built before signing in
         } else {
           // New account: start from what they built before signing in, if anything
           const hasWork = device?.portfolios.some(p => p.funds.length > 0);
-          setWorkspace(device && hasWork ? device : emptyWorkspace());
+          setLoaded(device && hasWork ? device : emptyWorkspace());
           skipNextSave.current = !hasWork;
         }
         setLoadedFor(uid);
@@ -118,10 +142,16 @@ export function usePortfolios(user: User | null) {
     return () => window.removeEventListener('online', retry);
   }, [loadFailed]);
 
-  // Save after changes, once the saved copy has been read
+  // Save after changes, once the saved copy has been read. The amount and verb last
+  // typed are saved too, but quietly: they aren't edits to your portfolios, so the
+  // header doesn't flicker "Saving…", and a failed save of them isn't reported.
+  const lastSaved = useRef<Workspace | null>(null);
+  const loudPending = useRef(false);
   useEffect(() => {
     const target = uid ?? DEVICE;
     if (loadedFor !== target) return;
+    const before = lastSaved.current;
+    lastSaved.current = workspace;
     if (skipNextSave.current) {
       skipNextSave.current = false;
       return;
@@ -132,11 +162,18 @@ export function usePortfolios(user: User | null) {
       return;
     }
 
-    setSaveState('saving');
+    if (!before || !sameApartFromLast(before, workspace)) loudPending.current = true;
+    const loud = loudPending.current;
+    if (loud) setSaveState('saving');
     const timer = setTimeout(() => {
       saveCloudWorkspace(uid, workspace)
-        .then(() => setSaveState('saved'))
+        .then(() => {
+          if (!loud) return;
+          loudPending.current = false;
+          setSaveState('saved');
+        })
         .catch(error => {
+          if (!loud) { console.warn('Couldn’t save the last amount typed:', error); return; }
           console.error('Error saving your portfolios:', error);
           setSaveState('error');
         });
@@ -210,6 +247,22 @@ export function usePortfolios(user: User | null) {
     setSell: useCallback((sell: boolean) => update(p => ({ ...p, sell })), [update]),
 
     setRetirement: useCallback((retirement: boolean) => update(p => ({ ...p, retirement })), [update]),
+
+    /** Remembers what's typed in the sentence for a portfolio. Nothing changes (or saves) if it's the same. */
+    setLast: useCallback((portfolioId: string, amount: string, verb: Verb) =>
+      setWorkspace(ws => {
+        const target = ws.portfolios.find(p => p.id === portfolioId);
+        if (!target || ((target.lastAmount ?? '') === amount && (target.lastVerb ?? 'add') === verb)) return ws;
+        return {
+          ...ws,
+          portfolios: ws.portfolios.map(p => {
+            if (p.id !== portfolioId) return p;
+            const next: Portfolio = { ...p, lastVerb: verb };
+            if (amount.trim()) next.lastAmount = amount.slice(0, 40); else delete next.lastAmount;
+            return next;
+          }),
+        };
+      }), []),
 
     setWholeShares: useCallback((wholeShares: boolean) =>
       update(p => {

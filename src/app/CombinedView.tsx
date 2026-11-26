@@ -1,12 +1,15 @@
 import styles from './Calculator.module.css';
-import { drift, money, pct1 } from './format';
+import { driftWords, money, pct1 } from './format';
 import type { Combined } from './combined';
 import { shortName } from './model';
 
 interface CombinedViewProps {
   combined: Combined;
   colorOf: (symbol: string) => string;
+  /** Opens a portfolio as it was left. */
   onOpen: (portfolioId: string) => void;
+  /** From "where new money helps most": opens a portfolio ready to type the new money. */
+  onAddMoney: (portfolioId: string) => void;
 }
 
 const reasonText = { 'no-holdings': 'no holdings', 'targets-off': "targets don't add up to 100%", 'no-price': 'a fund has no price' } as const;
@@ -29,7 +32,7 @@ function PortfolioLinks({ list, onOpen }: { list: Array<{ id: string; name: stri
  * Every portfolio with holdings, as one: where new money helps most, then the
  * combined split against the combined target. Read-only; trades stay per portfolio.
  */
-export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
+export function CombinedView({ combined, colorOf, onOpen, onAddMoney }: CombinedViewProps) {
   const { total, funds, portfolios, excluded, behind, unpriced } = combined;
   const withTarget = funds.filter(f => f.targetPct > 0.005);
   const withValue = funds.filter(f => f.value > 0.005);
@@ -56,10 +59,10 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
                 <div style={{ minWidth: 0 }}>
                   <div>
                     <b className={styles.symbol}>{f.symbol}</b>
-                    <span className={styles.behindStats}> · {pct1(-f.drift)} behind · {money(f.short)} short</span>
+                    <span className={styles.behindStats}> · {driftWords(f.drift, true)} · {money(f.short)} short</span>
                   </div>
                   <div className={styles.fundName}>
-                    In <PortfolioLinks list={f.targetedIn} onOpen={onOpen} />
+                    In <PortfolioLinks list={f.targetedIn} onOpen={onAddMoney} />
                   </div>
                 </div>
               </div>
@@ -93,16 +96,17 @@ export function CombinedView({ combined, colorOf, onOpen }: CombinedViewProps) {
         </div>
         {funds.map(f => (
           <div key={f.symbol} className={styles.combinedRow}>
-            <div className={styles.fundCell}>
+            <div className={`${styles.fundCell} ${styles.combinedFund}`}>
               <span className={styles.swatch} style={{ background: colorOf(f.symbol) }} />
               <b className={styles.symbol} style={{ fontSize: 15 }}>{f.symbol}</b>
-              <span className={styles.fundName}>{shortName(f)}</span>
+              {/* A fund named only by its symbol isn't named twice */}
+              {shortName(f) !== f.symbol && <span className={styles.fundName}>{shortName(f)}</span>}
             </div>
             {/* One grid cell each on desktop; one line under the fund on phones */}
             <span className={styles.combinedStats}>
               <span className={styles.num}><span className={styles.phoneLabel}>Target </span>{pct1(f.targetPct)}</span>
               <span className={styles.num}><span className={styles.phoneLabel}>Now </span>{pct1(f.nowPct)}</span>
-              <span className={`${styles.num} ${Math.abs(f.drift) >= 5 ? styles.driftBig : styles.driftSmall}`}>{drift(f.drift)}</span>
+              <span className={`${styles.driftWords} ${Math.abs(f.drift) >= 5 ? styles.driftBig : styles.driftSmall}`}>{driftWords(f.drift)}</span>
             </span>
             <span className={`${styles.num} ${styles.combinedValue}`}>{money(f.value)}</span>
           </div>

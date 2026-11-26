@@ -1,7 +1,8 @@
 import { Fragment, type Ref } from 'react';
 import styles from './Calculator.module.css';
+import { looksLikeTicker } from './searchUtils';
 import { CopyIcon } from './icons';
-import { listText, money, pct1, priceDate, priceTime } from './format';
+import { driftWords, formatAmountInput, listText, money, pct1, priceDate, priceTime } from './format';
 import { cheapestShort, sharesText, shortList, tradeSum, tradeTitle } from './tradeText';
 import type { Fund, ManualPrice, Verb } from './model';
 import { isCashSymbol, shortName } from './model';
@@ -20,12 +21,12 @@ export interface SellChoice {
   taxNote: boolean;
 }
 
-/** "SPUS would still be at 56.6% after this. Target is 50%." */
+/** "SPUS would still be 6.6 pts over target after this (56.6%, target 50%)." */
 function offText(off: OffTarget[]): string {
   if (off.length === 1) {
     const [o] = off;
     return o.targetPct > 0
-      ? `${o.symbol} would still be at ${pct1(o.nowPct)} after this. Target is ${+o.targetPct.toFixed(2)}%.`
+      ? `${o.symbol} would still be ${driftWords(o.nowPct - o.targetPct, true)} after this (${pct1(o.nowPct)}, target ${+o.targetPct.toFixed(2)}%).`
       : `${o.symbol} isn't in your targets and would still be ${pct1(o.nowPct)} of this portfolio after this.`;
   }
   if (off.length === 2) return `${off[0].symbol} and ${off[1].symbol} would still be off target after this.`;
@@ -58,6 +59,8 @@ interface TradesProps {
   plan: Plan;
   funds: Fund[];
   verb: Verb;
+  /** What's typed in the amount (0 when nothing is). */
+  amount: number;
   colorOf: (symbol: string) => string;
   asOf: string | null;
   pricesLoading: boolean;
@@ -102,20 +105,25 @@ interface TradesProps {
 }
 
 export function Trades(props: TradesProps) {
-  const { plan, funds, verb, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, priceFailed, editingPrice, onSetPrice, onClosePrice, pricesSlow, sellsEverything, sellChoice, onSell, onRetirement, copyRef } = props;
+  const { plan, funds, verb, amount, colorOf, asOf, pricesLoading, onRefresh, copied, onCopy, onCsv, onPickMix, onBuildOwn, wholeShares, onWholeShares, manualPrices, onAddPrice, textFallback, onCloseText, hasHoldings, offNow, onRebalance, onEnterHoldings, onImport, priceFailed, editingPrice, onSetPrice, onClosePrice, pricesSlow, sellsEverything, sellChoice, onSell, onRetirement, copyRef } = props;
   const ok = plan.status === 'ok';
-  const zeroFunds = funds.filter(f => f.target === 0).map(f => f.symbol);
+  // 0% funds that get no trade, and why
+  const skippedZero = funds.filter(f => f.target === 0 && !plan.trades.some(t => t.symbol === f.symbol)).map(f => f.symbol);
   const when = priceTime(asOf);
   const typed = Object.entries(manualPrices).filter(([s]) => funds.some(f => f.symbol === s) || plan.trades.some(t => t.symbol === s));
   const cheapest = cheapestShort(plan.shortOfShare);
   // Held as shares with no price: the lookup either failed or is still going
   const failed = plan.unpriced.filter(s => priceFailed.includes(s));
   const waiting = plan.unpriced.filter(s => !priceFailed.includes(s));
+  // Tickers the lookup couldn't price (and nobody typed a price for) that have no trade row
+  // to say so: named in the footer. Funds added by name never get a looked-up price.
+  const noPrice = plan.status === 'needs-prices' ? []
+    : priceFailed.filter(s => looksLikeTicker(s) && !plan.trades.some(t => t.symbol === s) && funds.some(f => f.symbol === s && f.target > 0));
 
   const title =
     ok ? (sellsEverything ? 'Sell everything' : tradeTitle(plan.trades))
       : plan.status === 'targets-off' ? 'Targets need to add up to 100%'
-      : plan.status === 'needs-mix' ? 'Pick a starting point'
+      : plan.status === 'needs-mix' ? (amount > 0 && verb === 'add' ? `Pick a template to split $${formatAmountInput(amount)}` : 'Pick a starting point')
       : plan.status === 'short-of-share' ? 'Not enough for one share'
       : plan.status === 'needs-prices' ? (failed.length > 1 ? 'Prices are missing' : failed.length === 1 ? 'A price is missing' : pricesSlow ? 'Still getting prices…' : 'Getting prices…')
       : 'Your trades';
@@ -145,7 +153,7 @@ export function Trades(props: TradesProps) {
           {offNow ? (
             <div className={styles.emptyAction}>
               <p>
-                {offNow.symbol} is at {pct1(offNow.nowPct)}, target {+offNow.targetPct.toFixed(2)}%.
+                {offNow.symbol} is {driftWords(offNow.nowPct - offNow.targetPct, true)} ({pct1(offNow.nowPct)}, target {+offNow.targetPct.toFixed(2)}%).
                 {' '}Type an amount above, or rebalance what you own.
               </p>
               <button type="button" className={styles.primary} onClick={onRebalance}>Rebalance now</button>
@@ -180,11 +188,14 @@ export function Trades(props: TradesProps) {
           ) : failed.length > 0 ? (
             <div className={styles.emptyAction}>
               <p>
-                {failed.length === 1
+                {/* Funds added by name are never looked up: there's nothing to try again */}
+                {!failed.some(looksLikeTicker)
+                  ? <>{listText(failed)} {failed.length === 1 ? 'has' : 'have'} no price yet. You entered {failed.length === 1 ? 'it' : 'them'} in shares, so your trades need {failed.length === 1 ? 'its price' : 'their prices'} first.</>
+                  : failed.length === 1
                   ? <>Couldn't get a price for {failed[0]}. You entered it in shares, so your trades need its price first.</>
                   : <>Couldn't get prices for {listText(failed)}. You entered them in shares, so your trades need their prices first.</>}
               </p>
-              <PriceButtons symbols={failed} onAddPrice={onAddPrice} onRetry={onRefresh} />
+              <PriceButtons symbols={failed} onAddPrice={onAddPrice} onRetry={failed.some(looksLikeTicker) ? onRefresh : undefined} />
             </div>
           ) : pricesSlow ? (
             <div className={styles.emptyAction}>
@@ -230,15 +241,16 @@ export function Trades(props: TradesProps) {
                 <div className={styles.fundCell}>
                   <span className={styles.swatch} style={{ background: colorOf(t.symbol) }} />
                   <div style={{ minWidth: 0 }}>
-                    <div className={styles.symbol}>{t.symbol}</div>
-                    <div className={styles.fundName}>{fund ? shortName(fund) : 'Not in this portfolio'}</div>
+                    <div className={`${styles.symbol} ${looksLikeTicker(t.symbol) ? '' : styles.ownSymbol}`}>{t.symbol}</div>
+                    <div className={styles.fundName}>{!fund ? 'Not in this portfolio' : shortName(fund) !== fund.symbol ? shortName(fund) : ''}</div>
                   </div>
                 </div>
                 <span className={styles.tradeShares}>
                   {isCashSymbol(t.symbol) ? 'cash'
                     : t.shares != null ? sharesText(t.shares, wholeShares)
+                    : fund && !looksLikeTicker(t.symbol) ? <><span className={styles.tradeNote}>No price yet.</span>{' '}<button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add price</button></>
                     : pricesLoading ? '…'
-                    : fund ? <button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add a price to see shares</button>
+                    : fund ? <><span className={styles.tradeNote}>No price found.</span>{' '}<button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add price</button></>
                     : 'no price'}
                 </span>
                 <span className={styles.tradeAmount}>{t.action === 'sell' ? money(-t.dollars) : money(t.dollars)}</span>
@@ -252,7 +264,8 @@ export function Trades(props: TradesProps) {
           {plan.skips.map(s => (
             <div key={s.symbol} className={styles.skipRow}>
               <span className={styles.action}>Skip</span>
-              {s.symbol} · already {pct1(s.nowPct)}, target {+s.targetPct.toFixed(2)}%
+              {/* Why: it needs nothing to get closer to its target */}
+              {s.symbol} · {driftWords(s.nowPct - s.targetPct, true)} already, so nothing to {{ out: 'sell', rebal: 'buy or sell', add: 'buy' }[verb]}
             </div>
           ))}
           {plan.leftover > 0 && (
@@ -311,6 +324,9 @@ export function Trades(props: TradesProps) {
         <div className={styles.cardFoot}>
           <span className={styles.footItem}>{pricesLoading ? 'Updating prices…' : when ?? 'Prices from Yahoo Finance'}</span>
           {when && !pricesLoading && <span className={styles.footItem}>Yahoo Finance</span>}
+          {noPrice.length > 0 && (
+            <span className={`${styles.footItem} ${styles.footProblem}`}>No price for {listText(noPrice)}</span>
+          )}
           <span className={styles.footItem}>
             <button type="button" className={styles.linkButton} onClick={onRefresh}>Refresh</button>
           </span>
@@ -327,7 +343,12 @@ export function Trades(props: TradesProps) {
               </select>
             </span>
           </span>
-          {zeroFunds.length > 0 && <span className={styles.footItem}>{zeroFunds.join(', ')} at 0%, skipped</span>}
+          {/* Only when buying: taking money out, a 0% fund is what gets sold first */}
+          {skippedZero.length > 0 && plan.status === 'ok' && verb !== 'out' && (
+            <span className={styles.footItem}>
+              {listText(skippedZero)} {skippedZero.length === 1 ? 'has' : 'have'} a 0% target, so {skippedZero.length === 1 ? "it isn't" : "they aren't"} bought
+            </span>
+          )}
 
         </div>
       )}

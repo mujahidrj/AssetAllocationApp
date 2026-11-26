@@ -5,6 +5,8 @@ import { Appearance } from './Appearance';
 import { CheckIcon } from './icons';
 import type { ThemePref } from './useTheme';
 import type { SaveState } from './usePortfolios';
+import { SheetBar } from './SheetBar';
+import { useSheetHistory } from './sheetHistory';
 
 interface HeaderProps {
   user: User | null;
@@ -71,6 +73,8 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
   }, [open]);
 
   const close = () => setOpen(false);
+  // On phones the panel is a sheet: Back closes it
+  useSheetHistory('account', open ? 1 : 0, () => setOpen(false));
 
   const statusClass = `${styles.saved} ${status.tone === 'error' ? styles.savedError : ''}`;
 
@@ -118,7 +122,7 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
 
         {open && (
           <>
-            <div className={styles.sheetBackdrop} aria-hidden="true" onClick={close} />
+            <div className={styles.sheetBackdrop} aria-hidden="true" onClick={close} data-sheet-backdrop />
             <div
               ref={panel}
               id={panelId}
@@ -126,12 +130,14 @@ export function Header({ user, savedTo, saveState, loadFailed, deviceSaveFailed,
               aria-label={user ? 'Account' : 'Sign in'}
               tabIndex={-1}
               className={styles.accountPanel}
+              data-sheet
               onBlur={e => {
                 // Tabbing out of the panel closes it (clicks are handled above)
                 const next = e.relatedTarget as Node | null;
                 if (next && !panel.current?.contains(next) && !trigger.current?.contains(next)) close();
               }}
             >
+              <SheetBar onClose={close} />
               {user ? (
                 <>
                   <div className={styles.accountWho}>

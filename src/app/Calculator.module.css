@@ -586,7 +586,7 @@
   z-index: 40;
   width: 380px;
   max-width: 100%;
-  max-height: 70vh;
+  max-height: min(70vh, var(--menu-room, 70vh));
   overflow-y: auto;
   background: var(--raised);
   border: 1px solid var(--border);
@@ -669,7 +669,10 @@
 }
 
 .pickerFund {
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pickerNote {
@@ -842,6 +845,51 @@
   text-underline-offset: 3px;
 }
 
+/* ---------- Top of a bottom sheet (phones only) ---------- */
+.sheetBar {
+  display: none;
+}
+
+.sheetHandle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+}
+
+/* Where sheets are popovers, a bar holding a way back shows just that */
+.sheetBarBack {
+  display: flex;
+}
+
+.sheetBarBack .sheetHandle,
+.sheetBarBack .sheetClose {
+  display: none;
+}
+
+.sheetClose {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-2);
+}
+
+.sheetClose:hover {
+  color: var(--text);
+}
+
+[data-sheet] {
+  transition: transform 0.2s ease;
+}
+
 /* ---------- Signed in, before the portfolios arrive ---------- */
 .card.loadingCard {
   padding-top: 20px;
@@ -920,6 +968,31 @@
   font-family: var(--font-serif);
   font-weight: 500;
   font-size: 22px;
+  text-wrap: balance;
+}
+
+/* The portfolio card's name: opens the portfolios, like the name in the sentence.
+   Inline, so a long name wraps and the chevron follows its last word. */
+.titleButton {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.titleButton svg {
+  display: inline-block;
+  vertical-align: 0.12em;
+  margin-left: 6px;
+  color: var(--accent);
+}
+
+.titleButton:hover svg {
+  color: var(--accent-hover);
 }
 
 .cardSum {
@@ -994,6 +1067,23 @@
   min-width: 0;
 }
 
+/* In the portfolio card, the fund's whole name gets its own line under the ticker, using the column's full width */
+.mixRow .fundCell {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.mixRow .fundName {
+  flex-basis: 100%;
+  padding-left: 18px;
+  font-size: 12px;
+}
+
+/* A fund added by name stays beside its swatch, its words wrapping there */
+.mixRow .ownSymbol {
+  flex: 1 1 0;
+}
+
 .swatch {
   width: 8px;
   height: 8px;
@@ -1008,10 +1098,11 @@
 
 .fundName {
   font-size: 13px;
+  line-height: 1.35;
   color: var(--text-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Whole names: they wrap into the row's spare width instead of being cut off */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tradeShares {
@@ -1055,9 +1146,10 @@
   row-gap: 4px;
 }
 
-/* Separators trail each item, so a wrapped line never starts with "·" */
+/* Separators trail each item, so a wrapped line never starts with "·". Items can
+   wrap: a fund added by name can be long. */
 .footItem {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .footItem:not(:last-child)::after {
@@ -1065,9 +1157,14 @@
   margin: 0 7px;
 }
 
+.footProblem {
+  color: var(--text-2);
+}
+
 .cardFoot .linkButton {
   font-weight: 500;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 /* ---------- Mix table ---------- */
@@ -1201,6 +1298,11 @@
   flex: 1;
 }
 
+/* The $ / shares switch beside the field already says "shares" */
+.ownCell .fieldSuffix {
+  display: none;
+}
+
 .unitToggle {
   display: flex;
   border: 1px solid var(--border);
@@ -1244,8 +1346,36 @@
   text-align: right;
 }
 
+/* Touch screens: results sit between the search (moved near the top) and the keyboard.
+   (FundSearch also fits the list to the space the keyboard leaves, where it can tell.) */
+@media (pointer: coarse) {
+  .search .results {
+    max-height: min(320px, 40vh);
+  }
+
+  /* Room below, so the search can move up even when it's at the end of the page */
+  .page.searching .main {
+    padding-bottom: 100vh;
+  }
+}
+
+/* "You own" inside the field: phones only, where the column headings are hidden */
+.fieldLead {
+  display: none;
+}
+
+/* "18.3 pts over": under the percentage in the Now column; beside it on phones */
+.driftWords {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Far off target: said firmly, but not in orange, which is for things you can change */
 .driftBig {
-  color: var(--accent-text);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .driftSmall {
@@ -1316,6 +1446,7 @@
   gap: 8px;
   padding: 12px 0;
   border-top: 1px solid var(--border);
+  scroll-margin-top: 8px;
 }
 
 .searchField {
@@ -1371,6 +1502,35 @@
 .resultName {
   color: var(--text-2);
   font-size: 14px;
+}
+
+/* A fund the portfolio already has: shown, so the list doesn't seem to be missing it */
+.resultHave,
+.resultHave .resultName {
+  color: var(--text-3);
+  cursor: default;
+}
+
+.resultHave:hover {
+  background: none;
+}
+
+/* "+ Add "Target 2050 Trust"" with what happens next under it: what search didn't find */
+.resultOwn {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.resultOwnAdd {
+  color: var(--accent-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.resultOwnNote {
+  color: var(--text-3);
+  font-size: 13px;
 }
 
 .searchNote {
@@ -1480,6 +1640,7 @@
 /* "Fractional shares ▾" in the footer: the words are the control, the real select sits on top */
 .footSelect {
   position: relative;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1516,10 +1677,21 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .priceButtonsWide {
   flex-basis: 100%;
+}
+
+/* A fund added by name can be long: the button shortens it rather than leave the screen */
+.priceButtons button {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 38px;
 }
 
 .yourPrice {
@@ -1531,6 +1703,13 @@
 .yourPrice .linkButton {
   font-family: var(--font-num);
   font-weight: 500;
+}
+
+/* "Your price" goes on its own line under the name */
+.mixRow .yourPrice {
+  flex-basis: 100%;
+  padding-left: 18px;
+  white-space: normal;
 }
 
 .priceEditor {
@@ -1601,7 +1780,8 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(20, 19, 17, 0.38);
+  /* --drag: how far a sheet has been dragged down, 0 to 1 */
+  background: rgba(20, 19, 17, calc(0.38 * (1 - var(--drag, 0))));
 }
 
 .dialog {
@@ -1640,6 +1820,17 @@
   flex-wrap: wrap;
   gap: 10px;
   padding-top: 6px;
+}
+
+/* In a dialog taller than the screen, its buttons stay at the bottom edge */
+.dialog .dialogActions {
+  position: sticky;
+  bottom: -20px;
+  z-index: 1;
+  margin: 0 -24px -20px;
+  padding: 12px 24px 20px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }
 
 .howTo {
@@ -1746,6 +1937,13 @@
   padding-bottom: 4px;
 }
 
+/* Not usable yet: under the list, so it doesn't sit first */
+.pickerAllBelow {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
 .pickerItem:disabled {
   cursor: default;
 }
@@ -1787,7 +1985,7 @@
 .combinedHead,
 .combinedRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 72px 64px 120px;
+  grid-template-columns: minmax(0, 1fr) 64px 64px 104px 112px;
   gap: 12px;
   align-items: center;
 }
@@ -1817,16 +2015,54 @@
 }
 
 .copyBarText {
+  min-width: 0;
+  max-width: 100%;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   line-height: 1.2;
 }
 
+/* "Buy VTI $1,750.00 + 2 more": a long fund name shortens, the amount never does */
+.copyBarMain {
+  display: flex;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.copyBarFund {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copyBarRest {
+  flex: none;
+  white-space: pre; /* keeps the space before the amount */
+}
+
 .copyBarSub {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  opacity: 0.75;
+  opacity: 0.85;
+}
+
+.copyBar .primary svg {
+  flex: none;
+}
+
+/* A fund added by name: words, not a ticker, so the text face. Never cut short: the end
+   ("2050", "Class K6") is often what tells two funds apart. */
+.ownSymbol {
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* "No price found." beside the Add price link in a trade row */
+.tradeNote {
+  color: var(--text-3);
 }
 
 @media (max-width: 720px) {
@@ -1862,6 +2098,7 @@
     inset: 0;
     z-index: 55;
     background: rgba(0, 0, 0, 0.32);
+    opacity: calc(1 - var(--drag, 0));
   }
 
   .accountPanel {
@@ -1896,15 +2133,8 @@
     height: 44px;
   }
 
-  /* Title and Share on one line, switching portfolios on the next */
-  .switchLink {
-    flex-basis: 100%;
-    min-height: 32px;
-    text-align: left;
-  }
-
   .main {
-    padding: 28px 16px 120px;
+    padding: 28px 16px 48px;
   }
 
   .sentence {
@@ -1974,23 +2204,88 @@
     display: none;
   }
 
-  .mixRow,
-  .withHoldings .mixRow {
-    grid-template-columns: minmax(0, 1fr) 84px 36px;
-    grid-template-areas:
-      'fund target remove'
-      'own own own'
-      'now now now';
-    padding: 10px 0;
-    row-gap: 8px;
+  /*
+   * A fund's row: the ticker beside the target, then lines across the full width under
+   * it for the whole name, your price and Now (only once there's something to show),
+   * then "You own", written in its field. The fund cell's parts sit in the row's grid.
+   */
+  .mixRow .fundCell {
+    display: contents;
   }
 
-  .mixRow > :nth-child(1) { grid-area: fund; }
+  .mixRow,
+  .withHoldings .mixRow {
+    grid-template-columns: 8px minmax(0, 1fr) 84px 36px;
+    grid-template-areas:
+      'sw sym target remove'
+      '. name name name'
+      '. price price price';
+    column-gap: 10px;
+    row-gap: 2px;
+    padding: 10px 0;
+  }
+
+  .withHoldings .mixRow,
+  .withHoldings .mixRow.noNow {
+    grid-template-areas:
+      'sw sym target remove'
+      '. name name name'
+      '. price price price'
+      '. now now now'
+      'own own own own';
+  }
+
+  .mixRow .swatch { grid-area: sw; }
+  .mixRow .symbol { grid-area: sym; }
+  .mixRow .fundName { grid-area: name; padding-left: 0; }
+  .mixRow .yourPrice { grid-area: price; padding-left: 0; }
   .mixRow > :nth-child(2) { grid-area: target; }
   .mixRow > :last-child { grid-area: remove; }
 
-  .withHoldings .mixRow > :nth-child(3) { grid-area: own; }
-  .withHoldings .mixRow > :nth-child(4) { grid-area: now; text-align: left; }
+  .withHoldings .mixRow > :nth-child(3) { grid-area: own; margin-top: 8px; }
+  .withHoldings .mixRow > :nth-child(4) {
+    grid-area: now;
+    text-align: left;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .withHoldings .mixRow.noNow > :nth-child(4) {
+    display: none;
+  }
+
+  /* Shorter result rows, so more of them fit above the keyboard */
+  .result {
+    gap: 10px;
+    padding: 8px 10px;
+  }
+
+  .resultSymbol {
+    min-width: 52px;
+  }
+
+  .resultName {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .nowCell .driftWords {
+    display: inline;
+    margin-left: 6px;
+  }
+
+  /* Room for the copy bar only when it's there (a first visit shouldn't scroll) */
+  .withCopyBar .main {
+    padding-bottom: 120px;
+  }
+
+  .fieldLead {
+    display: inline;
+    margin-right: 2px;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    white-space: nowrap;
+  }
 
   .switch {
     margin-left: 0;
@@ -2010,6 +2305,7 @@
     inset: 0;
     z-index: 39;
     background: rgba(0, 0, 0, 0.3);
+    opacity: calc(1 - var(--drag, 0));
   }
 
   .menu {
@@ -2052,17 +2348,102 @@
     padding: 12px;
   }
 
+  /* One header for every sheet: the grab handle centred at the top, Close at the
+     right, and a way back to the first step (if there is one) at the left */
+  .sheetBar {
+    display: flex;
+    align-items: center;
+    position: relative;
+    height: 44px;
+    touch-action: none;
+  }
+
+  .sheetHandle,
+  .sheetBarBack .sheetHandle {
+    display: block;
+    position: absolute;
+    top: 6px;
+    left: calc(50% - 18px);
+  }
+
+  .sheetClose,
+  .sheetBarBack .sheetClose {
+    display: inline-flex;
+    top: 0;
+    right: 0;
+  }
+
+  .sheetBar .pickerBack {
+    height: 44px;
+    padding: 0 8px;
+  }
+
+  .accountPanel .sheetBar {
+    margin: -8px -8px 0;
+    padding-top: 8px;
+    height: 52px;
+  }
+
+  .accountPanel .sheetClose {
+    top: 8px;
+    right: 4px;
+  }
+
+  /* Sheets that scroll (the template list, a long import) keep their header */
+  .menu .sheetBar,
+  .dialog .sheetBar {
+    position: sticky;
+    top: -8px;
+    z-index: 2;
+    margin: -8px -8px 0;
+    padding-top: 8px;
+    height: 52px;
+    background: var(--raised);
+  }
+
+  .menu .sheetClose,
+  .dialog .sheetClose {
+    top: 8px;
+    right: 4px;
+  }
+
+  .dialog .sheetBar {
+    margin: -8px -16px 0;
+    background: var(--surface);
+  }
+
+  .dialog .sheetClose {
+    right: 8px;
+  }
+
+  /* The sheet header has the Close */
+  .dialogClose {
+    display: none;
+  }
+
+  /* The import steps rise from the bottom like the other sheets */
   .dialogBackdrop {
     padding: 0;
-    align-items: stretch;
+    align-items: flex-end;
   }
 
   .dialog {
     max-width: none;
-    max-height: none;
-    border-radius: 0;
-    border: 0;
-    padding: 0 16px calc(20px + env(safe-area-inset-bottom));
+    max-height: calc(100% - max(24px, env(safe-area-inset-top) + 8px));
+    border-radius: 14px 14px 0 0;
+    border-width: 1px 0 0;
+    padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+
+  .dialog .dialogHead {
+    padding-top: 0;
+    touch-action: none;
+  }
+
+  .dialog .dialogActions {
+    bottom: calc(-20px - env(safe-area-inset-bottom));
+    margin: 0 -16px calc(-20px - env(safe-area-inset-bottom));
+    padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
   }
 
   .importRow {
@@ -2100,18 +2481,35 @@
   }
 
   .combinedRow > :nth-child(1) { grid-area: fund; }
+
+  /* The whole name on its own line under the ticker, as in the portfolio card */
+  .combinedFund {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .combinedFund .fundName {
+    flex-basis: 100%;
+    padding-left: 18px;
+    font-size: 12px;
+  }
   .combinedRow > :nth-child(3) { grid-area: value; }
 
   .combinedStats {
     grid-area: stats;
     display: flex;
-    gap: 14px;
+    flex-wrap: wrap;
+    gap: 2px 12px;
     font-size: 13px;
     text-align: left;
   }
 
   .combinedStats > span:empty {
     display: none;
+  }
+
+  .combinedStats > span {
+    white-space: nowrap;
   }
 
   .dropHint {
@@ -2134,11 +2532,90 @@
     border-top: 1px solid var(--border);
   }
 
+  /* Out of the way while the fund search has the cursor */
+  .copyBar.copyBarAway {
+    display: none;
+  }
+
   .copyBar .primary {
     width: 100%;
     height: 52px;
     justify-content: center;
     font-size: 16px;
+    border: 1px solid transparent;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  /* Ink means the trades are ready. Until then the bar is a plain button that leads
+     to what's missing, or quiet words when there's nothing to do. */
+  .copyBar .barGo {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  .copyBar .primary:disabled {
+    opacity: 1;
+    background: none;
+    border-color: var(--border);
+    color: var(--text-3);
+  }
+
+  /* The quick fixes sit together on their own line, under the total */
+  .mixFoot .totalText {
+    flex-basis: 100%;
+  }
+
+  /* Scrolled into view clear of the header and the copy bar */
+  .priceEditor {
+    scroll-margin: 72px 0 96px;
+  }
+}
+
+/*
+ * Landscape phones (wide but short): the laptop layout, which suits the width, with
+ * the vertical space spent on the sentence and trades instead of margins. Taps and
+ * zoom are handled by (pointer: coarse) and the 16px fields; menus stay popovers,
+ * which fit the width better than sheets would.
+ */
+@media (min-width: 721px) and (max-height: 500px) {
+  .headerInner {
+    min-height: 52px;
+  }
+
+  .wordmark {
+    font-size: 19px;
+  }
+
+  .main {
+    padding-top: 20px;
+    padding-bottom: 40px;
+  }
+
+  .sentence {
+    font-size: 30px;
+    line-height: 1.4;
+  }
+
+  .trades {
+    margin-top: 20px;
+  }
+
+  .mix {
+    margin-top: 16px;
+  }
+
+  .recapInner {
+    min-height: 52px;
+  }
+
+  /* The import steps get nearly the whole height */
+  .dialogBackdrop {
+    padding: 8px 24px;
+  }
+
+  .dialog {
+    max-height: calc(100vh - 16px);
   }
 }
 
@@ -2150,7 +2627,40 @@
 }
 
 /* Small phones (iPhone SE and narrower): a smaller title so the header fits */
+/* iPhone SE (1st gen) and other 320px screens */
+@media (max-width: 360px) {
+  /* The pressed "$" beside the field says it */
+  .ownCell .fieldPrefix {
+    display: none;
+  }
+}
+
 @media (max-width: 400px) {
+  .mixRow,
+  .withHoldings .mixRow {
+    grid-template-columns: 8px minmax(0, 1fr) 72px 36px;
+  }
+
+  /* "You own": a little more room for the number */
+  .ownCell {
+    gap: 4px;
+  }
+
+  .ownCell .field {
+    gap: 2px;
+    padding: 0 6px;
+  }
+
+  .ownCell .fieldLead {
+    margin-right: 0;
+    font-size: 12px;
+  }
+
+  .ownCell .unitToggle button {
+    min-width: 28px;
+    padding: 0 6px;
+  }
+
   .headerInner {
     padding-left: 14px;
   }
@@ -2178,6 +2688,7 @@
  */
 @media (pointer: coarse) {
   .blank:not(.blankSelect),
+  .titleButton,
   .linkButton,
   .headLink,
   .chip,
@@ -2198,6 +2709,7 @@
   }
 
   .blank:not(.blankSelect)::after,
+  .titleButton::after,
   .linkButton::after,
   .headLink::after,
   .chip::after,
@@ -2252,5 +2764,14 @@
   .shareFallback input,
   .textFallback textarea {
     font-size: 16px;
+  }
+}
+
+/* Wide screens: use the room, so whole fund names fit on one line */
+@media (min-width: 1100px) {
+  .main,
+  .headerInner,
+  .recapInner {
+    max-width: 920px;
   }
 }
