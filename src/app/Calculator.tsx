@@ -284,12 +284,28 @@ export function Calculator() {
   }, [justAdded, funds, portfolio.id]);
 
   const focusHoldings = () => { holdingsField()?.focus(); };
-  const focusHoldingsOnShow = useRef(false);
+
+  /**
+   * Moves the cursor to a field a change inside flushSync has just drawn. In the browser
+   * flushSync draws it at once, so the cursor moves inside the tap (iPhone opens the
+   * keyboard only then). Should it not be drawn yet, it moves as soon as it is.
+   */
+  const focusAfterDraw = useRef<(() => void) | null>(null);
+  const focusDrawn = (find: () => HTMLElement | null | undefined, options?: FocusOptions, then?: (el: HTMLElement) => void) => {
+    const go = () => {
+      const el = find();
+      if (!el) return false;
+      el.focus(options);
+      then?.(el);
+      return true;
+    };
+    focusAfterDraw.current = go() ? null : () => { go(); };
+  };
   useLayoutEffect(() => {
-    if (!tracksHoldings || !focusHoldingsOnShow.current) return;
-    focusHoldingsOnShow.current = false;
-    holdingsField()?.focus();
-  }, [tracksHoldings]);
+    const go = focusAfterDraw.current;
+    focusAfterDraw.current = null;
+    go?.();
+  });
 
   /** Puts the cursor in the amount. Call it inside the tap itself, or iPhone won't open the keyboard. */
   const focusAmount = () => { amountRef.current?.focus(); };
@@ -315,11 +331,8 @@ export function Calculator() {
   /** From the guide: type what you own instead. Inside the tap, so the keyboard opens. */
   const enterByHand = () => {
     setImportGuide(false);
-    if (tracksHoldings) { focusHoldings(); return; }
-    // The fields aren't there yet: focus them as they appear. flushSync makes that happen
-    // inside this tap in the browser, which iPhone needs to open the keyboard.
-    focusHoldingsOnShow.current = true;
-    flushSync(() => actions.setTracksHoldings(true));
+    if (!tracksHoldings) flushSync(() => actions.setTracksHoldings(true));
+    focusDrawn(holdingsField);
   };
 
   // Copied-text fallback goes stale as soon as the trades change
@@ -840,11 +853,13 @@ export function Calculator() {
                     if (askPrice) setEditingPrice(s);
                   });
                   if (!askPrice) {
-                    const target = [...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" target percent"]')]
-                      .find(i => i.getAttribute('aria-label') === `${s} target percent`);
                     // Where the search was: no need to move the page (the browser would centre it)
-                    target?.focus({ preventScroll: true });
-                    target?.scrollIntoView?.({ block: 'nearest' });
+                    focusDrawn(
+                      () => [...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" target percent"]')]
+                        .find(i => i.getAttribute('aria-label') === `${s} target percent`),
+                      { preventScroll: true },
+                      el => el.scrollIntoView?.({ block: 'nearest' }),
+                    );
                   }
                 }}
                 onSearchFocus={setSearchFocused}

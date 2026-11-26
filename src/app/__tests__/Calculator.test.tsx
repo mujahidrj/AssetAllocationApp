@@ -399,7 +399,8 @@ describe('Calculator', () => {
     expect(screen.getByRole('option', { name: /VOO Vanguard S&P 500 ETF/ })).toBeInTheDocument();
     // The new results: the exact "VO" from the last ones is gone
     await waitFor(() => expect(screen.queryByRole('option', { name: /VO Corporation/ })).not.toBeInTheDocument());
-    expect(screen.getAllByRole('option')[0]).toHaveTextContent('VOO');
+    // (The sentence's pickers have options too, so look in the results)
+    expect(within(screen.getByRole('listbox')).getAllByRole('option')[0]).toHaveTextContent('VOO');
 
     await user.click(screen.getByRole('button', { name: /VOO Vanguard S&P 500 ETF/ }));
     expect(bar().className).not.toMatch(/copyBarAway/);
@@ -966,12 +967,13 @@ describe('Calculator', () => {
     renderApp();
 
     await user.click(screen.getByRole('button', { name: '+ Add fund' }));
-    await user.type(screen.getByLabelText(/add a fund/i), 'voo');
+    // Not one of the common funds shown when search is down
+    await user.type(screen.getByLabelText(/add a fund/i), 'msft');
     expect(await screen.findByText('Fund search isn’t working right now.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /\+ Add VOO/ }));
-    expect(screen.getByLabelText('VOO target percent')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /\+ Add MSFT/ }));
+    expect(screen.getByLabelText('MSFT target percent')).toBeInTheDocument();
     // Its price is looked up, so nothing to type
-    expect(screen.queryByLabelText('Price per share for VOO')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Price per share for MSFT')).not.toBeInTheDocument();
   });
 
   it('lets you type a price for a fund the lookup can’t price', async () => {
@@ -1044,7 +1046,8 @@ describe('Calculator', () => {
     const user = userEvent.setup();
     renderApp();
     await user.click(screen.getByRole('button', { name: '+ Add fund' }));
-    await user.type(screen.getByLabelText(/add a fund/i), 'SPUS');
+    // Not one of the common funds, which would show instead
+    await user.type(screen.getByLabelText(/add a fund/i), 'ARKK');
     expect(await screen.findByText(/fund search isn’t working right now/i)).toBeInTheDocument();
   });
 
