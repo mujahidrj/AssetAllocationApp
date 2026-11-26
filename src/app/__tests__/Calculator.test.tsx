@@ -12,6 +12,13 @@ const seed = (p: Partial<Portfolio>) => saveDeviceWorkspace({ portfolios: [{ ...
 
 const renderApp = () => render(<Calculator />);
 
+/** Resolves once `count` more popstate events have fired (jsdom moves through history asynchronously). */
+const popstates = (count: number) => new Promise<void>(resolve => {
+  let seen = 0;
+  const onPop = () => { if (++seen === count) { window.removeEventListener('popstate', onPop); resolve(); } };
+  window.addEventListener('popstate', onPop);
+});
+
 describe('Calculator', () => {
   it('starts by asking for a starting point, then splits new money by target', async () => {
     const user = userEvent.setup();
@@ -232,8 +239,11 @@ describe('Calculator', () => {
     act(() => { window.history.back(); });
     expect(await screen.findByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
     // Forward onto the step it left goes back to where it is, so one Back still closes it
+    // Forward, then the sheet's own step back: wait for both, as the state reads level 1 before either
+    const settled = popstates(2);
     act(() => { window.history.forward(); });
-    await waitFor(() => expect(window.history.state).toMatchObject({ aaSheet: 'portfolios', level: 1 }));
+    await act(() => settled);
+    expect(window.history.state).toMatchObject({ aaSheet: 'portfolios', level: 1 });
     expect(screen.getByRole('dialog', { name: 'Portfolios' })).toBeInTheDocument();
     act(() => { window.history.back(); });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -274,8 +284,10 @@ describe('Calculator', () => {
     fireEvent.change(input, {
       target: { files: [new File([fidelityCsv], 'Portfolio_Positions_Nov-22-2026.csv', { type: 'text/csv' })] },
     });
-    const dialog = await screen.findByRole('dialog', { name: 'Import holdings into Roth IRA' });
-    expect(within(dialog).getByText('Fidelity · Portfolio_Positions_Nov-22-2026.csv')).toBeInTheDocument();
+    // The guide has the same title, so wait for the file's name rather than the dialog
+    await waitFor(() => expect(guide).not.toBeInTheDocument());
+    const dialog = screen.getByRole('dialog', { name: 'Import holdings into Roth IRA' });
+    expect(await within(dialog).findByText('Fidelity · Portfolio_Positions_Nov-22-2026.csv')).toBeInTheDocument();
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     expect(window.history.state).toMatchObject({ aaSheet: 'import', level: 1 });
     expect(window.history.length).toBe(entries);
@@ -387,7 +399,8 @@ describe('Calculator', () => {
     expect(screen.getByRole('option', { name: /VOO Vanguard S&P 500 ETF/ })).toBeInTheDocument();
     // The new results: the exact "VO" from the last ones is gone
     await waitFor(() => expect(screen.queryByRole('option', { name: /VO Corporation/ })).not.toBeInTheDocument());
-    expect(screen.getAllByRole('option')[0]).toHaveTextContent('VOO');
+    // (The sentence's pickers have options too, so look in the results)
+    expect(within(screen.getByRole('listbox')).getAllByRole('option')[0]).toHaveTextContent('VOO');
 
     await user.click(screen.getByRole('button', { name: /VOO Vanguard S&P 500 ETF/ }));
     expect(bar().className).not.toMatch(/copyBarAway/);
@@ -954,12 +967,13 @@ describe('Calculator', () => {
     renderApp();
 
     await user.click(screen.getByRole('button', { name: '+ Add fund' }));
-    await user.type(screen.getByLabelText(/add a fund/i), 'voo');
+    // Not one of the common funds shown when search is down
+    await user.type(screen.getByLabelText(/add a fund/i), 'msft');
     expect(await screen.findByText('Fund search isn’t working right now.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /\+ Add VOO/ }));
-    expect(screen.getByLabelText('VOO target percent')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /\+ Add MSFT/ }));
+    expect(screen.getByLabelText('MSFT target percent')).toBeInTheDocument();
     // Its price is looked up, so nothing to type
-    expect(screen.queryByLabelText('Price per share for VOO')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Price per share for MSFT')).not.toBeInTheDocument();
   });
 
   it('lets you type a price for a fund the lookup can’t price', async () => {
@@ -982,7 +996,9 @@ describe('Calculator', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit your price for TRUST2050' }));
     await user.click(screen.getByRole('button', { name: 'Remove my price' }));
-    expect(screen.getByRole('button', { name: 'Add price' })).toBeInTheDocument();
+    // Offered again where the trades are, as well as on the fund's row
+    expect(within(screen.getByRole('region', { name: /your trades/i })).getByRole('button', { name: 'Add price' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Add price' })).toHaveLength(2);
   });
 
   it('shows all portfolios together, with where new money helps most', async () => {
@@ -1129,7 +1145,8 @@ describe('Calculator', () => {
     const user = userEvent.setup();
     renderApp();
     await user.click(screen.getByRole('button', { name: '+ Add fund' }));
-    await user.type(screen.getByLabelText(/add a fund/i), 'SPUS');
+    // Not one of the common funds, which would show instead
+    await user.type(screen.getByLabelText(/add a fund/i), 'ARKK');
     expect(await screen.findByText(/fund search isn’t working right now/i)).toBeInTheDocument();
   });
 

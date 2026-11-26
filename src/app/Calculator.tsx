@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { looksLikeTicker } from './searchUtils';
 import { useAuth } from '../lib/useAuth';
@@ -81,6 +81,9 @@ const readText = (file: File) => new Promise<string>((resolve, reject) => {
   reader.onerror = () => reject(reader.error);
   reader.readAsText(file);
 });
+
+/** The first "you own" field, when shown. */
+const holdingsField = () => document.querySelector<HTMLInputElement>('input[aria-label*="you own, in"]');
 
 export function Calculator() {
   const { user, signInWithGoogle, signOut, problem: authProblem, clearProblem } = useAuth();
@@ -303,9 +306,29 @@ export function Calculator() {
     if (justAdded.portfolioId !== portfolio.id || !fund || (fund.target > 0 && Math.abs(total - 100) < 0.01)) setJustAdded(null);
   }, [justAdded, funds, portfolio.id]);
 
-  const focusHoldings = () => {
-    document.querySelector<HTMLInputElement>('input[aria-label*="you own, in"]')?.focus();
+  const focusHoldings = () => { holdingsField()?.focus(); };
+
+  /**
+   * Moves the cursor to a field a change inside flushSync has just drawn. In the browser
+   * flushSync draws it at once, so the cursor moves inside the tap (iPhone opens the
+   * keyboard only then). Should it not be drawn yet, it moves as soon as it is.
+   */
+  const focusAfterDraw = useRef<(() => void) | null>(null);
+  const focusDrawn = (find: () => HTMLElement | null | undefined, options?: FocusOptions, then?: (el: HTMLElement) => void) => {
+    const go = () => {
+      const el = find();
+      if (!el) return false;
+      el.focus(options);
+      then?.(el);
+      return true;
+    };
+    focusAfterDraw.current = go() ? null : () => { go(); };
   };
+  useLayoutEffect(() => {
+    const go = focusAfterDraw.current;
+    focusAfterDraw.current = null;
+    go?.();
+  });
 
   /** Puts the cursor in the amount. Call it inside the tap itself, or iPhone won't open the keyboard. */
   const focusAmount = () => { amountRef.current?.focus(); };
@@ -332,7 +355,7 @@ export function Calculator() {
   const enterByHand = () => {
     setImportGuide(false);
     if (!tracksHoldings) flushSync(() => actions.setTracksHoldings(true));
-    focusHoldings();
+    focusDrawn(holdingsField);
   };
 
   // Copied-text fallback goes stale as soon as the trades change
@@ -885,11 +908,13 @@ export function Calculator() {
                     if (askPrice) setEditingPrice(s);
                   });
                   if (!askPrice) {
-                    const target = [...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" target percent"]')]
-                      .find(i => i.getAttribute('aria-label') === `${s} target percent`);
                     // Where the search was: no need to move the page (the browser would centre it)
-                    target?.focus({ preventScroll: true });
-                    target?.scrollIntoView?.({ block: 'nearest' });
+                    focusDrawn(
+                      () => [...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" target percent"]')]
+                        .find(i => i.getAttribute('aria-label') === `${s} target percent`),
+                      { preventScroll: true },
+                      el => el.scrollIntoView?.({ block: 'nearest' }),
+                    );
                   }
                 }}
                 onSearchFocus={setSearchFocused}
