@@ -50,7 +50,8 @@ interface SentenceProps {
   all?: boolean;
 }
 
-const AMOUNT_PLACEHOLDER = '2,500';
+/** Words, not a number, so an empty blank can't be mistaken for one already filled in. */
+const AMOUNT_PLACEHOLDER = 'how much';
 
 /**
  * "I want to [add] [$2,500] to [my Roth IRA]."
@@ -99,7 +100,7 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
           <>
             {' '}
             <label className={`${styles.blank} ${styles.amountBlank}`}>
-              <span className={styles.dollar}>$</span>
+              {amount && <span className={styles.dollar}>$</span>}
               <span className={styles.sizer} data-value={amount || AMOUNT_PLACEHOLDER}>
                 <input
                   ref={amountRef}

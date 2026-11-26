@@ -192,3 +192,24 @@ export function cleanResults(raw: Array<{ symbol?: string; description?: string 
   });
   return out.slice(0, 8);
 }
+
+/** Longest name kept for a fund added by name. Share links accept the same. */
+export const OWN_NAME_MAX = 60;
+
+/**
+ * What to call a fund of your own that search can't find: its ticker if it looks
+ * like one, otherwise its name as typed (without the characters share links use).
+ */
+export function ownFundSymbol(typed: string): string {
+  const upper = typed.trim().toUpperCase();
+  if (looksLikeTicker(upper)) return upper;
+  const name = typed.replace(/[,:]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (name.length <= OWN_NAME_MAX) return name;
+  // Too long: end at a whole word ("…Trust Select", never "…Trust Se")
+  const cut = name.slice(0, OWN_NAME_MAX + 1);
+  const space = cut.lastIndexOf(' ');
+  return (space > OWN_NAME_MAX / 2 ? cut.slice(0, space) : name.slice(0, OWN_NAME_MAX)).trim();
+}
+
+/** Could be a ticker the price lookup knows ("VTI", "BRK.B", "^GSPC"), rather than a fund's name. */
+export const looksLikeTicker = (symbol: string) => /^[A-Za-z0-9.^-]{1,12}$/.test(symbol.trim());

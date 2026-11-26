@@ -669,7 +669,10 @@
 }
 
 .pickerFund {
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pickerNote {
@@ -965,6 +968,31 @@
   font-family: var(--font-serif);
   font-weight: 500;
   font-size: 22px;
+  text-wrap: balance;
+}
+
+/* The portfolio card's name: opens the portfolios, like the name in the sentence.
+   Inline, so a long name wraps and the chevron follows its last word. */
+.titleButton {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.titleButton svg {
+  display: inline-block;
+  vertical-align: 0.12em;
+  margin-left: 6px;
+  color: var(--accent);
+}
+
+.titleButton:hover svg {
+  color: var(--accent-hover);
 }
 
 .cardSum {
@@ -1100,9 +1128,10 @@
   row-gap: 4px;
 }
 
-/* Separators trail each item, so a wrapped line never starts with "·" */
+/* Separators trail each item, so a wrapped line never starts with "·". Items can
+   wrap: a fund added by name can be long. */
 .footItem {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .footItem:not(:last-child)::after {
@@ -1110,9 +1139,14 @@
   margin: 0 7px;
 }
 
+.footProblem {
+  color: var(--text-2);
+}
+
 .cardFoot .linkButton {
   font-weight: 500;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 /* ---------- Mix table ---------- */
@@ -1418,6 +1452,24 @@
   font-size: 14px;
 }
 
+/* "+ Add "Target 2050 Trust"" with what happens next under it: what search didn't find */
+.resultOwn {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.resultOwnAdd {
+  color: var(--accent-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.resultOwnNote {
+  color: var(--text-3);
+  font-size: 13px;
+}
+
 .searchNote {
   padding: 10px 12px;
   color: var(--text-3);
@@ -1525,6 +1577,7 @@
 /* "Fractional shares ▾" in the footer: the words are the control, the real select sits on top */
 .footSelect {
   position: relative;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -1561,10 +1614,21 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .priceButtonsWide {
   flex-basis: 100%;
+}
+
+/* A fund added by name can be long: the button shortens it rather than leave the screen */
+.priceButtons button {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 38px;
 }
 
 .yourPrice {
@@ -1576,6 +1640,30 @@
 .yourPrice .linkButton {
   font-family: var(--font-num);
   font-weight: 500;
+}
+
+/* A fund's row: "your price" goes on its own line under the name. The name and the
+   words beside it shrink to share the first line rather than wrap under it. */
+.mixRow .fundCell {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.mixRow .fundName,
+.mixRow .ownSymbol {
+  flex: 1 1 0;
+}
+
+/* A fund added by name fills the line, so "0%, not buying" goes under it */
+.mixRow .ownSymbol + .fundName {
+  flex-basis: 100%;
+  padding-left: 18px;
+}
+
+.mixRow .yourPrice {
+  flex-basis: 100%;
+  padding-left: 18px;
+  white-space: normal;
 }
 
 .priceEditor {
@@ -1874,16 +1962,54 @@
 }
 
 .copyBarText {
+  min-width: 0;
+  max-width: 100%;
   display: inline-flex;
   flex-direction: column;
   align-items: center;
   line-height: 1.2;
 }
 
+/* "Buy VTI $1,750.00 + 2 more": a long fund name shortens, the amount never does */
+.copyBarMain {
+  display: flex;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.copyBarFund {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copyBarRest {
+  flex: none;
+  white-space: pre; /* keeps the space before the amount */
+}
+
 .copyBarSub {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-  opacity: 0.75;
+  opacity: 0.85;
+}
+
+.copyBar .primary svg {
+  flex: none;
+}
+
+/* A fund added by name: words, not a ticker, so the text face. Never cut short: the end
+   ("2050", "Class K6") is often what tells two funds apart. */
+.ownSymbol {
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* "No price found." beside the Add price link in a trade row */
+.tradeNote {
+  color: var(--text-3);
 }
 
 @media (max-width: 720px) {
@@ -1952,13 +2078,6 @@
 
   .shareButton {
     height: 44px;
-  }
-
-  /* Title and Share on one line, switching portfolios on the next */
-  .switchLink {
-    flex-basis: 100%;
-    min-height: 32px;
-    text-align: left;
   }
 
   .main {
@@ -2306,6 +2425,11 @@
   .mixFoot .totalText {
     flex-basis: 100%;
   }
+
+  /* Scrolled into view clear of the header and the copy bar */
+  .priceEditor {
+    scroll-margin: 72px 0 96px;
+  }
 }
 
 /* Small or short screens: two messages at most, so they don't cover the trades */
@@ -2344,6 +2468,7 @@
  */
 @media (pointer: coarse) {
   .blank:not(.blankSelect),
+  .titleButton,
   .linkButton,
   .headLink,
   .chip,
@@ -2364,6 +2489,7 @@
   }
 
   .blank:not(.blankSelect)::after,
+  .titleButton::after,
   .linkButton::after,
   .headLink::after,
   .chip::after,

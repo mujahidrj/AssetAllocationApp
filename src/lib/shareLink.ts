@@ -2,10 +2,23 @@ import type { Stock } from '../components/calculator/types';
 
 /**
  * A share link carries a target mix in the URL, e.g. `?mix=SPUS:50,SPTE:40,SPWO:10`.
- * Only tickers and percentages go in the link; nothing about holdings or amounts.
+ * Only funds and percentages go in the link; nothing about holdings or amounts.
+ * A fund is a ticker, or the name of a fund added by name (a 401(k) fund with no ticker).
  */
 const PARAM = 'mix';
-const SYMBOL = /^[A-Z0-9.^-]{1,12}$/;
+const TICKER = /^[A-Z0-9.^-]{1,12}$/;
+/**
+ * A fund's name, as the app saves one: at most 60 characters with at least one letter,
+ * and nothing that could break the link apart (`,` `:`) or read as markup (`<` `>`).
+ */
+const NAME = /^(?=.*\p{L})[^,:<>\p{Cc}]{1,60}$/u;
+
+/** The fund as it goes in the portfolio: tickers in capitals, names as they were written. */
+function fundSymbol(raw: string): string | null {
+  const text = raw.trim().replace(/\s+/g, ' ');
+  if (/^[A-Za-z0-9.^-]{1,12}$/.test(text)) return TICKER.test(text.toUpperCase()) ? text.toUpperCase() : null;
+  return NAME.test(text) ? text : null;
+}
 
 export function encodeMix(stocks: Stock[]): string {
   return stocks
@@ -21,9 +34,9 @@ export function decodeMix(value: string | null | undefined): Stock[] | null {
   for (const part of value.split(',')) {
     const [rawSymbol, rawPercent, extra] = part.split(':');
     if (extra !== undefined || !rawSymbol || !rawPercent) return null;
-    const name = rawSymbol.trim().toUpperCase();
+    const name = fundSymbol(rawSymbol);
     const percentage = Number(rawPercent);
-    if (!SYMBOL.test(name) || !Number.isFinite(percentage) || percentage <= 0 || percentage > 100) return null;
+    if (!name || !Number.isFinite(percentage) || percentage <= 0 || percentage > 100) return null;
     if (stocks.some(s => s.name === name)) return null;
     stocks.push({ name, percentage });
   }
