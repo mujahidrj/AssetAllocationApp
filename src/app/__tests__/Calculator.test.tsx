@@ -484,6 +484,9 @@ describe('Calculator', () => {
 
     await user.click(screen.getByRole('button', { name: 'my HSA' }));
     await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: 'Delete HSA' }));
+    // Deleting the open portfolio opens the next one; switch back to delete Roth IRA too
+    await user.click(screen.getByRole('button', { name: 'my Kids' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: /^Roth IRA/ }));
     await user.click(screen.getByRole('button', { name: 'my Roth IRA' }));
     await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: 'Delete Roth IRA' }));
 
@@ -669,7 +672,7 @@ describe('Calculator', () => {
     renderApp();
     await user.type(screen.getByLabelText('Amount'), '500');
     expect(screen.getByRole('heading', { name: 'Getting prices…' })).toBeInTheDocument();
-    expect(screen.getByText(/Your trades show up once VXUS has a price\./)).toBeInTheDocument();
+    expect(screen.getByText(/You entered VXUS in shares, so your trades show up once it has a price\./)).toBeInTheDocument();
   });
 
   it('says when removing more than you own sells everything', async () => {
