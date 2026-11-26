@@ -45,7 +45,8 @@ export interface RemovedFund {
 
 export interface RemovedPortfolio {
   portfolio: Portfolio;
-  index: number;
+  /** The portfolios that came after it, so Undo puts it back in place even if others were deleted since */
+  followedBy: string[];
   wasActive: boolean;
 }
 
@@ -362,7 +363,11 @@ export function usePortfolios(user: User | null) {
     remove: useCallback((id: string): RemovedPortfolio | null => {
       const index = workspace.portfolios.findIndex(p => p.id === id);
       if (index === -1 || workspace.portfolios.length <= 1) return null;
-      const removed: RemovedPortfolio = { portfolio: workspace.portfolios[index], index, wasActive: workspace.activeId === id };
+      const removed: RemovedPortfolio = {
+        portfolio: workspace.portfolios[index],
+        followedBy: workspace.portfolios.slice(index + 1).map(p => p.id),
+        wasActive: workspace.activeId === id,
+      };
       setWorkspace(ws => {
         const portfolios = ws.portfolios.filter(p => p.id !== id);
         if (portfolios.length === 0 || portfolios.length === ws.portfolios.length) return ws;
@@ -377,7 +382,8 @@ export function usePortfolios(user: User | null) {
       setWorkspace(ws => {
         if (ws.portfolios.some(p => p.id === saved.portfolio.id)) return ws;
         const portfolios = [...ws.portfolios];
-        portfolios.splice(Math.min(saved.index, portfolios.length), 0, saved.portfolio);
+        const next = portfolios.findIndex(p => saved.followedBy.includes(p.id));
+        portfolios.splice(next === -1 ? portfolios.length : next, 0, saved.portfolio);
         return { ...ws, portfolios, activeId: saved.wasActive ? saved.portfolio.id : ws.activeId };
       }), []),
   };
