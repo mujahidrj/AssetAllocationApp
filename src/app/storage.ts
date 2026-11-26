@@ -92,6 +92,19 @@ const withPrices = (ws: Workspace, raw: unknown): Workspace => {
   return Object.keys(manualPrices).length > 0 ? { ...ws, manualPrices } : ws;
 };
 
+/** Fund colours (slots 0–9 by symbol), for symbols still in a portfolio. */
+const withColors = (ws: Workspace, raw: unknown): Workspace => {
+  if (typeof raw !== 'object' || raw === null) return ws;
+  const present = new Set(ws.portfolios.flatMap(p => [...p.funds.map(f => f.symbol), ...Object.keys(p.holdings)]));
+  const fundColors: Record<string, number> = {};
+  Object.entries(raw as Record<string, unknown>).forEach(([symbol, slot]) => {
+    if (present.has(symbol) && symbol !== '__proto__' && Number.isInteger(slot) && (slot as number) >= 0 && (slot as number) < 10) {
+      fundColors[symbol] = slot as number;
+    }
+  });
+  return Object.keys(fundColors).length > 0 ? { ...ws, fundColors } : ws;
+};
+
 function cleanWorkspace(raw: unknown): Workspace | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const data = raw as Partial<Workspace>;
@@ -100,7 +113,7 @@ function cleanWorkspace(raw: unknown): Workspace | null {
     .filter((p): p is Portfolio => p !== null);
   if (portfolios.length === 0) return null;
   const activeId = portfolios.some(p => p.id === data.activeId) ? (data.activeId as string) : portfolios[0].id;
-  return withPrices({ portfolios, activeId }, data.manualPrices);
+  return withColors(withPrices({ portfolios, activeId }, data.manualPrices), data.fundColors);
 }
 
 /* ---------- This device ---------- */
@@ -190,7 +203,7 @@ export async function loadCloudWorkspace(uid: string): Promise<Workspace | null>
       }, id)!;
     });
     const activeId = portfolios.some(p => p.id === stocksData.activeId) ? stocksData.activeId as string : portfolios[0].id;
-    return withPrices({ portfolios, activeId }, stocksData.manualPrices);
+    return withColors(withPrices({ portfolios, activeId }, stocksData.manualPrices), stocksData.fundColors);
   }
 
   const holdings = holdingsFromPositions(positionsData.positions as CurrentPosition[] | undefined);
@@ -217,11 +230,12 @@ export async function saveCloudWorkspace(uid: string, ws: Workspace): Promise<vo
         ...(p.templateId ? { templateId: p.templateId } : {}),
         ...(p.wholeShares ? { wholeShares: true } : {}),
         ...(typeof p.retirement === 'boolean' ? { retirement: p.retirement } : {}),
-        ...(p.lastAmount ? { lastAmount: p.lastAmount } : {}),
+        ...(p.lastAmount ? { lastAmount: p.lastAmount.slice(0, 40) } : {}),
         ...(p.lastVerb ? { lastVerb: p.lastVerb } : {}),
       })),
       activeId: ws.activeId,
       manualPrices: ws.manualPrices ?? {},
+      fundColors: ws.fundColors ?? {},
     }),
     setDoc(doc(db, 'userPositions', uid), {
       positions: positionsFromHoldings(first.holdings),

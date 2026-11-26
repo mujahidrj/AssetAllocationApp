@@ -1000,12 +1000,43 @@ describe('Calculator', () => {
     expect(screen.getByText(/Here are/).closest('p')).toHaveTextContent('Here are all my portfolios together.');
     expect(screen.getByRole('heading', { name: 'All portfolios' })).toBeInTheDocument();
     const helps = screen.getByRole('region', { name: 'Where new money helps most' });
-    expect(within(helps).getByText(/27\.3% behind · \$3,000\.00 short/)).toBeInTheDocument();
+    expect(within(helps).getByText(/27\.3 pts under target · \$3,000\.00 short/)).toBeInTheDocument();
 
     await user.click(within(helps).getByRole('button', { name: 'Roth IRA' }));
     expect(screen.getByRole('button', { name: 'my Roth IRA' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: /your trades/i })).toBeInTheDocument();
     // Ready to type the new money
+    expect(screen.getByLabelText('Amount')).toHaveFocus();
+    expect(screen.getByLabelText('What you want to do')).toHaveValue('add');
+  });
+
+  it('opens a portfolio from All portfolios as it was left, apart from new money', async () => {
+    saveDeviceWorkspace({
+      portfolios: [
+        { ...emptyPortfolio('a', 'Roth IRA'), funds: [{ symbol: 'VTI', target: 100 }], tracksHoldings: true, holdings: { VTI: { kind: 'dollars', amount: 1000 } } },
+        { ...emptyPortfolio('b', 'HSA'), funds: [{ symbol: 'VTI', target: 50 }, { symbol: 'BND', target: 50 }], tracksHoldings: true, holdings: { VTI: { kind: 'dollars', amount: 1000 } }, lastAmount: '300', lastVerb: 'out' },
+      ],
+      activeId: 'a',
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole('button', { name: 'my Roth IRA' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: /All portfolios/ }));
+
+    // The portfolio's own row: as it was left
+    const list = screen.getAllByRole('button', { name: 'HSA' });
+    await user.click(list[list.length - 1]);
+    expect(screen.getByLabelText('What you want to do')).toHaveValue('out');
+    expect(screen.getByLabelText('Amount')).toHaveValue('300');
+    expect(loadDeviceWorkspace()?.portfolios[1]).toMatchObject({ lastAmount: '300', lastVerb: 'out' });
+
+    // "Where new money helps most": new money, so "add" with the amount cleared
+    await user.click(screen.getByRole('button', { name: 'my HSA' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: /All portfolios/ }));
+    const helps = screen.getByRole('region', { name: 'Where new money helps most' });
+    await user.click(within(helps).getByRole('button', { name: 'HSA' }));
+    expect(screen.getByLabelText('What you want to do')).toHaveValue('add');
+    expect(screen.getByLabelText('Amount')).toHaveValue('');
     expect(screen.getByLabelText('Amount')).toHaveFocus();
   });
 
@@ -1029,8 +1060,8 @@ describe('Calculator', () => {
     await user.click(screen.getByRole('button', { name: 'my HSA' }));
     await user.click(within(screen.getByRole('dialog', { name: 'Portfolios' })).getByRole('button', { name: /Roth IRA/ }));
     expect(screen.getByLabelText('What you want to do')).toHaveValue('add');
-    expect(screen.getByLabelText('Amount')).toHaveValue('2500');
-    expect(loadDeviceWorkspace()?.portfolios[0]).toMatchObject({ lastAmount: '2500', lastVerb: 'add' });
+    expect(screen.getByLabelText('Amount')).toHaveValue('2,500');
+    expect(loadDeviceWorkspace()?.portfolios[0]).toMatchObject({ lastAmount: '2,500', lastVerb: 'add' });
   });
 
   it('puts All portfolios under the list until it can be used, and names the portfolio in Rename and Copy', async () => {
@@ -1054,17 +1085,18 @@ describe('Calculator', () => {
   });
 
   it('opens the share sheet on phones, and copies the link where there is none', async () => {
-    seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 100 }] });
+    seed({ name: 'Roth IRA', funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'BND', target: 40 }] });
     const shareSheet = vi.fn(() => Promise.resolve());
     const original = window.matchMedia;
     Object.defineProperty(navigator, 'share', { value: shareSheet, configurable: true });
     window.matchMedia = ((q: string) => ({ matches: q === '(pointer: coarse)', media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
-    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
     try {
+      // user-event puts its own clipboard in place: spy on it after
       const user = userEvent.setup();
+      const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
       renderApp();
       await user.click(screen.getByRole('button', { name: 'Share targets' }));
-      expect(shareSheet).toHaveBeenCalledWith(expect.objectContaining({ title: 'Roth IRA targets', url: expect.stringContaining('mix=') }));
+      expect(shareSheet).toHaveBeenCalledWith({ text: 'Roth IRA targets: VTI 60%, BND 40%', url: expect.stringContaining('mix=') });
       expect(writeText).not.toHaveBeenCalled();
       // The sheet says what happened: no "Link copied"
       expect(screen.queryByRole('button', { name: 'Link copied' })).not.toBeInTheDocument();

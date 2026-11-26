@@ -51,6 +51,8 @@ export interface Workspace {
   activeId: string;
   /** Typed prices by symbol, shared by every portfolio. Used only when the lookup has none. */
   manualPrices?: Record<string, ManualPrice>;
+  /** Each fund's colour (0–9) by symbol, kept so a fund's colour never changes. See colors.ts. */
+  fundColors?: Record<string, number>;
 }
 
 export const newPortfolioId = () =>

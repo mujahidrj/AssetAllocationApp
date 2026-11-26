@@ -22,7 +22,8 @@ export function driftWords(n: number, withTarget = false): string {
   const r = Math.round(n * 10) / 10;
   if (r === 0) return 'on target';
   const size = Math.abs(r);
-  return `${+size.toFixed(1)} ${size === 1 ? 'pt' : 'pts'} ${r > 0 ? 'over' : 'under'}${withTarget ? ' target' : ''}`;
+  // One decimal always, like the percentages beside it ("11.0 pts under" next to "11.0%")
+  return `${size.toFixed(1)} ${size === 1 ? 'pt' : 'pts'} ${r > 0 ? 'over' : 'under'}${withTarget ? ' target' : ''}`;
 }
 
 /** "+7.9" / "−7.8" / "0.0" */

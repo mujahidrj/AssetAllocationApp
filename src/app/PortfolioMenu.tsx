@@ -181,7 +181,6 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
             <button type="button" className={styles.pickerItem} onClick={() => { onNew(); onClose(); }}>
               <span className={`${styles.pickerLabel} ${styles.pickerAction}`}>+ New portfolio</span>
             </button>
-            {all && portfolios.length > 1 && all.count < 2 && allRow(true)}
             {!showingAll && <div className={styles.pickerFoot}>
               <button type="button" className={styles.pickerItem} onClick={() => setStep('mix')}>
                 <span className={styles.pickerLabel}>Use a template…</span>
@@ -201,6 +200,8 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
                 </button>
               )}
             </div>}
+            {/* Not usable yet: last, so the actions above don't look like they belong to it */}
+            {all && portfolios.length > 1 && all.count < 2 && allRow(true)}
           </>
         ) : (
           <>

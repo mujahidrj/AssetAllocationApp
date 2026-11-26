@@ -21,8 +21,8 @@ import { displayName, isRetirement, sentenceName, type Fund, type ManualPrice, t
 import { furthestOff, heldValues, makePlan, offTargets, valuesAfter, type PriceMap } from './plan';
 import { PortfolioMenu } from './PortfolioMenu';
 import { Sentence } from './Sentence';
-import { describeMix, matchingTemplate, templates } from './templates';
-import { colorsBySymbol } from './colors';
+import { matchingTemplate, templates } from './templates';
+import { assignFundColors, colorVar, symbolsOf } from './colors';
 import { Trades, type SellChoice } from './Trades';
 import { tradesCsv, tradesText } from './tradeText';
 import { usePortfolios, type RemovedFund, type RemovedPortfolio } from './usePortfolios';
@@ -178,8 +178,12 @@ export function Calculator() {
 
   // Each portfolio remembers what was last typed in the sentence: brought back on
   // returning to it (or to the page), saved as it changes
-  const sentenceKey = waitingForAccount ? null : `${savedTo}:${portfolio.id}`;
+  // (Not until the portfolios in use have loaded: just after signing out, the account's are
+  // still showing, and must not be taken for the device's.)
+  const sentenceKey = ready ? `${savedTo}:${portfolio.id}` : null;
   const sentenceFor = useRef<string | null>(null);
+  const openId = useRef(portfolio.id);
+  useEffect(() => { openId.current = portfolio.id; });
   useEffect(() => {
     if (sentenceKey === null || sentenceFor.current === sentenceKey) return;
     sentenceFor.current = sentenceKey;
@@ -338,11 +342,10 @@ export function Calculator() {
   const combined = useMemo(() => combinePortfolios(workspace.portfolios, prices), [workspace.portfolios, prices]);
   const showingAll = view === 'all' && combined.portfolios.length >= 2;
 
-  // Each fund keeps one colour in every view: picked from its symbol, across all portfolios,
-  // so two funds don't share one until there are more than ten
-  const everySymbol = [...new Set(workspace.portfolios.flatMap(p => [...p.funds.map(f => f.symbol), ...Object.keys(p.holdings)]))].sort();
-  const fundColors = useMemo(() => colorsBySymbol(everySymbol), [everySymbol.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
-  const colorOf = useCallback((s: string) => fundColors[s] ?? 'var(--fund-5)', [fundColors]);
+  // Each fund keeps one colour in every view (colors.ts). A fund just added shows the colour
+  // it's about to be given.
+  const fundColors = useMemo(() => assignFundColors(symbolsOf(workspace), workspace.fundColors), [workspace]);
+  const colorOf = useCallback((s: string) => colorVar(Object.prototype.hasOwnProperty.call(fundColors, s) ? fundColors[s] : 4), [fundColors]);
 
   const missingPrices = symbols.filter(s => priceData.info[s]?.status === 'missing' && !manualPrices[s]);
 
@@ -381,7 +384,7 @@ export function Calculator() {
         ? { text: `You own $${formatAmountInput(plan.heldTotal)}, so this sells everything.`, strong: true }
         : { text: "Selling from whatever's furthest over target first." };
     }
-    return { text: selling ? 'Buying and selling so every fund lands on target.' : "Buying only what's behind target, so nothing gets sold." };
+    return { text: selling ? 'Buying and selling so every fund lands on target.' : "Buying only what's under target, so nothing gets sold." };
   })();
 
   const copyTrades = async () => {
@@ -411,7 +414,9 @@ export function Calculator() {
     const link = buildShareLink(stocksFromFunds(funds));
     if (typeof navigator.share === 'function' && window.matchMedia?.('(pointer: coarse)').matches) {
       try {
-        await navigator.share({ title: `${displayName(portfolio)} targets`, text: `Targets for ${displayName(portfolio)}: ${describeMix(funds)}`, url: link });
+        // The message reads "Roth IRA targets: VTI 60%, VXUS 30%, BND 10%", then the link
+        const targets = funds.filter(f => f.target > 0).map(f => `${f.symbol} ${+f.target.toFixed(2)}%`).join(', ');
+        await navigator.share({ text: `${displayName(portfolio)} targets: ${targets}`, url: link });
         return 'shared';
       } catch (e) {
         if ((e as DOMException)?.name === 'AbortError') return 'cancelled';
@@ -517,10 +522,12 @@ export function Calculator() {
       setAmountText(formatAmountInput(choice.cashAmount));
     }
     setImporting(null);
+    const importedInto = portfolio.id;
     showFlash(undoNotice(`imported-${Date.now()}`, broker ? `Holdings imported from ${broker}.` : 'Holdings imported.', () => {
       actions.restoreHoldings(snapshot);
       priceActions.restoreManualPrices(pricesBefore);
-      if (choice.cashAmount) { setVerb(before.verb); setAmountText(before.amountText); }
+      // The sentence only if it's still that portfolio's (another one's would be overwritten)
+      if (choice.cashAmount && openId.current === importedInto) { setVerb(before.verb); setAmountText(before.amountText); }
     }));
   };
 
@@ -659,7 +666,7 @@ export function Calculator() {
 
   // Room below the search while it's in use, kept between funds added in a row so the page doesn't jump
   return (
-    <div className={`${styles.page} ${searchFocused || (searchOpen && funds.length > 0) ? styles.searching : ''} ${!showingAll && !waitingForAccount && plan.status !== 'needs-mix' ? styles.withCopyBar : ''}`}>
+    <div className={`${styles.page} ${searchFocused || (searchOpen && funds.length > 0) ? styles.searching : ''} ${hasCopy ? styles.withCopyBar : ''}`}>
       <Header
         user={user}
         savedTo={savedTo}
@@ -796,10 +803,21 @@ export function Calculator() {
             combined={combined}
             colorOf={colorOf}
             onOpen={id => {
-              // From "where new money helps most": ready to type the new money
+              openPortfolio(id);
+              window.scrollTo?.({ top: 0, behavior: 'smooth' });
+            }}
+            onAddMoney={id => {
+              // Ready to type the new money: "add", the cursor in the amount (inside the tap,
+              // for the keyboard), and the amount selected so typing replaces it. An amount
+              // that was being taken out isn't new money: it's cleared.
+              const p = workspace.portfolios.find(x => x.id === id);
               flushSync(() => openPortfolio(id));
-              flushSync(() => setVerb('add'));
+              flushSync(() => {
+                if ((p?.lastVerb ?? 'add') !== 'add') setAmountText('');
+                setVerb('add');
+              });
               amountRef.current?.focus({ preventScroll: true });
+              amountRef.current?.select();
               window.scrollTo?.({ top: 0, behavior: 'smooth' });
             }}
           />

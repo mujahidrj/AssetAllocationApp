@@ -17,9 +17,9 @@ describe('format', () => {
     expect(drift(-7.8)).toBe('−7.8');
     expect(drift(0.04)).toBe('0.0');
     // In words, the same in every view
-    expect(driftWords(16)).toBe('16 pts over');
+    expect(driftWords(16)).toBe('16.0 pts over');
     expect(driftWords(-7.84, true)).toBe('7.8 pts under target');
-    expect(driftWords(1)).toBe('1 pt over');
+    expect(driftWords(1)).toBe('1.0 pt over');
     expect(driftWords(0.04, true)).toBe('on target');
   });
 

@@ -8,14 +8,15 @@ vi.mock('../storage', async () => {
   return { ...actual, loadCloudWorkspace: vi.fn(), saveCloudWorkspace: vi.fn(() => Promise.resolve()) };
 });
 
-// Signed in: the page works from the account's portfolios
+// Signed in: the page works from the account's portfolios. A test can sign out by
+// setting `auth.user` to null and rendering again.
+const auth = vi.hoisted(() => ({ user: null as User | null }));
 vi.mock('../usePortfolios', async () => {
   const actual = await vi.importActual<typeof import('../usePortfolios')>('../usePortfolios');
-  const user = { uid: 'u1' } as User;
-  return { ...actual, usePortfolios: () => actual.usePortfolios(user) };
+  return { ...actual, usePortfolios: () => actual.usePortfolios(auth.user) };
 });
 
-import { loadCloudWorkspace, saveCloudWorkspace } from '../storage';
+import { loadCloudWorkspace, loadDeviceWorkspace, saveCloudWorkspace, saveDeviceWorkspace } from '../storage';
 import { emptyPortfolio, type Workspace } from '../model';
 import { Calculator } from '../Calculator';
 
@@ -26,6 +27,7 @@ const cloud: Workspace = {
 
 describe('Calculator, signed in', () => {
   beforeEach(() => {
+    auth.user = { uid: 'u1' } as User;
     vi.spyOn(console, 'info').mockImplementation(() => {}); // load timings
     vi.mocked(loadCloudWorkspace).mockReset();
     vi.mocked(saveCloudWorkspace).mockClear();
@@ -82,5 +84,42 @@ describe('Calculator, signed in', () => {
       onLine.mockRestore();
       errors.mockRestore();
     }
+  });
+
+  it('brings back the amount and verb saved in the account, and saves new ones without "Saving…"', async () => {
+    vi.mocked(loadCloudWorkspace).mockResolvedValue({
+      ...cloud,
+      portfolios: [{ ...cloud.portfolios[0], lastAmount: '5,000', lastVerb: 'out' }],
+    });
+    const user = userEvent.setup();
+    render(<Calculator />);
+    expect(await screen.findByRole('button', { name: 'my Roth IRA' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Amount')).toHaveValue('5,000');
+    expect(screen.getByLabelText('What you want to do')).toHaveValue('out');
+
+    await user.clear(screen.getByLabelText('Amount'));
+    await user.type(screen.getByLabelText('Amount'), '700');
+    expect(screen.queryByText('Saving…')).not.toBeInTheDocument();
+    await waitFor(() => expect(saveCloudWorkspace).toHaveBeenCalledWith('u1', expect.objectContaining({
+      portfolios: [expect.objectContaining({ lastAmount: '700', lastVerb: 'out' })],
+    })), { timeout: 3000 });
+    expect(screen.queryByText('Saving…')).not.toBeInTheDocument();
+  });
+
+  it('doesn’t carry the account’s amount over to the device on signing out', async () => {
+    saveDeviceWorkspace({ portfolios: [{ ...cloud.portfolios[0], lastAmount: '500', lastVerb: 'out' }], activeId: 'c1' });
+    vi.mocked(loadCloudWorkspace).mockResolvedValue({
+      ...cloud,
+      portfolios: [{ ...cloud.portfolios[0], lastAmount: '8,000', lastVerb: 'add' }],
+    });
+    const { rerender } = render(<Calculator />);
+    expect(await screen.findByRole('button', { name: 'my Roth IRA' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Amount')).toHaveValue('8,000');
+
+    auth.user = null;
+    rerender(<Calculator />);
+    await waitFor(() => expect(screen.getByLabelText('Amount')).toHaveValue('500'));
+    expect(screen.getByLabelText('What you want to do')).toHaveValue('out');
+    expect(loadDeviceWorkspace()?.portfolios[0]).toMatchObject({ lastAmount: '500', lastVerb: 'out' });
   });
 });

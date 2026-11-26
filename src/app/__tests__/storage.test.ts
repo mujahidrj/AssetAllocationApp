@@ -55,6 +55,16 @@ describe('device storage', () => {
     expect(loadDeviceWorkspace()).toEqual(two);
   });
 
+  it('keeps each fund’s colour, for funds still in a portfolio', () => {
+    const colored: Workspace = { ...two, fundColors: { SPUS: 0, VTI: 3 } };
+    saveDeviceWorkspace(colored);
+    expect(loadDeviceWorkspace()).toEqual(colored);
+    window.localStorage.setItem('assetAllocation.portfolios.v3', JSON.stringify({
+      ...two, fundColors: { SPUS: 0, VTI: 12, GONE: 1, BND: 'blue' },
+    }));
+    expect(loadDeviceWorkspace()).toEqual({ ...two, fundColors: { SPUS: 0 } });
+  });
+
   it('keeps what was last typed for each portfolio, and drops anything malformed', () => {
     const typed: Workspace = { ...two, portfolios: [{ ...roth, lastAmount: '2,500', lastVerb: 'out' }, taxable] };
     saveDeviceWorkspace(typed);
@@ -121,7 +131,7 @@ describe('Google account storage', () => {
   });
 
   it('saves every portfolio and reads them back', async () => {
-    const typed: Workspace = { ...two, portfolios: [{ ...roth, lastAmount: '2,500', lastVerb: 'add' }, taxable] };
+    const typed: Workspace = { ...two, portfolios: [{ ...roth, lastAmount: '2,500', lastVerb: 'add' }, taxable], fundColors: { SPUS: 0, VTI: 1 } };
     await saveCloudWorkspace('u1', typed);
     const [stocksCall, positionsCall] = vi.mocked(setDoc).mock.calls as unknown as Array<[string, Record<string, unknown>]>;
     expect(stocksCall[0]).toBe('userStocks/u1');

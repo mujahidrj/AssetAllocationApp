@@ -1071,7 +1071,6 @@
 .mixRow .fundCell {
   flex-wrap: wrap;
   row-gap: 2px;
-  padding: 6px 0;
 }
 
 .mixRow .fundName {
@@ -1373,8 +1372,10 @@
   white-space: nowrap;
 }
 
+/* Far off target: said firmly, but not in orange, which is for things you can change */
 .driftBig {
-  color: var(--accent-text);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .driftSmall {
@@ -1984,7 +1985,7 @@
 .combinedHead,
 .combinedRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px 72px 64px 120px;
+  grid-template-columns: minmax(0, 1fr) 64px 64px 104px 112px;
   gap: 12px;
   align-items: center;
 }
@@ -2204,43 +2205,49 @@
   }
 
   /*
-   * Shorter rows: Now sits under the fund's name beside the target (and only once
-   * there's something to show), and "You own" is written in its field.
+   * A fund's row: the ticker beside the target, then lines across the full width under
+   * it for the whole name, your price and Now (only once there's something to show),
+   * then "You own", written in its field. The fund cell's parts sit in the row's grid.
    */
+  .mixRow .fundCell {
+    display: contents;
+  }
+
   .mixRow,
   .withHoldings .mixRow {
-    /* 72px leaves room for "Now 78.3% +18.3" on one line beside the target */
-    grid-template-columns: minmax(0, 1fr) 72px 36px;
-    grid-template-areas: 'fund target remove';
-    padding: 10px 0;
-    row-gap: 2px;
-  }
-
-  .withHoldings .mixRow {
+    grid-template-columns: 8px minmax(0, 1fr) 84px 36px;
     grid-template-areas:
-      'fund target remove'
-      'now target remove'
-      'own own own';
+      'sw sym target remove'
+      '. name name name'
+      '. price price price';
+    column-gap: 10px;
+    row-gap: 2px;
+    padding: 10px 0;
   }
 
+  .withHoldings .mixRow,
   .withHoldings .mixRow.noNow {
     grid-template-areas:
-      'fund target remove'
-      'own own own';
+      'sw sym target remove'
+      '. name name name'
+      '. price price price'
+      '. now now now'
+      'own own own own';
   }
 
-  .mixRow > :nth-child(1) { grid-area: fund; }
+  .mixRow .swatch { grid-area: sw; }
+  .mixRow .symbol { grid-area: sym; }
+  .mixRow .fundName { grid-area: name; padding-left: 0; }
+  .mixRow .yourPrice { grid-area: price; padding-left: 0; }
   .mixRow > :nth-child(2) { grid-area: target; }
   .mixRow > :last-child { grid-area: remove; }
 
   .withHoldings .mixRow > :nth-child(3) { grid-area: own; margin-top: 8px; }
   .withHoldings .mixRow > :nth-child(4) {
     grid-area: now;
-    padding-left: 18px;
     text-align: left;
     font-size: 13px;
     color: var(--text-2);
-    white-space: nowrap;
   }
 
   .withHoldings .mixRow.noNow > :nth-child(4) {
@@ -2474,18 +2481,35 @@
   }
 
   .combinedRow > :nth-child(1) { grid-area: fund; }
+
+  /* The whole name on its own line under the ticker, as in the portfolio card */
+  .combinedFund {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .combinedFund .fundName {
+    flex-basis: 100%;
+    padding-left: 18px;
+    font-size: 12px;
+  }
   .combinedRow > :nth-child(3) { grid-area: value; }
 
   .combinedStats {
     grid-area: stats;
     display: flex;
-    gap: 14px;
+    flex-wrap: wrap;
+    gap: 2px 12px;
     font-size: 13px;
     text-align: left;
   }
 
   .combinedStats > span:empty {
     display: none;
+  }
+
+  .combinedStats > span {
+    white-space: nowrap;
   }
 
   .dropHint {
@@ -2605,11 +2629,6 @@
 /* Small phones (iPhone SE and narrower): a smaller title so the header fits */
 /* iPhone SE (1st gen) and other 320px screens */
 @media (max-width: 360px) {
-  /* "Now 78.3% +18.3" fits only without the indent */
-  .withHoldings .mixRow > :nth-child(4) {
-    padding-left: 0;
-  }
-
   /* The pressed "$" beside the field says it */
   .ownCell .fieldPrefix {
     display: none;
@@ -2617,6 +2636,11 @@
 }
 
 @media (max-width: 400px) {
+  .mixRow,
+  .withHoldings .mixRow {
+    grid-template-columns: 8px minmax(0, 1fr) 72px 36px;
+  }
+
   /* "You own": a little more room for the number */
   .ownCell {
     gap: 4px;
@@ -2740,5 +2764,14 @@
   .shareFallback input,
   .textFallback textarea {
     font-size: 16px;
+  }
+}
+
+/* Wide screens: use the room, so whole fund names fit on one line */
+@media (min-width: 1100px) {
+  .main,
+  .headerInner,
+  .recapInner {
+    max-width: 920px;
   }
 }

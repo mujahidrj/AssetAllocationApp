@@ -265,7 +265,7 @@ export function Trades(props: TradesProps) {
             <div key={s.symbol} className={styles.skipRow}>
               <span className={styles.action}>Skip</span>
               {/* Why: it needs nothing to get closer to its target */}
-              {s.symbol} · {driftWords(s.nowPct - s.targetPct, true)} already, so nothing to {verb === 'out' ? 'sell' : 'buy'}
+              {s.symbol} · {driftWords(s.nowPct - s.targetPct, true)} already, so nothing to {{ out: 'sell', rebal: 'buy or sell', add: 'buy' }[verb]}
             </div>
           ))}
           {plan.leftover > 0 && (
@@ -343,7 +343,8 @@ export function Trades(props: TradesProps) {
               </select>
             </span>
           </span>
-          {skippedZero.length > 0 && (
+          {/* Only when buying: taking money out, a 0% fund is what gets sold first */}
+          {skippedZero.length > 0 && plan.status === 'ok' && verb !== 'out' && (
             <span className={styles.footItem}>
               {listText(skippedZero)} {skippedZero.length === 1 ? 'has' : 'have'} a 0% target, so {skippedZero.length === 1 ? "it isn't" : "they aren't"} bought
             </span>
