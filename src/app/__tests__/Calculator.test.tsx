@@ -947,7 +947,9 @@ describe('Calculator', () => {
 
     await user.click(screen.getByRole('button', { name: 'Edit your price for TRUST2050' }));
     await user.click(screen.getByRole('button', { name: 'Remove my price' }));
-    expect(screen.getByRole('button', { name: 'Add price' })).toBeInTheDocument();
+    // Offered again where the trades are, as well as on the fund's row
+    expect(within(screen.getByRole('region', { name: /your trades/i })).getByRole('button', { name: 'Add price' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Add price' })).toHaveLength(2);
   });
 
   it('shows all portfolios together, with where new money helps most', async () => {
