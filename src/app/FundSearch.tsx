@@ -116,7 +116,8 @@ export function FundSearch({ onAdd, existing, autoFocus }: FundSearchProps) {
       e.preventDefault();
       const pick = active >= 0 ? results[active] : results.find(r => r.symbol.toUpperCase() === typed.toUpperCase());
       if (pick) add(pick.symbol, pick.description);
-      else if (offerOwn && (active === results.length || results.length === 0)) addOwn();
+      // Not before search has answered: it may well know the fund
+      else if (offerOwn && !searching && (active === results.length || results.length === 0)) addOwn();
       else if (TICKER.test(typed.toUpperCase())) add(typed);
     }
   };

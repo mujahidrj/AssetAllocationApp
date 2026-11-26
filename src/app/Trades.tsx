@@ -187,11 +187,14 @@ export function Trades(props: TradesProps) {
           ) : failed.length > 0 ? (
             <div className={styles.emptyAction}>
               <p>
-                {failed.length === 1
+                {/* Funds added by name are never looked up: there's nothing to try again */}
+                {!failed.some(looksLikeTicker)
+                  ? <>{listText(failed)} {failed.length === 1 ? 'has' : 'have'} no price yet. You entered {failed.length === 1 ? 'it' : 'them'} in shares, so your trades need {failed.length === 1 ? 'its price' : 'their prices'} first.</>
+                  : failed.length === 1
                   ? <>Couldn't get a price for {failed[0]}. You entered it in shares, so your trades need its price first.</>
                   : <>Couldn't get prices for {listText(failed)}. You entered them in shares, so your trades need their prices first.</>}
               </p>
-              <PriceButtons symbols={failed} onAddPrice={onAddPrice} onRetry={onRefresh} />
+              <PriceButtons symbols={failed} onAddPrice={onAddPrice} onRetry={failed.some(looksLikeTicker) ? onRefresh : undefined} />
             </div>
           ) : pricesSlow ? (
             <div className={styles.emptyAction}>
@@ -244,7 +247,7 @@ export function Trades(props: TradesProps) {
                 <span className={styles.tradeShares}>
                   {isCashSymbol(t.symbol) ? 'cash'
                     : t.shares != null ? sharesText(t.shares, wholeShares)
-                    : fund && !looksLikeTicker(t.symbol) ? <button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Type its price to see shares</button>
+                    : fund && !looksLikeTicker(t.symbol) ? <><span className={styles.tradeNote}>No price yet.</span>{' '}<button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add price</button></>
                     : pricesLoading ? '…'
                     : fund ? <><span className={styles.tradeNote}>No price found.</span>{' '}<button type="button" className={styles.linkButton} onClick={() => onAddPrice(t.symbol)}>Add price</button></>
                     : 'no price'}

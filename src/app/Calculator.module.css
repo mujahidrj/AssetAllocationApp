@@ -1614,10 +1614,21 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .priceButtonsWide {
   flex-basis: 100%;
+}
+
+/* A fund added by name can be long: the button shortens it rather than leave the screen */
+.priceButtons button {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 38px;
 }
 
 .yourPrice {
@@ -1987,17 +1998,13 @@
   flex: none;
 }
 
-/* A fund added by name: words, not a ticker, so the text face, and three lines at most */
+/* A fund added by name: words, not a ticker, so the text face. Never cut short: the end
+   ("2050", "Class K6") is often what tells two funds apart. */
 .ownSymbol {
   min-width: 0;
   font-family: var(--font-ui);
   font-weight: 600;
   overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  overflow: hidden;
 }
 
 /* "No price found." beside the Add price link in a trade row */

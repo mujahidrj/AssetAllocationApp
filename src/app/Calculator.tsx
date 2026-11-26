@@ -950,7 +950,7 @@ export function Calculator() {
                 {ok && !copied ? <>
                   <span className={styles.copyBarFund}>{firstFund}</span>
                   <span className={styles.copyBarRest}>{firstRest}</span>
-                </> : bar.label}
+                </> : <span className={styles.copyBarFund}>{bar.label}</span>}
               </span>
               {bar.sub && <span className={styles.copyBarSub}>{bar.sub}</span>}
             </span>

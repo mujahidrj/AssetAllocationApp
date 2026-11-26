@@ -34,7 +34,8 @@ describe('shareLink', () => {
     const own = [
       { name: 'VTI', percentage: 60 },
       { name: 'Target Retirement 2050 Trust Select', percentage: 30 },
-      { name: 'Stable Value Fund (Class 3) & Co', percentage: 10 },
+      { name: 'Stable Value Fund (Class 3) & Co', percentage: 5 },
+      { name: 'T. Rowe Price’s Fidelity® Target 2045 – Class R6 #3', percentage: 5 },
     ];
     const link = new URL(buildShareLink(own, { origin: 'https://example.com', pathname: '/' }));
     expect(readSharedMix(link.search)).toEqual(own);

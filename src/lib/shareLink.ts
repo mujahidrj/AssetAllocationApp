@@ -7,8 +7,11 @@ import type { Stock } from '../components/calculator/types';
  */
 const PARAM = 'mix';
 const TICKER = /^[A-Z0-9.^-]{1,12}$/;
-/** A fund's name, as the app saves one: words, at most 60 characters, at least one letter. */
-const NAME = /^(?=.*\p{L})[\p{L}\p{N} .&'()/+%-]{1,60}$/u;
+/**
+ * A fund's name, as the app saves one: at most 60 characters with at least one letter,
+ * and nothing that could break the link apart (`,` `:`) or read as markup (`<` `>`).
+ */
+const NAME = /^(?=.*\p{L})[^,:<>\p{Cc}]{1,60}$/u;
 
 /** The fund as it goes in the portfolio: tickers in capitals, names as they were written. */
 function fundSymbol(raw: string): string | null {

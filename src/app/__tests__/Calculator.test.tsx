@@ -636,6 +636,23 @@ describe('Calculator', () => {
     expect(within(dialog).getByText('Fidelity:')).toBeInTheDocument();
   });
 
+  it('asks for the price of a fund added by name, held in shares, without offering to look it up', async () => {
+    seed({
+      funds: [{ symbol: 'VTI', target: 60 }, { symbol: 'Target 2050 Trust', target: 40 }],
+      holdings: { VTI: { kind: 'shares', amount: 10 }, 'Target 2050 Trust': { kind: 'shares', amount: 20 } },
+      tracksHoldings: true,
+    });
+    const user = userEvent.setup();
+    renderApp();
+    await user.type(screen.getByLabelText('Amount'), '1000');
+
+    const trades = screen.getByRole('region', { name: /your trades/i });
+    expect(await within(trades).findByText(/Target 2050 Trust has no price yet\. You entered it in shares/)).toBeInTheDocument();
+    expect(within(trades).queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    await user.click(within(trades).getByRole('button', { name: 'Add a price for Target 2050 Trust' }));
+    expect(screen.getByLabelText('Price per share for Target 2050 Trust')).toHaveFocus();
+  });
+
   it('holds the trades until every fund held in shares has a price', async () => {
     server.use(http.get('*/api/stock/BND', () => HttpResponse.json({ price: null })));
     seed({
