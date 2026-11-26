@@ -173,6 +173,8 @@ export function Calculator() {
   const totalRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [importGuide, setImportGuide] = useState(false);
+  // Typing in the fund search: the phone's copy bar steps aside for the results and keyboard
+  const [searchFocused, setSearchFocused] = useState(false);
   // The fund just added from the search: when targets fall short, the quick fix offers it the rest
   const [justAdded, setJustAdded] = useState<{ portfolioId: string; symbol: string } | null>(null);
 
@@ -282,12 +284,28 @@ export function Calculator() {
   }, [justAdded, funds, portfolio.id]);
 
   const focusHoldings = () => { holdingsField()?.focus(); };
-  const focusHoldingsOnShow = useRef(false);
+
+  /**
+   * Moves the cursor to a field a change inside flushSync has just drawn. In the browser
+   * flushSync draws it at once, so the cursor moves inside the tap (iPhone opens the
+   * keyboard only then). Should it not be drawn yet, it moves as soon as it is.
+   */
+  const focusAfterDraw = useRef<(() => void) | null>(null);
+  const focusDrawn = (find: () => HTMLElement | null | undefined, options?: FocusOptions, then?: (el: HTMLElement) => void) => {
+    const go = () => {
+      const el = find();
+      if (!el) return false;
+      el.focus(options);
+      then?.(el);
+      return true;
+    };
+    focusAfterDraw.current = go() ? null : () => { go(); };
+  };
   useLayoutEffect(() => {
-    if (!tracksHoldings || !focusHoldingsOnShow.current) return;
-    focusHoldingsOnShow.current = false;
-    holdingsField()?.focus();
-  }, [tracksHoldings]);
+    const go = focusAfterDraw.current;
+    focusAfterDraw.current = null;
+    go?.();
+  });
 
   /** Puts the cursor in the amount. Call it inside the tap itself, or iPhone won't open the keyboard. */
   const focusAmount = () => { amountRef.current?.focus(); };
@@ -313,11 +331,8 @@ export function Calculator() {
   /** From the guide: type what you own instead. Inside the tap, so the keyboard opens. */
   const enterByHand = () => {
     setImportGuide(false);
-    if (tracksHoldings) { focusHoldings(); return; }
-    // The fields aren't there yet: focus them as they appear. flushSync makes that happen
-    // inside this tap in the browser, which iPhone needs to open the keyboard.
-    focusHoldingsOnShow.current = true;
-    flushSync(() => actions.setTracksHoldings(true));
+    if (!tracksHoldings) flushSync(() => actions.setTracksHoldings(true));
+    focusDrawn(holdingsField);
   };
 
   // Copied-text fallback goes stale as soon as the trades change
@@ -638,8 +653,9 @@ export function Calculator() {
     setMenu('list');
   };
 
+  // Room below the search while it's in use, kept between funds added in a row so the page doesn't jump
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${searchFocused || (searchOpen && funds.length > 0) ? styles.searching : ''}`}>
       <Header
         user={user}
         savedTo={savedTo}
@@ -827,12 +843,26 @@ export function Calculator() {
                 onHolding={actions.setHolding}
                 onTracksHoldings={actions.setTracksHoldings}
                 onAddFund={(s, n, own) => {
-                  actions.addFund(s, n);
-                  setJustAdded({ portfolioId: portfolio.id, symbol: s });
-                  setSearchOpen(false);
-                  // A fund of your own (many 401(k) funds have no ticker) needs its price from you
-                  if (own && !looksLikeTicker(s)) setEditingPrice(s);
+                  // A fund added by name (many 401(k) funds have no ticker) needs its price from you
+                  const askPrice = own && !looksLikeTicker(s);
+                  // Drawn at once, so the cursor can move to the new row inside this tap (iPhone
+                  // keeps the keyboard open only then). The search stays open for the next fund.
+                  flushSync(() => {
+                    actions.addFund(s, n);
+                    setJustAdded({ portfolioId: portfolio.id, symbol: s });
+                    if (askPrice) setEditingPrice(s);
+                  });
+                  if (!askPrice) {
+                    // Where the search was: no need to move the page (the browser would centre it)
+                    focusDrawn(
+                      () => [...document.querySelectorAll<HTMLInputElement>('input[aria-label$=" target percent"]')]
+                        .find(i => i.getAttribute('aria-label') === `${s} target percent`),
+                      { preventScroll: true },
+                      el => el.scrollIntoView?.({ block: 'nearest' }),
+                    );
+                  }
                 }}
+                onSearchFocus={setSearchFocused}
                 onRemoveFund={removeFund}
                 onScale={actions.scaleTo100}
                 onAbsorb={actions.absorbRemainder}
@@ -951,7 +981,7 @@ export function Calculator() {
       )}
 
       {!showingAll && !waitingForAccount && plan.status !== 'needs-mix' && (
-        <div className={styles.copyBar}>
+        <div className={`${styles.copyBar} ${searchFocused ? styles.copyBarAway : ''}`}>
           {/* Always there (it would flicker as targets are typed), and when there's nothing to copy yet it takes you to what's missing */}
           <button type="button" className={`${styles.primary} ${bar.run && !ok ? styles.barGo : ''}`} onClick={bar.run} disabled={!bar.run}>
             {ok && <CopyIcon />}

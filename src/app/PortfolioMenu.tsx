@@ -45,6 +45,9 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
   const [draft, setDraft] = useState('');
   const [left, setLeft] = useState(0);
   const [top, setTop] = useState(0);
+  // Room between the blank and the bottom of the window, so a short (landscape) screen
+  // doesn't put the end of the popover off the bottom
+  const [room, setRoom] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const active = portfolios.find(p => p.id === activeId) ?? portfolios[0];
 
@@ -63,6 +66,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
     if (!w) return;
     setLeft(Math.max(0, Math.min(a.left - w.left, w.width - width)));
     setTop(a.bottom - w.top + 8);
+    setRoom(Math.max(200, window.innerHeight - a.bottom - 16));
   }, [anchor, step]);
 
   // Close on Escape or a click outside, and give focus back to the blank
@@ -103,7 +107,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
       <div
         ref={menuRef}
         className={styles.menu}
-        style={{ left, top }}
+        style={{ left, top, ...(room ? { '--menu-room': `${room}px` } as React.CSSProperties : {}) }}
         role="dialog"
         aria-label={step === 'list' ? 'Portfolios' : 'Templates'}
         onKeyDown={onKeyDown}

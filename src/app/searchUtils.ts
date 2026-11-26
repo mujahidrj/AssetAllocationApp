@@ -211,5 +211,79 @@ export function ownFundSymbol(typed: string): string {
   return (space > OWN_NAME_MAX / 2 ? cut.slice(0, space) : name.slice(0, OWN_NAME_MAX)).trim();
 }
 
-/** Could be a ticker the price lookup knows ("VTI", "BRK.B", "^GSPC"), rather than a fund's name. */
-export const looksLikeTicker = (symbol: string) => /^[A-Za-z0-9.^-]{1,12}$/.test(symbol.trim());
+/** Could be a ticker the price lookup knows ("VTI", "BRK.B"), rather than a fund's name. Indexes (^GSPC) can't be bought. */
+export const looksLikeTicker = (symbol: string) => /^[A-Za-z0-9.-]{1,12}$/.test(symbol.trim());
+
+/**
+ * Funds most people mean, in rough order of how often they're used. A search for
+ * "bond" or "vanguard" offers these first, even when the price service's search
+ * leaves them out (it returns ten matches, often obscure ones).
+ */
+export const COMMON_FUNDS: SearchResult[] = [
+  { symbol: 'VTI', description: 'Vanguard Total Stock Market ETF' },
+  { symbol: 'VOO', description: 'Vanguard S&P 500 ETF' },
+  { symbol: 'VXUS', description: 'Vanguard Total International Stock ETF' },
+  { symbol: 'BND', description: 'Vanguard Total Bond Market ETF' },
+  { symbol: 'AGG', description: 'iShares Core U.S. Aggregate Bond ETF' },
+  { symbol: 'SPY', description: 'SPDR S&P 500 ETF Trust' },
+  { symbol: 'IVV', description: 'iShares Core S&P 500 ETF' },
+  { symbol: 'FXAIX', description: 'Fidelity 500 Index Fund' },
+  { symbol: 'FSKAX', description: 'Fidelity Total Market Index Fund' },
+  { symbol: 'FZROX', description: 'Fidelity ZERO Total Market Index Fund' },
+  { symbol: 'FZILX', description: 'Fidelity ZERO International Index Fund' },
+  { symbol: 'FTIHX', description: 'Fidelity Total International Index Fund' },
+  { symbol: 'FXNAX', description: 'Fidelity U.S. Bond Index Fund' },
+  { symbol: 'VTSAX', description: 'Vanguard Total Stock Market Index Fund Admiral Shares' },
+  { symbol: 'VTIAX', description: 'Vanguard Total International Stock Index Fund Admiral Shares' },
+  { symbol: 'VBTLX', description: 'Vanguard Total Bond Market Index Fund Admiral Shares' },
+  { symbol: 'VFIAX', description: 'Vanguard 500 Index Fund Admiral Shares' },
+  { symbol: 'BNDX', description: 'Vanguard Total International Bond ETF' },
+  { symbol: 'VT', description: 'Vanguard Total World Stock ETF' },
+  { symbol: 'VEA', description: 'Vanguard FTSE Developed Markets ETF' },
+  { symbol: 'VWO', description: 'Vanguard FTSE Emerging Markets ETF' },
+  { symbol: 'VNQ', description: 'Vanguard Real Estate ETF' },
+  { symbol: 'SCHB', description: 'Schwab U.S. Broad Market ETF' },
+  { symbol: 'SCHF', description: 'Schwab International Equity ETF' },
+  { symbol: 'SCHZ', description: 'Schwab U.S. Aggregate Bond ETF' },
+  { symbol: 'SCHD', description: 'Schwab U.S. Dividend Equity ETF' },
+  { symbol: 'ITOT', description: 'iShares Core S&P Total U.S. Stock Market ETF' },
+  { symbol: 'IXUS', description: 'iShares Core MSCI Total International Stock ETF' },
+  { symbol: 'QQQ', description: 'Invesco QQQ Trust' },
+  { symbol: 'TLT', description: 'iShares 20+ Year Treasury Bond ETF' },
+  { symbol: 'SGOV', description: 'iShares 0-3 Month Treasury Bond ETF' },
+  { symbol: 'GLD', description: 'SPDR Gold Shares' },
+  { symbol: 'SPUS', description: 'SP Funds S&P 500 Sharia Industry Exclusions ETF' },
+  { symbol: 'SPTE', description: 'SP Funds S&P Global Technology ETF' },
+  { symbol: 'SPWO', description: 'SP Funds S&P World ETF' },
+  { symbol: 'SPSK', description: 'SP Funds Dow Jones Global Sukuk ETF' },
+  { symbol: 'SPRE', description: 'SP Funds S&P Global REIT Sharia ETF' },
+  { symbol: 'HLAL', description: 'Wahed FTSE USA Shariah ETF' },
+];
+
+/** At most this many common funds go above the search's own results. */
+const MAX_COMMON = 4;
+const MAX_RESULTS = 8;
+
+const nameWords = (text: string) => text.toUpperCase().split(/[^A-Z0-9&+]+/).filter(Boolean);
+
+/**
+ * What the fund search shows: a ticker typed in full first ("VO" before VOO), then common
+ * funds that match, then the rest of the search's results. A word that's also a ticker
+ * ("bond" is PIMCO's BOND) means the common funds named by it first. Indexes (^GSPC, ^TNX)
+ * are left out, since they can't be bought.
+ */
+export function rankResults(query: string, raw: Array<{ symbol?: string; description?: string }>): SearchResult[] {
+  const q = query.trim().toUpperCase();
+  const words = nameWords(q);
+  const found = cleanResults(raw.filter(r => !r.symbol?.startsWith('^')));
+  const byName = (r: SearchResult) => words.length > 0 && words.every(w => nameWords(r.description).some(n => n.startsWith(w)));
+  const common = COMMON_FUNDS.filter(r => r.symbol.startsWith(q) || byName(r)).slice(0, MAX_COMMON);
+  const exactCommon = COMMON_FUNDS.find(r => r.symbol === q);
+  const exactFound = found.find(r => r.symbol === q);
+  const first = exactCommon ?? (common.some(byName) ? undefined : exactFound);
+  const out: SearchResult[] = [];
+  [...(first ? [first] : []), ...common, ...(exactFound ? [exactFound] : []), ...found].forEach(r => {
+    if (!out.some(x => x.symbol === r.symbol)) out.push(r);
+  });
+  return out.slice(0, MAX_RESULTS);
+}
