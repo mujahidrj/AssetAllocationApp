@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, type Ref } from 'react';
 import styles from './Calculator.module.css';
 import { closesKeyboard } from './format';
 import type { Verb } from './model';
@@ -40,6 +40,8 @@ interface SentenceProps {
   hasHoldings: boolean;
   amount: string;
   onAmount: (value: string) => void;
+  /** The amount field, so the page can put the cursor there. */
+  amountRef?: Ref<HTMLInputElement>;
   onAmountBlur: () => void;
   portfolioLabel: string;
   onPortfolioClick: () => void;
@@ -56,7 +58,7 @@ const AMOUNT_PLACEHOLDER = '2,500';
  * "I want to add $2,500 / to my Roth IRA."
  */
 export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Sentence(props, portfolioRef) {
-  const { verb, onVerb, hasHoldings, amount, onAmount, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, all } = props;
+  const { verb, onVerb, hasHoldings, amount, onAmount, amountRef, onAmountBlur, portfolioLabel, onPortfolioClick, menuOpen, all } = props;
   const hasAmount = verb !== 'rebal';
 
   const verbOptions: Array<{ value: Verb; label: string; menuLabel?: string }> = [
@@ -100,6 +102,7 @@ export const Sentence = forwardRef<HTMLButtonElement, SentenceProps>(function Se
               <span className={styles.dollar}>$</span>
               <span className={styles.sizer} data-value={amount || AMOUNT_PLACEHOLDER}>
                 <input
+                  ref={amountRef}
                   aria-label="Amount"
                   size={1}
                   inputMode="decimal"

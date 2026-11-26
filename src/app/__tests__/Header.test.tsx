@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { User } from 'firebase/auth';
 import { Header } from '../Header';
@@ -57,6 +57,16 @@ describe('Header', () => {
 
     await user.click(within(panel).getByRole('button', { name: /sign out.*before you signed in/i }));
     expect(props.onSignOut).toHaveBeenCalled();
+  });
+
+  it('closes with Back on phones, where the panel is a sheet', async () => {
+    const user = userEvent.setup();
+    renderHeader({ user: mujahid, savedTo: 'account' });
+    await user.click(screen.getByRole('button', { name: /^Mujahid:/ }));
+    expect(window.history.state).toMatchObject({ aaSheet: 'account', level: 1 });
+    act(() => { window.history.back(); });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(window.history.state).toBeNull();
   });
 
   it('closes with Escape and puts focus back on the avatar', async () => {

@@ -5,6 +5,8 @@ import { displayName, type Fund, type Portfolio } from './model';
 import { money } from './format';
 import { FundList, MixPicker } from './MixPicker';
 import { describeMix } from './templates';
+import { SheetBar } from './SheetBar';
+import { useSheetHistory } from './sheetHistory';
 
 interface PortfolioMenuProps {
   portfolios: Portfolio[];
@@ -47,6 +49,11 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
   const [top, setTop] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const active = portfolios.find(p => p.id === activeId) ?? portfolios[0];
+
+  // Back closes the sheet, or from the template list goes back to the portfolios
+  useSheetHistory('portfolios', startOnMix || step === 'list' ? 1 : 2, level => {
+    if (level === 0) onClose(); else setStep('list');
+  });
 
   // Sit under the blank, kept inside the column
   useLayoutEffect(() => {
@@ -94,7 +101,7 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
 
   return (
     <>
-      <div className={styles.menuBackdrop} onClick={onClose} aria-hidden="true" />
+      <div className={styles.menuBackdrop} onClick={onClose} aria-hidden="true" data-sheet-backdrop />
       <div
         ref={menuRef}
         className={styles.menu}
@@ -102,7 +109,16 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
         role="dialog"
         aria-label={step === 'list' ? 'Portfolios' : 'Templates'}
         onKeyDown={onKeyDown}
+        data-sheet
       >
+        <SheetBar
+          onClose={onClose}
+          back={step === 'mix' && !startOnMix && (
+            <button type="button" className={styles.pickerBack} onClick={() => setStep('list')}>
+              <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}><ChevronIcon /></span> {displayName(active)}
+            </button>
+          )}
+        />
         {step === 'list' ? (
           <>
             {all && portfolios.length > 1 && (
@@ -182,11 +198,6 @@ export function PortfolioMenu(props: PortfolioMenuProps) {
           </>
         ) : (
           <>
-            {!startOnMix && (
-              <button type="button" className={styles.pickerBack} onClick={() => setStep('list')}>
-                <span style={{ transform: 'rotate(90deg)', display: 'inline-flex' }}><ChevronIcon /></span> {displayName(active)}
-              </button>
-            )}
             <MixPicker
               current={active.funds}
               heading="Start from a template"
